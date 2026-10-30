@@ -55,7 +55,7 @@
   // 執行一次完整流程
   function runTrial(state, P, R, cams, opts = {}) {
     const lastStepOf = {};
-    state.shots.forEach(s => { if (s.enabled) lastStepOf[s.mark] = Math.max(lastStepOf[s.mark] ?? -1, +s.step); });
+    state.shots.forEach(s => { if (s.enabled) lastStepOf[s.mark] = Math.max(s.mark in lastStepOf ? lastStepOf[s.mark] : -1, +s.step); });
     // 各 mark 的「理想位置」：以最後一個步驟（通常是最高倍率）的目標像素在真實相機中的位置
     const nominal = {};
     state.shots.forEach(s => {

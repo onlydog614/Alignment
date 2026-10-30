@@ -122,9 +122,9 @@ table.axes input.name { width: 48px; }
 .dot.rc { background: var(--rc); }
 
 .status { padding: 8px 10px; border-radius: 6px; font-weight: 600; margin-bottom: 8px; }
-.status.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
-.status.ng { background: color-mix(in srgb, var(--ng) 15%, transparent); color: var(--ng); }
-.status.warn { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.status.ok { background: rgba(21,128,61,.15); background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.status.ng { background: rgba(194,65,12,.15); background: color-mix(in srgb, var(--ng) 15%, transparent); color: var(--ng); }
+.status.warn { background: rgba(192,57,43,.15); background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 13px; }
 .kv b { text-align: right; font-variant-numeric: tabular-nums; }
 .warnings { color: var(--danger); font-size: 12px; margin: 6px 0; padding-left: 18px; }
@@ -147,7 +147,8 @@ fieldset { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px
 legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
 .pixviews { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .pixview { border: 1px solid var(--border); border-radius: 6px; padding: 4px; font-size: 11px; }
-.pixview canvas { width: 100%; aspect-ratio: 6 / 5; display: block; }
+.pixview canvas { width: 100%; height: 120px; aspect-ratio: 6 / 5; display: block; }
+@supports (aspect-ratio: 1) { .pixview canvas { height: auto; } }
 .pixview .cap { display: flex; justify-content: space-between; gap: 4px; }
 .smallcanvas { width: 100%; height: 260px; margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
 .chart { width: 100%; height: 280px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
