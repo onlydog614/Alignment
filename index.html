@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>視覺對位除錯工具</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>視覺對位除錯工具 <span class="ver">v0.1</span></h1>
+    <div class="topbar-actions">
+      <button id="btnDemo" type="button">載入範例</button>
+      <button id="btnExport" type="button">匯出設定</button>
+      <label class="btn-like">匯入設定<input id="fileImport" type="file" accept=".json,application/json" hidden></label>
+      <button id="btnReset" type="button" class="danger">全部重設</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左：設定 -->
+    <section class="panel" id="panelSetup">
+      <h2>1. 平台</h2>
+      <div class="field">
+        <label for="platformPreset">平台種類</label>
+        <select id="platformPreset"></select>
+      </div>
+      <p class="hint" id="platformNote"></p>
+      <div class="grid2">
+        <div class="field"><label>旋轉中心 X (mm)</label><input type="number" step="any" data-bind="platform.rc.x"></div>
+        <div class="field"><label>旋轉中心 Y (mm)</label><input type="number" step="any" data-bind="platform.rc.y"></div>
+      </div>
+      <details>
+        <summary>軸設定（<span id="axisCount">0</span> 軸）</summary>
+        <div class="table-wrap">
+          <table class="axes">
+            <thead><tr><th>名稱</th><th>類型</th><th>致動點 X</th><th>致動點 Y</th><th>方向°</th><th>反相</th><th></th></tr></thead>
+            <tbody id="axisRows"></tbody>
+          </table>
+        </div>
+        <button id="btnAddAxis" type="button" class="small">＋ 新增軸</button>
+        <p class="hint">致動點為相對旋轉中心的位置。類型：直線（致動點在平台上）、直線-隨θ（XY 在 θ 之上）、旋轉。</p>
+      </details>
+
+      <h2>2. 對位計算</h2>
+      <div class="grid2">
+        <div class="field"><label>修正比例 Gain (%)</label><input type="number" step="any" data-bind="fit.gain"></div>
+        <div class="field"><label>位置公差 (mm)</label><input type="number" step="any" data-bind="fit.tol"></div>
+      </div>
+
+      <h2>3. 相機 <span class="count-ctl">
+        <button type="button" id="btnCamMinus" class="small">−</button>
+        <span id="camCount">0</span>
+        <button type="button" id="btnCamPlus" class="small">＋</button></span>
+      </h2>
+      <div id="cameraList"></div>
+    </section>
+
+    <!-- 中：視覺化 -->
+    <section class="panel viewer">
+      <div class="viewer-bar">
+        <label>誤差放大 ×<input type="number" id="exaggerate" min="1" step="1" value="50"></label>
+        <label><input type="checkbox" id="showFov" checked> 視野</label>
+        <label><input type="checkbox" id="showAxes" checked> 軸</label>
+        <button type="button" id="btnFit" class="small">置中</button>
+        <span id="cursorPos" class="mono"></span>
+      </div>
+      <canvas id="view"></canvas>
+      <div class="legend">
+        <span><i class="dot cur"></i>目前位置</span>
+        <span><i class="dot tgt"></i>目標位置</span>
+        <span><i class="dot pred"></i>修正後預測</span>
+        <span><i class="dot rc"></i>旋轉中心</span>
+        <span class="hint">滾輪縮放、拖曳平移；誤差向量依放大倍率繪製</span>
+      </div>
+    </section>
+
+    <!-- 右：結果 -->
+    <section class="panel" id="panelResult">
+      <h2>計算結果</h2>
+      <div id="status" class="status"></div>
+      <div id="correction"></div>
+      <h3>各相機</h3>
+      <div class="table-wrap"><table id="camTable"></table></div>
+      <h3>軸指令</h3>
+      <div class="table-wrap"><table id="axisTable"></table></div>
+      <button type="button" id="btnCopy" class="small">複製結果文字</button>
+
+      <h2>模擬迭代</h2>
+      <p class="hint">將修正量套用到「目前位置」，用來檢查是否收斂。可加入誤差以重現現場問題。</p>
+      <div class="grid2">
+        <div class="field"><label>量測雜訊 σ (px)</label><input type="number" step="any" data-bind="sim.noisePx"></div>
+        <div class="field"><label>機構比例誤差 (%)</label><input type="number" step="any" data-bind="sim.gainErr"></div>
+        <div class="field"><label>實際旋轉中心偏差 X (mm)</label><input type="number" step="any" data-bind="sim.rcErrX"></div>
+        <div class="field"><label>實際旋轉中心偏差 Y (mm)</label><input type="number" step="any" data-bind="sim.rcErrY"></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="btnStep">執行 1 次</button>
+        <button type="button" id="btnStep5">執行 5 次</button>
+        <button type="button" id="btnClearHist" class="small">清除紀錄</button>
+      </div>
+      <div class="table-wrap"><table id="histTable"></table></div>
+    </section>
+  </main>
+
+  <script src="js/geometry.js"></script>
+  <script src="js/platforms.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
