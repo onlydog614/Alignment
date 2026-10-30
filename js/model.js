@@ -45,6 +45,7 @@
       shots: [newShot(0, 0), newShot(1, 1)],
       sim: { noisePx: 0, gainErr: 0, rcErrX: 0, rcErrY: 0 },
       scen: defaultScen(),
+      proc: { mode: 'teach', zAxis: true, glass: true, maxCorrDeg: 1, noisePx: 0.15, gantryRepeatUm: 1, mounts: [] },
       history: []
     };
   }
@@ -72,6 +73,7 @@
       const out = Object.assign(d, s);
       out.platform = Object.assign(d.platform, s.platform);
       out.scen = Object.assign(defaultScen(), s.scen);
+      out.proc = Object.assign(d.proc, s.proc);
       out.cameras.forEach(c => { if (!c.optics) c.optics = newCamera(0).optics; });
       return out;
     }

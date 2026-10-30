@@ -219,6 +219,65 @@
     return { cx, cy, r, residuals, max: Math.max(...residuals.map(Math.abs)), sd };
   }
 
+  // N×N 線性方程組（高斯消去）
+  function solveN(M, b) {
+    const n = b.length, a = M.map((row, i) => [...row, b[i]]);
+    for (let c = 0; c < n; c++) {
+      let p = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r;
+      if (Math.abs(a[p][c]) < 1e-18) return null;
+      [a[c], a[p]] = [a[p], a[c]];
+      for (let r = 0; r < n; r++) {
+        if (r === c) continue;
+        const f = a[r][c] / a[c][c];
+        for (let k = c; k <= n; k++) a[r][k] -= f * a[c][k];
+      }
+    }
+    return a.map((row, i) => row[n] / row[i]);
+  }
+
+  // 已知指令角度的旋轉中心擬合（線性）：p_i = R(θ_i)·p0 + (I − R(θ_i))·c
+  // 未知數 [p0x, p0y, cx, cy]。精度約為 σ / 角度範圍，與半徑無關；
+  // 若 θ 軸有比例誤差，得到的是「以指令角度計算時最一致」的有效中心，正是對位計算需要的。
+  function rotCenterNormal(angles) {
+    const N = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    const rows = [];
+    angles.forEach(t => {
+      const c = Math.cos(t), s = Math.sin(t);
+      rows.push([c, -s, 1 - c, s], [s, c, -s, 1 - c]);
+    });
+    rows.forEach(r => { for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) N[i][j] += r[i] * r[j]; });
+    return { N, rows };
+  }
+  function fitRotCenterKnown(pts) {
+    if (pts.length < 2) return null;
+    const angles = pts.map(p => p.th * D2R);
+    const { N, rows } = rotCenterNormal(angles);
+    const b = [0, 0, 0, 0];
+    pts.forEach((p, i) => {
+      [p.x, p.y].forEach((v, k) => { const r = rows[2 * i + k]; for (let j = 0; j < 4; j++) b[j] += r[j] * v; });
+    });
+    const x = solveN(N, b);
+    if (!x) return null;
+    const p0 = { x: x[0], y: x[1] }, c = { x: x[2], y: x[3] };
+    const residuals = pts.map((p, i) => {
+      const q = applyMove(p0, angles[i], { x: 0, y: 0 }, c);
+      return { x: p.x - q.x, y: p.y - q.y, d: Math.hypot(p.x - q.x, p.y - q.y) };
+    });
+    const dof = 2 * pts.length - 4;
+    const s2 = dof > 0 ? residuals.reduce((a, r) => a + r.x * r.x + r.y * r.y, 0) / dof : NaN;
+    const ix = [2, 3].map(k => solveN(N, [0, 1, 2, 3].map(i => (i === k ? 1 : 0))));
+    const sd = ix.every(Boolean) && Number.isFinite(s2) ? Math.sqrt(s2 * Math.max(ix[0][2], 0) + s2 * Math.max(ix[1][3], 0)) : NaN;
+    return { cx: c.x, cy: c.y, p0, residuals, max: Math.max(...residuals.map(r => r.d)), sd, r: Math.hypot(p0.x - c.x, p0.y - c.y) };
+  }
+  // 預估：角度 anglesDeg、每點雜訊 sigma 時，圓心 1σ 不確定度（與半徑無關）
+  function rotCenterUncertainty(anglesDeg, sigma) {
+    const { N } = rotCenterNormal(anglesDeg.map(a => a * D2R));
+    const ix = [2, 3].map(k => solveN(N, [0, 1, 2, 3].map(i => (i === k ? 1 : 0))));
+    if (!ix.every(Boolean)) return Infinity;
+    return sigma * Math.sqrt(Math.max(ix[0][2], 0) + Math.max(ix[1][3], 0));
+  }
+
   // Nelder–Mead 單純形最佳化
   function nelderMead(f, x0, steps, iters = 2000, tol = 1e-15) {
     const n = x0.length;
@@ -280,6 +339,6 @@
   global.VA = Object.assign(global.VA || {}, {
     D2R, R2D, rot, cameraAffine, pixToWorld, worldToPix, describeAffine,
     fitRigid, fitRigidMinimax, applyMove, axisCommands, gauss,
-    solve3, fitAffine, fitCircle, nelderMead
+    solve3, solveN, fitAffine, fitCircle, fitRotCenterKnown, rotCenterUncertainty, nelderMead
   });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -167,3 +167,84 @@ legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
 .optsum { font-size: 12px; color: var(--muted); margin: 2px 0 4px; }
 .tooltip { position: fixed; pointer-events: none; background: var(--panel); color: var(--text); border: 1px solid var(--border);
   border-radius: 4px; padding: 3px 6px; font-size: 12px; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+
+/* ---- 校正手順 ---- */
+:root {
+  --nine: #5b4fc4; --nine-bg: #ecebfa;
+  --rcc: #1f7a5a; --rcc-bg: #e3f1eb;
+  --link: #d0532a; --link-bg: #fbeae3;
+  --focus: #2563eb; --focus-bg: #e6eefc;
+  --teach: #a16207; --teach-bg: #fbf2dc;
+  --stage-fill: #e7e7e4; --glass-fill: #b7dccd;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --nine: #a49bf0; --nine-bg: #26233f; --rcc: #5fcf9f; --rcc-bg: #173229; --link: #f38a62; --link-bg: #3a2018;
+    --focus: #7aa7f7; --focus-bg: #1a2640; --teach: #e9b949; --teach-bg: #33290f; --stage-fill: #2b2f38; --glass-fill: #2f5c4c;
+  }
+}
+:root[data-theme="dark"] {
+  --nine: #a49bf0; --nine-bg: #26233f; --rcc: #5fcf9f; --rcc-bg: #173229; --link: #f38a62; --link-bg: #3a2018;
+  --focus: #7aa7f7; --focus-bg: #1a2640; --teach: #e9b949; --teach-bg: #33290f; --stage-fill: #2b2f38; --glass-fill: #2f5c4c;
+}
+.layout-proc { display: grid; gap: 12px; padding: 12px; grid-template-columns: 340px minmax(0, 1fr); align-items: start; }
+@media (max-width: 900px) { .layout-proc { grid-template-columns: minmax(0, 1fr); padding: 8px 16px; } }
+.proc-config { position: sticky; top: 12px; max-height: calc(100vh - 80px); overflow-y: auto; }
+@media (max-width: 900px) { .proc-config { position: static; max-height: none; } }
+.swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.pflow { max-width: 640px; margin: 0 auto 12px; }
+.fig { width: 100%; height: auto; display: block; }
+.pstep { border: 1px solid var(--border); border-left: 4px solid var(--kc, var(--accent)); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.pstep header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.pstep h3 { margin: 0; font-size: 15px; color: var(--kc); }
+.pnum { width: 28px; height: 28px; border-radius: 50%; background: var(--kc); color: var(--panel); display: grid; place-items: center; font-weight: 700; flex: none; }
+.pbody { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .pbody { grid-template-columns: minmax(0, 1fr); } .pfig { max-width: 420px; } }
+.pbul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
+.pbul li { margin-bottom: 4px; }
+.pcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.plist { background: var(--bg); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.plist ul { margin: 4px 0 0; padding-left: 16px; }
+.k-focus { --kc: var(--focus); --kb: var(--focus-bg); }
+.k-nine { --kc: var(--nine); --kb: var(--nine-bg); }
+.k-rc { --kc: var(--rcc); --kb: var(--rcc-bg); }
+.k-link { --kc: var(--link); --kb: var(--link-bg); }
+.k-teach { --kc: var(--teach); --kb: var(--teach-bg); }
+.k-verify { --kc: var(--rcc); --kb: var(--rcc-bg); }
+/* SVG 圖元 */
+.fig text { font-family: system-ui, "Microsoft JhengHei", "PingFang TC", sans-serif; }
+.f-t { fill: var(--text); font-size: 12px; }
+.f-m { fill: var(--muted); font-size: 11px; }
+.f-title { fill: var(--text); font-weight: 700; font-size: 13px; }
+.f-title.k-focus, .f-title.k-nine, .f-title.k-rc, .f-title.k-link, .f-title.k-teach, .f-title.k-verify { fill: var(--kc); }
+.f-box { fill: var(--panel); stroke: var(--border); stroke-width: 1.5; }
+.f-box.k-focus, .f-box.k-nine, .f-box.k-rc, .f-box.k-link, .f-box.k-teach, .f-box.k-verify { fill: var(--kb); stroke: var(--kc); }
+.f-ahead { fill: var(--muted); }
+.f-arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.f-arrow.cam { stroke: var(--nine); }
+.f-arrow.err { stroke: var(--cur); }
+.dashed { stroke-dasharray: 5 4; }
+.f-loop { stroke: var(--link); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+.f-loopt { fill: var(--link); font-size: 11px; }
+.f-fov { fill: none; stroke: var(--muted); stroke-dasharray: 5 4; stroke-width: 1.2; }
+.f-dot { fill: var(--pred); }
+.f-path { fill: none; stroke: var(--grid); stroke-width: 1.5; }
+.f-arc { fill: none; stroke: var(--pred); stroke-width: 2; }
+.f-dash { stroke: var(--muted); stroke-dasharray: 4 4; stroke-width: 1; }
+.f-rc { fill: var(--link); }
+.f-cam { fill: var(--nine-bg); stroke: var(--nine); stroke-width: 1.5; }
+.f-camt { fill: var(--nine); font-size: 11px; }
+.f-stage { fill: var(--stage-fill); stroke: var(--muted); stroke-width: 1; }
+.f-glass { fill: var(--glass-fill); stroke: var(--rcc); stroke-width: 1; }
+.f-mark { fill: var(--link); }
+.f-ghost { fill: none; stroke: var(--link); stroke-dasharray: 2 2; }
+.f-target { fill: none; stroke: var(--tgt); stroke-width: 2; }
+.f-lens { fill: var(--stage-fill); stroke: var(--muted); }
+.f-dof { fill: var(--focus-bg); stroke: var(--focus); stroke-dasharray: 3 3; }
+@media print {
+  .topbar, .proc-config, #panelSetup { display: none !important; }
+  .layout-proc { grid-template-columns: 1fr; padding: 0; }
+  .panel { border: none; }
+  .pstep { break-inside: avoid; }
+  body { background: #fff; }
+}

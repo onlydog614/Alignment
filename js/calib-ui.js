@@ -164,37 +164,43 @@
       const sh = a.length >= 5 ? { gx: a[3], gy: a[4] } : shot;
       return Object.assign(VA.shotToStage(s, sh, VA.pixToWorld(m, a[0], a[1])), { th: a[2] });
     });
-    rcFit = VA.fitCircle(pts);
-    if (!rcFit) { out.innerHTML = '<p class="warnings">點位共線，無法求解。</p>'; drawRc(); return; }
+    // 主要結果：已知指令角度的線性擬合；幾何圓擬合只用來交叉檢查與估 θ 比例
+    rcFit = VA.fitRotCenterKnown(pts);
+    const circ = pts.length >= 3 ? VA.fitCircle(pts) : null;
+    if (!rcFit) { out.innerHTML = '<p class="warnings">角度全部相同，無法求解。</p>'; drawRc(); return; }
     rcFit.pts = pts;
-    // 量到的角度 vs 指令角度：斜率 ≠ 1 代表 θ 軸比例誤差
-    const meas = pts.map(p => Math.atan2(p.y - rcFit.cy, p.x - rcFit.cx));
-    const base = meas[0];
-    const md = meas.map(a => { let d = (a - base) * VA.R2D; d = ((d + 540) % 360) - 180; return d; });
-    const cd = pts.map(p => p.th - pts[0].th);
-    const n = pts.length, sx = cd.reduce((a, b) => a + b, 0), sy = md.reduce((a, b) => a + b, 0);
-    const sxx = cd.reduce((a, b) => a + b * b, 0), sxy = cd.reduce((a, b, i) => a + b * md[i], 0);
-    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-    const span = Math.max(...cd) - Math.min(...cd);
+    let slope = NaN;
+    if (circ) {
+      // 量到的角度 vs 指令角度：斜率 ≠ 1 代表 θ 軸比例誤差
+      const meas = pts.map(p => Math.atan2(p.y - circ.cy, p.x - circ.cx));
+      const md = meas.map(a => { let d = (a - meas[0]) * VA.R2D; d = ((d + 540) % 360) - 180; return d; });
+      const cd = pts.map(p => p.th - pts[0].th);
+      const n = pts.length, sx = cd.reduce((a, b) => a + b, 0), sy = md.reduce((a, b) => a + b, 0);
+      const sxx = cd.reduce((a, b) => a + b * b, 0), sxy = cd.reduce((a, b, i) => a + b * md[i], 0);
+      slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    }
+    const ths = pts.map(p => p.th), span = Math.max(...ths) - Math.min(...ths);
     const pos = s.platform.preset === 'XYT' ? s.platform.pos : { x: 0, y: 0 };
     const cur = VA.effectiveRc(s);
     const warn = [];
-    const noiseMm = Math.max(...rcFit.residuals.map(Math.abs));
     const arc = rcFit.r * span * VA.D2R;
-    // 圓心不確定度：由擬合共變異數估計（點數 > 3 才有）
-    const unc = rcFit.sd ? Math.hypot(rcFit.sd.cx, rcFit.sd.cy) : NaN;
-    if (!(unc < 0.05)) warn.push(`旋轉範圍 ${fmt(span, 3)}°（弧長 ${fmt(arc, 3)} mm）不足以準確定出圓心${Number.isFinite(unc) ? `（不確定度約 ±${fmt(unc, 3)} mm）` : ''}；請加大角度。視野小的相機可用線馬跟著 mark 移動（每行加上線馬 X、Y），或改用低倍率相機。`);
-    if (Number.isFinite(slope) && span >= 2 && Math.abs(slope - 1) > 0.005) warn.push(`量測角度 / 指令角度 = ${fmt(slope, 4)}：θ 軸比例（減速比、脈波換算）可能有誤。`);
+    const unc = rcFit.sd;
+    const circUnc = circ && circ.sd ? Math.hypot(circ.sd.cx, circ.sd.cy) : NaN;
+    if (!(unc < 0.05)) warn.push(`圓心不確定度 ${Number.isFinite(unc) ? '±' + fmt(unc, 3) + ' mm' : '無法估計（點數太少）'}：請加大旋轉角度或增加點數。視野小的相機可用線馬跟著 mark 移動（每行加上線馬 X、Y）。`);
+    if (Number.isFinite(slope) && span >= 2 && circUnc < rcFit.r * 0.002 && Math.abs(slope - 1) > 0.005) warn.push(`量測角度 / 指令角度 = ${fmt(slope, 4)}：θ 軸比例（減速比、脈波換算）可能有誤。`);
+    if (rcFit.max > 0 && circ && Math.hypot(circ.cx - rcFit.cx, circ.cy - rcFit.cy) > 3 * Math.max(unc, circUnc || 0) && circUnc < 1) warn.push('幾何圓擬合與已知角度擬合的中心差異明顯：θ 實際轉的角度可能與指令不同。');
     out.innerHTML = `
       <div class="kv">
         <span>旋轉中心（平台座標）</span><b>(${fmt(rcFit.cx, 4)}, ${fmt(rcFit.cy, 4)}) mm</b>
+        <span>圓心不確定度（1σ）</span><b>±${fmt(unc * 1000, 2)} µm</b>
         <span>半徑</span><b>${fmt(rcFit.r, 4)} mm</b>
-        <span>圓擬合最大殘差</span><b>${fmt(noiseMm * 1000, 3)} µm</b>
+        <span>擬合最大殘差</span><b>${fmt(rcFit.max * 1000, 3)} µm</b>
         <span>旋轉範圍 / 弧長</span><b>${fmt(span, 4)}° / ${fmt(arc, 3)} mm</b>
-        <span>圓心不確定度（1σ）</span><b>±${fmt(unc, 4)} mm</b>
+        <span>交叉檢查：幾何圓擬合</span><b>${circ ? `(${fmt(circ.cx, 3)}, ${fmt(circ.cy, 3)}) ±${fmt(circUnc, 3)} mm` : '—'}</b>
         <span>量測角度 / 指令角度</span><b>${fmt(slope, 5)}</b>
         <span>與目前設定差</span><b>(${fmt(rcFit.cx - cur.x, 4)}, ${fmt(rcFit.cy - cur.y, 4)}) mm</b>
       </div>
+      <p class="hint">主要結果使用「已知指令角度」擬合：精度約為雜訊 ÷ 角度範圍，與半徑無關；短圓弧時遠比只用幾何圓擬合準確。</p>
       ${warn.length ? `<ul class="warnings">${warn.map(w => `<li>${App.esc(w)}</li>`).join('')}</ul>` : ''}
       ${s.platform.preset === 'XYT' ? `<p class="hint">XYθ：套用時會扣除目前 XY 軸位置 (${fmt(+pos.x, 3)}, ${fmt(+pos.y, 3)})。</p>` : ''}`;
     drawRc();

@@ -8,9 +8,10 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>視覺對位除錯工具 <span class="ver">v0.2</span></h1>
+    <h1>視覺對位除錯工具 <span class="ver">v0.3</span></h1>
     <nav class="tabs" role="tablist">
       <button type="button" class="tab active" data-tab="align">對位計算</button>
+      <button type="button" class="tab" data-tab="proc">校正手順</button>
       <button type="button" class="tab" data-tab="calib">校正工具</button>
       <button type="button" class="tab" data-tab="scen">情境模擬</button>
       <button type="button" class="tab" data-tab="help">說明</button>
@@ -144,6 +145,38 @@
     </section>
   </main>
 
+  <!-- ================= 校正手順 ================= -->
+  <main class="layout-proc tabpage" id="tab-proc" hidden>
+    <section class="panel proc-config">
+      <h2>目前配置</h2>
+      <div id="procSummary"></div>
+      <button type="button" id="procGoAlign" class="small">到「對位計算」修改平台／相機</button>
+      <h2>相機安裝方式</h2>
+      <div id="procMounts"></div>
+      <h2>其他條件</h2>
+      <div class="field"><label>對位方式</label>
+        <select data-bind="proc.mode">
+          <option value="teach">對登錄位置（標準品教導）</option>
+          <option value="object">物件對物件（目標由另一組量測決定）</option>
+        </select></div>
+      <label class="field-inline"><input type="checkbox" data-bind="proc.zAxis"> 有 Z 軸（升降／對焦）</label>
+      <label class="field-inline"><input type="checkbox" data-bind="proc.glass"> 有雙面可視玻璃 Mark</label>
+      <div class="grid2">
+        <div class="field"><label>單次最大旋轉修正 (°)</label><input type="number" step="any" data-bind="proc.maxCorrDeg"></div>
+        <div class="field"><label>量測雜訊 σ (px)</label><input type="number" step="any" data-bind="proc.noisePx"></div>
+        <div class="field"><label>線馬重複定位 σ (µm)</label><input type="number" step="any" data-bind="proc.gantryRepeatUm"></div>
+      </div>
+      <p class="hint">用來估算旋轉中心精度與需求：需求 ≈ 公差 ÷ 單次最大旋轉修正。</p>
+      <button type="button" id="procPrint">列印／存成 PDF</button>
+    </section>
+    <section class="panel proc-out">
+      <h2>校正順序（不可顛倒）</h2>
+      <div id="procWarn"></div>
+      <div id="procFlow" class="pflow"></div>
+      <div id="procSteps"></div>
+    </section>
+  </main>
+
   <!-- ================= 校正工具 ================= -->
   <main class="layout2 tabpage" id="tab-calib" hidden>
     <section class="panel">
@@ -266,6 +299,7 @@
         <li><b>對位計算</b>：切換「步驟」看粗對位（16 mm 鏡頭一次拍 4 個 mark）與精對位（3 倍遠心靠線馬逐一拍）的修正量。</li>
         <li><b>模擬迭代</b>：按「執行 1 次」，看目前步驟是否收斂；加入旋轉中心偏差再試，觀察「誤差來源推測」。</li>
         <li><b>情境模擬</b>：按「執行模擬」跑數百次完整流程，看成功率與最終真實誤差；改參數（例如 Z 偏差 0.5 mm、FPC 伸縮 100 ppm）看哪個因素會讓對位失敗。</li>
+        <li><b>校正手順</b>：選擇每台相機的安裝方式（往下看、往上看、裝在線馬上）與條件，產生校正順序、圖解、建議參數（九點間距、旋轉角度）與判定標準。</li>
         <li><b>校正工具</b>：用 9 點資料求校正矩陣、用旋轉資料求旋轉中心，可直接貼上現場資料。</li>
       </ol>
       <h2>座標慣例</h2>
@@ -286,8 +320,10 @@
   <script src="js/scenarios.js"></script>
   <script src="js/simulator.js"></script>
   <script src="js/diagnose.js"></script>
+  <script src="js/procedure.js"></script>
   <script src="js/app.js"></script>
   <script src="js/calib-ui.js"></script>
   <script src="js/scen-ui.js"></script>
+  <script src="js/proc-ui.js"></script>
 </body>
 </html>

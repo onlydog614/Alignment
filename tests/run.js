@@ -1,7 +1,7 @@
 // 執行：node tests/run.js
 'use strict';
 const path = require('path');
-['geometry', 'platforms', 'optics', 'model', 'scenarios', 'simulator', 'diagnose']
+['geometry', 'platforms', 'optics', 'model', 'scenarios', 'simulator', 'diagnose', 'procedure']
   .forEach(f => { try { require(path.join(__dirname, '..', 'js', f + '.js')); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } });
 const VA = globalThis.VA;
 let fails = 0, count = 0;
@@ -142,6 +142,27 @@ if (VA.migrate) test('migrate v1 state', () => {
   ok(s.version === 2 && s.cameras.length === 1 && s.shots.length === 1 && s.steps[0].gain === 90 && s.platform.rc.x === 1, 'migrated');
   const r = VA.compute(s);
   near(r.maxErr, 0.01, 1e-12, 'migrated error');
+});
+
+if (VA.fitRotCenterKnown) test('known-angle rotation center', () => {
+  const c = { x: 3, y: -2 }, p0 = { x: -60, y: 70 };
+  const pts = [-3, -1.5, 0, 1.5, 3].map(a => Object.assign(VA.applyMove(p0, a * VA.D2R, { x: 0, y: 0 }, c), { th: a }));
+  const f = VA.fitRotCenterKnown(pts);
+  near(f.cx, c.x, 1e-8, 'cx'); near(f.cy, c.y, 1e-8, 'cy');
+  // 預估不確定度與半徑無關，且遠小於幾何圓擬合
+  const u = VA.rotCenterUncertainty([-3, -1.5, 0, 1.5, 3], 0.001);
+  ok(u > 0.005 && u < 0.05, 'uncertainty ~ sigma/angle: ' + u);
+  if (VA.circleUncertainty) ok(VA.circleUncertainty(90, [-3, -1.5, 0, 1.5, 3], 0.001) > 5 * u, 'circle fit much worse on short arc');
+});
+
+if (VA.buildProcedure) test('procedure for FPC scenario', () => {
+  const s = VA.SCENARIOS.fpc.make();
+  const r = VA.buildProcedure(s);
+  const kinds = r.steps.map(x => x.kind);
+  ok(kinds.join() === 'focus,nine,nine,rc,link,teach,verify', 'steps ' + kinds);
+  ok(r.rc.method === 'follow' && r.rc.ok, 'rc via gantry follow and sufficient');
+  s.proc.mounts = ['down', 'up'];
+  ok(VA.buildProcedure(s).steps.some(x => x.fig.type === 'linkUpDown'), 'up/down link step');
 });
 
 console.log(`${count - fails}/${count} checks passed`);

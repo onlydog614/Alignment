@@ -410,7 +410,7 @@
   }
   function syncStatic() {
     document.querySelectorAll('[data-bind]').forEach(el => {
-      if (el.closest('#cameraList, #axisRows, #shotList, #stepRows')) return;
+      if (el.closest('#cameraList, #axisRows, #shotList, #stepRows, #procMounts')) return;
       const v = getPath(state, el.dataset.bind);
       if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
     });
@@ -625,7 +625,7 @@
   // 初始分頁：網址 #calib / #scen / #help 優先，其次上次使用的分頁
   setTimeout(() => {
     let t = (location.hash || '').slice(1);
-    if (!['align', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
+    if (!['align', 'proc', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
     if (t && t !== 'align') showTab(t);
   }, 0);
 })();
