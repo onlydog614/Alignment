@@ -8,17 +8,23 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>視覺對位除錯工具 <span class="ver">v0.1</span></h1>
+    <h1>視覺對位除錯工具 <span class="ver">v0.2</span></h1>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="align">對位計算</button>
+      <button type="button" class="tab" data-tab="calib">校正工具</button>
+      <button type="button" class="tab" data-tab="scen">情境模擬</button>
+      <button type="button" class="tab" data-tab="help">說明</button>
+    </nav>
     <div class="topbar-actions">
-      <button id="btnDemo" type="button">載入範例</button>
+      <select id="scenarioSelect" aria-label="載入範例"><option value="">載入範例…</option></select>
       <button id="btnExport" type="button">匯出設定</button>
       <label class="btn-like">匯入設定<input id="fileImport" type="file" accept=".json,application/json" hidden></label>
       <button id="btnReset" type="button" class="danger">全部重設</button>
     </div>
   </header>
 
-  <main class="layout">
-    <!-- 左：設定 -->
+  <!-- ================= 對位計算 ================= -->
+  <main class="layout tabpage" id="tab-align">
     <section class="panel" id="panelSetup">
       <h2>1. 平台</h2>
       <div class="field">
@@ -30,6 +36,11 @@
         <div class="field"><label>旋轉中心 X (mm)</label><input type="number" step="any" data-bind="platform.rc.x"></div>
         <div class="field"><label>旋轉中心 Y (mm)</label><input type="number" step="any" data-bind="platform.rc.y"></div>
       </div>
+      <div class="grid2 only-xyt">
+        <div class="field"><label>XY 軸目前位置 X (mm)</label><input type="number" step="any" data-bind="platform.pos.x"></div>
+        <div class="field"><label>XY 軸目前位置 Y (mm)</label><input type="number" step="any" data-bind="platform.pos.y"></div>
+      </div>
+      <p class="hint only-xyt">XYθ：實際旋轉中心 = 上方旋轉中心（XY 在原點時）＋ XY 軸目前位置。</p>
       <details>
         <summary>軸設定（<span id="axisCount">0</span> 軸）</summary>
         <div class="table-wrap">
@@ -41,11 +52,29 @@
         <button id="btnAddAxis" type="button" class="small">＋ 新增軸</button>
         <p class="hint">致動點為相對旋轉中心的位置。類型：直線（致動點在平台上）、直線-隨θ（XY 在 θ 之上）、旋轉。</p>
       </details>
+      <div class="field-inline">
+        <label><input type="checkbox" data-bind="platform.gantry.enabled" data-rerender="1"> 有 XY 線馬（拍照位置移動）</label>
+        <select data-bind="platform.gantry.mode" aria-label="線馬移動對象">
+          <option value="stage">線馬移動平台（相機固定）</option>
+          <option value="camera">線馬移動相機（平台固定）</option>
+        </select>
+      </div>
 
-      <h2>2. 對位計算</h2>
-      <div class="grid2">
-        <div class="field"><label>修正比例 Gain (%)</label><input type="number" step="any" data-bind="fit.gain"></div>
-        <div class="field"><label>位置公差 (mm)</label><input type="number" step="any" data-bind="fit.tol"></div>
+      <h2>2. 步驟 <span class="count-ctl">
+        <button type="button" id="btnStepMinus" class="small">−</button>
+        <span id="stepCount">0</span>
+        <button type="button" id="btnStepPlus" class="small">＋</button></span></h2>
+      <div class="table-wrap">
+        <table class="axes"><thead><tr><th>名稱</th><th>公差 mm</th><th>最多次數</th><th>Gain %</th><th title="即使已在公差內，也至少修正幾次">最少移動</th></tr></thead>
+        <tbody id="stepRows"></tbody></table>
+      </div>
+      <p class="hint">最少移動：即使第一次拍照已在公差內，也至少修正幾次（精對位設 1 可避免停在公差邊緣）。</p>
+      <div class="field">
+        <label>擬合方法</label>
+        <select data-bind="fit.method">
+          <option value="lsq">最小平方法（平均誤差最小）</option>
+          <option value="minimax">最大誤差最小化（最差的點最小）</option>
+        </select>
       </div>
 
       <h2>3. 相機 <span class="count-ctl">
@@ -54,14 +83,23 @@
         <button type="button" id="btnCamPlus" class="small">＋</button></span>
       </h2>
       <div id="cameraList"></div>
+
+      <h2>4. 拍照點 <span class="count-ctl">
+        <button type="button" id="btnShotMinus" class="small">−</button>
+        <span id="shotCount">0</span>
+        <button type="button" id="btnShotPlus" class="small">＋</button></span>
+      </h2>
+      <p class="hint">每個拍照點 = 某相機（在某線馬位置）拍到的某個 mark。同一 mark 可在不同步驟用不同相機拍。</p>
+      <div id="shotList"></div>
     </section>
 
-    <!-- 中：視覺化 -->
     <section class="panel viewer">
       <div class="viewer-bar">
+        <label>步驟 <select id="activeStep"></select></label>
         <label>誤差放大 ×<input type="number" id="exaggerate" min="1" step="1" value="50"></label>
         <label><input type="checkbox" id="showFov" checked> 視野</label>
         <label><input type="checkbox" id="showAxes" checked> 軸</label>
+        <label><input type="checkbox" id="showAll"> 顯示其他步驟</label>
         <button type="button" id="btnFit" class="small">置中</button>
         <span id="cursorPos" class="mono"></span>
       </div>
@@ -71,23 +109,24 @@
         <span><i class="dot tgt"></i>目標位置</span>
         <span><i class="dot pred"></i>修正後預測</span>
         <span><i class="dot rc"></i>旋轉中心</span>
-        <span class="hint">滾輪縮放、拖曳平移；誤差向量依放大倍率繪製</span>
+        <span class="hint">座標為平台座標（已扣除線馬位移）。滾輪縮放、拖曳平移。</span>
       </div>
+      <h3>影像視圖（像素座標，誤差同樣放大）</h3>
+      <div id="pixViews" class="pixviews"></div>
     </section>
 
-    <!-- 右：結果 -->
     <section class="panel" id="panelResult">
       <h2>計算結果</h2>
       <div id="status" class="status"></div>
       <div id="correction"></div>
-      <h3>各相機</h3>
-      <div class="table-wrap"><table id="camTable"></table></div>
+      <h3>各拍照點</h3>
+      <div class="table-wrap"><table id="shotTable"></table></div>
       <h3>軸指令</h3>
       <div class="table-wrap"><table id="axisTable"></table></div>
       <button type="button" id="btnCopy" class="small">複製結果文字</button>
 
       <h2>模擬迭代</h2>
-      <p class="hint">將修正量套用到「目前位置」，用來檢查是否收斂。可加入誤差以重現現場問題。</p>
+      <p class="hint">將修正量套用到「目前位置」（目前步驟），檢查是否收斂。可加入誤差以重現現場問題；完整流程請用「情境模擬」頁。</p>
       <div class="grid2">
         <div class="field"><label>量測雜訊 σ (px)</label><input type="number" step="any" data-bind="sim.noisePx"></div>
         <div class="field"><label>機構比例誤差 (%)</label><input type="number" step="any" data-bind="sim.gainErr"></div>
@@ -100,11 +139,155 @@
         <button type="button" id="btnClearHist" class="small">清除紀錄</button>
       </div>
       <div class="table-wrap"><table id="histTable"></table></div>
+      <h3>誤差來源推測</h3>
+      <ul id="diagList" class="diag"></ul>
+    </section>
+  </main>
+
+  <!-- ================= 校正工具 ================= -->
+  <main class="layout2 tabpage" id="tab-calib" hidden>
+    <section class="panel">
+      <h2>N 點校正（像素 ↔ 平台座標）</h2>
+      <p class="hint">平台帶著 mark 移到已知位置（常見 3×3 = 9 點），記錄每點的像素座標，求仿射參數 A–F。</p>
+      <div class="grid2">
+        <div class="field"><label>相機</label><select id="calCam"></select></div>
+        <div class="field"><label>X/Y 欄位代表</label>
+          <select id="calSign">
+            <option value="1">平台（mark）移動量</option>
+            <option value="-1">相機移動量</option>
+          </select></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="calGen">產生模擬 9 點資料</button>
+        <label class="hint">模擬：雜訊 σ <input type="number" id="calNoise" value="0.1" step="any" class="w64"> px，
+          尺度誤差 <input type="number" id="calScaleErr" value="0.2" step="any" class="w64"> %，
+          角度 <input type="number" id="calAngErr" value="0.5" step="any" class="w64">°</label>
+      </div>
+      <p class="hint">也可直接貼上：每行「u v X Y」（以空白、逗號或 Tab 分隔），例如從 FH 或 PLC 記錄複製。</p>
+      <textarea id="calText" rows="10" class="mono" spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button type="button" id="calFit" class="primary">計算</button>
+        <button type="button" id="calApply">套用到相機（仿射矩陣模式）</button>
+        <select id="calPos" aria-label="套用時的位置">
+          <option value="keep">保留相機目前的中心位置（C、F 平移）</option>
+          <option value="fit">使用擬合出的 C、F</option>
+        </select>
+      </div>
+      <div id="calResult"></div>
+      <canvas id="calCanvas" class="smallcanvas"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2>旋轉中心</h2>
+      <p class="hint">平台只轉 θ（例如 −3°、−1.5°、0、+1.5°、+3°），同一個 mark 各拍一次，擬合圓心即旋轉中心。旋轉範圍越大越準。</p>
+      <div class="grid2">
+        <div class="field"><label>相機</label><select id="rcCam"></select></div>
+        <div class="field"><label>拍攝時線馬位置 X / Y (mm)</label>
+          <div class="grid2"><input type="number" id="rcGx" value="0" step="any"><input type="number" id="rcGy" value="0" step="any"></div></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="rcGen">產生模擬資料</button>
+        <label class="hint">真實中心 X <input type="number" id="rcTrueX" value="2.5" step="any" class="w64">
+          Y <input type="number" id="rcTrueY" value="-1.2" step="any" class="w64"> mm，雜訊 σ
+          <input type="number" id="rcNoise" value="0.1" step="any" class="w64"> px</label>
+      </div>
+      <p class="hint">每行「u v θ(deg)」，或「u v θ 線馬X 線馬Y」（視野小的相機以線馬跟著 mark 拍）。</p>
+      <textarea id="rcText" rows="8" class="mono" spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button type="button" id="rcFit" class="primary">計算</button>
+        <button type="button" id="rcApply">套用為平台旋轉中心</button>
+      </div>
+      <div id="rcResult"></div>
+      <canvas id="rcCanvas" class="smallcanvas"></canvas>
+    </section>
+  </main>
+
+  <!-- ================= 情境模擬 ================= -->
+  <main class="layout2 tabpage" id="tab-scen" hidden>
+    <section class="panel">
+      <h2>情境模擬（Monte-Carlo）</h2>
+      <p class="hint">以「對位計算」頁的設定當作控制器的模型；下面的參數是「真實世界」與模型的差異。
+        每次試驗：隨機擺放工件 → 依步驟拍照（加入雜訊）→ 計算 → 移動（加入機構誤差）→ 直到進公差或超過次數。
+        各步驟的目標像素以標準品「教導」登錄。</p>
+      <div class="scen-grid">
+        <fieldset><legend>試驗</legend>
+          <div class="field"><label>試驗次數</label><input type="number" min="1" max="5000" data-bind="scen.trials"></div>
+          <div class="field"><label>亂數種子</label><input type="number" data-bind="scen.seed"></div>
+        </fieldset>
+        <fieldset><legend>工件</legend>
+          <div class="field"><label>初始擺放 ±X (mm)</label><input type="number" step="any" data-bind="scen.initX"></div>
+          <div class="field"><label>初始擺放 ±Y (mm)</label><input type="number" step="any" data-bind="scen.initY"></div>
+          <div class="field"><label>初始擺放 ±θ (°)</label><input type="number" step="any" data-bind="scen.initT"></div>
+          <div class="field"><label>伸縮 (ppm)</label><input type="number" step="any" data-bind="scen.stretchPpm"></div>
+          <div class="field"><label>伸縮變異 σ (ppm)</label><input type="number" step="any" data-bind="scen.stretchSd"></div>
+        </fieldset>
+        <fieldset><legend>平台</legend>
+          <div class="field"><label>旋轉中心偏差 X (mm)</label><input type="number" step="any" data-bind="scen.rcErrX"></div>
+          <div class="field"><label>旋轉中心偏差 Y (mm)</label><input type="number" step="any" data-bind="scen.rcErrY"></div>
+          <div class="field"><label>XY 比例誤差 (%)</label><input type="number" step="any" data-bind="scen.axisScaleErr"></div>
+          <div class="field"><label>θ 比例誤差 (%)</label><input type="number" step="any" data-bind="scen.thetaScaleErr"></div>
+          <div class="field"><label>XY 重複定位 σ (µm)</label><input type="number" step="any" data-bind="scen.axisRepeatUm"></div>
+          <div class="field"><label>線馬重複定位 σ (µm)</label><input type="number" step="any" data-bind="scen.gantryRepeatUm"></div>
+          <div class="field"><label>Z 高度偏差 (mm)</label><input type="number" step="any" data-bind="scen.zErr"></div>
+        </fieldset>
+        <fieldset><legend>相機</legend>
+          <div class="field"><label>量測雜訊 σ (px)</label><input type="number" step="any" data-bind="scen.noisePx"></div>
+          <div class="field"><label>校正尺度誤差 (%)</label><input type="number" step="any" data-bind="scen.camScaleErr"></div>
+          <div class="field"><label>校正角度誤差 (°)</label><input type="number" step="any" data-bind="scen.camAngleErr"></div>
+        </fieldset>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="scenRun" class="primary">執行模擬</button>
+        <button type="button" id="scenReset" class="small">參數歸零</button>
+        <button type="button" id="scenSweep">掃描一個參數…</button>
+        <select id="sweepParam"></select>
+      </div>
+      <div id="scenSummary"></div>
+    </section>
+    <section class="panel">
+      <h2>結果</h2>
+      <h3>收斂過程（前 60 次試驗，對數刻度）</h3>
+      <div class="chart-legend"><span><i class="line seen"></i>視覺看到的誤差</span><span><i class="line truth"></i>真實誤差</span><span class="hint">虛線＝各步驟公差；滑鼠移到圖上看數值</span></div>
+      <canvas id="scenTrace" class="chart"></canvas>
+      <h3>最終真實誤差分佈（最後步驟各 mark，µm）</h3>
+      <div id="scatterLegend" class="chart-legend"></div>
+      <canvas id="scenScatter" class="chart square"></canvas>
+      <h3 id="sweepTitle"></h3>
+      <div class="table-wrap"><table id="sweepTable"></table></div>
+    </section>
+  </main>
+
+  <!-- ================= 說明 ================= -->
+  <main class="tabpage helppage" id="tab-help" hidden>
+    <section class="panel">
+      <h2>快速上手</h2>
+      <ol>
+        <li>右上「載入範例」選「FPC 四 mark：XYθ＋線馬＋粗/精相機」。</li>
+        <li><b>對位計算</b>：切換「步驟」看粗對位（16 mm 鏡頭一次拍 4 個 mark）與精對位（3 倍遠心靠線馬逐一拍）的修正量。</li>
+        <li><b>模擬迭代</b>：按「執行 1 次」，看目前步驟是否收斂；加入旋轉中心偏差再試，觀察「誤差來源推測」。</li>
+        <li><b>情境模擬</b>：按「執行模擬」跑數百次完整流程，看成功率與最終真實誤差；改參數（例如 Z 偏差 0.5 mm、FPC 伸縮 100 ppm）看哪個因素會讓對位失敗。</li>
+        <li><b>校正工具</b>：用 9 點資料求校正矩陣、用旋轉資料求旋轉中心，可直接貼上現場資料。</li>
+      </ol>
+      <h2>座標慣例</h2>
+      <ul>
+        <li>平台座標 mm，Y 向上，θ 逆時針為正。影像座標 px，原點左上，v 向下。</li>
+        <li>線馬移動平台時：平台座標 = 相機看到的世界座標 − 線馬位置。</li>
+        <li>修正量的意義：平台繞旋轉中心轉 Δθ 再平移 (ΔX, ΔY)，使 mark 回到目標。</li>
+      </ul>
+      <p>完整知識整理與除錯清單：<a href="https://github.com/onlydog614/Alignment/blob/main/docs/vision-alignment-notes.md" target="_blank" rel="noopener">vision-alignment-notes.md</a>，
+        模擬測試報告：<a href="https://github.com/onlydog614/Alignment/blob/main/docs/simulation-report.md" target="_blank" rel="noopener">simulation-report.md</a>。</p>
     </section>
   </main>
 
   <script src="js/geometry.js"></script>
   <script src="js/platforms.js"></script>
+  <script src="js/optics.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/scenarios.js"></script>
+  <script src="js/simulator.js"></script>
+  <script src="js/diagnose.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/calib-ui.js"></script>
+  <script src="js/scen-ui.js"></script>
 </body>
 </html>

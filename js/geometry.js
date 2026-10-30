@@ -130,8 +130,156 @@
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
 
+  // 3×3 線性方程組（高斯消去，部分選主元）
+  function solve3(M, b) {
+    const a = M.map((row, i) => [...row, b[i]]);
+    for (let c = 0; c < 3; c++) {
+      let p = c;
+      for (let r = c + 1; r < 3; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r;
+      if (Math.abs(a[p][c]) < 1e-14) return null;
+      [a[c], a[p]] = [a[p], a[c]];
+      for (let r = 0; r < 3; r++) {
+        if (r === c) continue;
+        const f = a[r][c] / a[c][c];
+        for (let k = c; k < 4; k++) a[r][k] -= f * a[c][k];
+      }
+    }
+    return [a[0][3] / a[0][0], a[1][3] / a[1][1], a[2][3] / a[2][2]];
+  }
+
+  // N 點校正：由 (u, v) ↔ (x, y) 求仿射參數 A–F（最小平方）
+  function fitAffine(rows) {
+    if (rows.length < 3) return null;
+    // 以平均值為中心改善數值條件
+    const n = rows.length;
+    const mu = rows.reduce((s, r) => s + r.u, 0) / n, mv = rows.reduce((s, r) => s + r.v, 0) / n;
+    const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bx = [0, 0, 0], by = [0, 0, 0];
+    for (const r of rows) {
+      const z = [r.u - mu, r.v - mv, 1];
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) M[i][j] += z[i] * z[j];
+        bx[i] += z[i] * r.x; by[i] += z[i] * r.y;
+      }
+    }
+    const sx = solve3(M, bx), sy = solve3(M, by);
+    if (!sx || !sy) return null;
+    const m = {
+      A: sx[0], B: sx[1], C: sx[2] - sx[0] * mu - sx[1] * mv,
+      D: sy[0], E: sy[1], F: sy[2] - sy[0] * mu - sy[1] * mv
+    };
+    const info = describeAffine(m);
+    const residuals = rows.map(r => {
+      const w = pixToWorld(m, r.u, r.v);
+      const dx = r.x - w.x, dy = r.y - w.y, d = Math.hypot(dx, dy);
+      return { x: dx, y: dy, d, px: d / Math.sqrt(Math.abs(info.det)) };
+    });
+    const rms = Math.sqrt(residuals.reduce((s, r) => s + r.d * r.d, 0) / n);
+    return { m, info, residuals, rms, max: Math.max(...residuals.map(r => r.d)) };
+  }
+
+  // 圓擬合（代數 Kasa 初值 + 幾何 Gauss-Newton 修正），用於求旋轉中心
+  function fitCircle(pts) {
+    const n = pts.length;
+    if (n < 3) return null;
+    const mx = pts.reduce((s, p) => s + p.x, 0) / n, my = pts.reduce((s, p) => s + p.y, 0) / n;
+    const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0];
+    for (const p of pts) {
+      const x = p.x - mx, y = p.y - my, z = [x, y, 1], w = -(x * x + y * y);
+      for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) M[i][j] += z[i] * z[j]; b[i] += z[i] * w; }
+    }
+    const s = solve3(M, b);
+    if (!s) return null;
+    let cx = -s[0] / 2, cy = -s[1] / 2, r = Math.sqrt(Math.max(cx * cx + cy * cy - s[2], 0));
+    for (let it = 0; it < 30; it++) {
+      const J = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], g = [0, 0, 0];
+      for (const p of pts) {
+        const dx = p.x - mx - cx, dy = p.y - my - cy, d = Math.hypot(dx, dy) || 1e-12;
+        const row = [-dx / d, -dy / d, -1], e = d - r;
+        for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) J[i][j] += row[i] * row[j]; g[i] -= row[i] * e; }
+      }
+      const step = solve3(J, g);
+      if (!step) break;
+      cx += step[0]; cy += step[1]; r += step[2];
+      if (Math.hypot(step[0], step[1], step[2]) < 1e-12) break;
+    }
+    cx += mx; cy += my;
+    const residuals = pts.map(p => Math.hypot(p.x - cx, p.y - cy) - r);
+    // 參數標準差：cov = σ²·(JᵀJ)⁻¹；短圓弧時圓心沿半徑方向的不確定度會很大
+    let sd = null;
+    if (n > 3) {
+      const J = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      for (const p of pts) {
+        const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy) || 1e-12, row = [-dx / d, -dy / d, -1];
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) J[i][j] += row[i] * row[j];
+      }
+      const s2 = residuals.reduce((a, e) => a + e * e, 0) / (n - 3);
+      const inv = [0, 1, 2].map(k => solve3(J, [0, 1, 2].map(i => (i === k ? 1 : 0))));
+      if (inv.every(Boolean)) sd = { cx: Math.sqrt(s2 * inv[0][0]), cy: Math.sqrt(s2 * inv[1][1]), r: Math.sqrt(s2 * inv[2][2]) };
+    }
+    return { cx, cy, r, residuals, max: Math.max(...residuals.map(Math.abs)), sd };
+  }
+
+  // Nelder–Mead 單純形最佳化
+  function nelderMead(f, x0, steps, iters = 2000, tol = 1e-15) {
+    const n = x0.length;
+    let simplex = [x0.slice()];
+    for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += steps[i]; simplex.push(x); }
+    let vals = simplex.map(f);
+    for (let k = 0; k < iters; k++) {
+      const idx = vals.map((v, i) => i).sort((a, b) => vals[a] - vals[b]);
+      simplex = idx.map(i => simplex[i]); vals = idx.map(i => vals[i]);
+      if (Math.abs(vals[n] - vals[0]) <= tol) break;
+      const c = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += simplex[i][j] / n;
+      const pt = t => c.map((cj, j) => cj + t * (simplex[n][j] - cj));
+      const xr = pt(-1), fr = f(xr);
+      if (fr < vals[0]) {
+        const xe = pt(-2), fe = f(xe);
+        if (fe < fr) { simplex[n] = xe; vals[n] = fe; } else { simplex[n] = xr; vals[n] = fr; }
+      } else if (fr < vals[n - 1]) {
+        simplex[n] = xr; vals[n] = fr;
+      } else {
+        const xc = fr < vals[n] ? pt(-0.5) : pt(0.5), fc = f(xc);
+        if (fc < Math.min(fr, vals[n])) { simplex[n] = xc; vals[n] = fc; } else {
+          for (let i = 1; i <= n; i++) { simplex[i] = simplex[i].map((v, j) => simplex[0][j] + 0.5 * (v - simplex[0][j])); vals[i] = f(simplex[i]); }
+        }
+      }
+    }
+    let best = 0;
+    for (let i = 1; i <= n; i++) if (vals[i] < vals[best]) best = i;
+    return { x: simplex[best], f: vals[best] };
+  }
+
+  // 最大誤差最小化（minimax）剛體擬合：以最小平方解為初值
+  function fitRigidMinimax(pairs, c, fixedTheta) {
+    const ls = fitRigid(pairs, c, fixedTheta);
+    if (!ls || pairs.length < 2) return ls && Object.assign(ls, { method: 'minimax' });
+    // 角度以「標記到中心的平均距離」換算為長度，讓三個參數尺度相近
+    const mp = pairs.reduce((s, { p }) => ({ x: s.x + p.x / pairs.length, y: s.y + p.y / pairs.length }), { x: 0, y: 0 });
+    const L = Math.max(1, pairs.reduce((s, { p }) => s + Math.hypot(p.x - mp.x, p.y - mp.y), 0) / pairs.length);
+    const cost = x => {
+      const th = x[0] / L, T = { x: x[1], y: x[2] };
+      let worst = 0;
+      for (const { p, q } of pairs) { const m = applyMove(p, th, T, c); worst = Math.max(worst, Math.hypot(q.x - m.x, q.y - m.y)); }
+      return worst;
+    };
+    let x = [ls.theta * L, ls.T.x, ls.T.y];
+    let step = Math.max(1e-4, Math.max(...ls.residuals.map(r => r.d)));
+    for (let round = 0; round < 4; round++) {
+      x = nelderMead(cost, x, [step, step, step], 600, 1e-13).x;
+      step /= 4;
+    }
+    const theta = x[0] / L, T = { x: x[1], y: x[2] };
+    const residuals = pairs.map(({ p, q }) => {
+      const m = applyMove(p, theta, T, c);
+      return { x: q.x - m.x, y: q.y - m.y, d: Math.hypot(q.x - m.x, q.y - m.y) };
+    });
+    return { theta, T, residuals, scale: ls.scale, method: 'minimax' };
+  }
+
   global.VA = Object.assign(global.VA || {}, {
     D2R, R2D, rot, cameraAffine, pixToWorld, worldToPix, describeAffine,
-    fitRigid, applyMove, axisCommands, gauss
+    fitRigid, fitRigidMinimax, applyMove, axisCommands, gauss,
+    solve3, fitAffine, fitCircle, nelderMead
   });
 })(typeof window !== 'undefined' ? window : globalThis);
