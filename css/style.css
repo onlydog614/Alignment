@@ -378,3 +378,6 @@ td.num { font-variant-numeric: tabular-nums; }
 .lk-arrow { stroke: var(--cur); stroke-width: 2; }
 .lk-pt { fill: #6b4fbb; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--bg); padding: 0 4px; border-radius: 3px; }
+.mp-site { fill: none; stroke: #6b4fbb; stroke-width: 1.5; }
+.mp-tmark { fill: var(--text); }
+.hit.faded { opacity: .35; }

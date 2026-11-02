@@ -21,6 +21,10 @@
       ],
       // σ 類參數存 1σ；dT 為溫差的 3σ 值
       common: { sigmaMark: 0.005 / 3, dT: 1, cte: 10, sigmaTile: 0.021 / 3 },
+      // 對位基準：global＝只用 SPB 整體 Mark；local＝每片 Tile 四邊 Mark 對 SPB 預放位置 Mark
+      align: 'global',
+      evalAt: 'center', // 誤差評估點：Tile 中心或最遠角落
+      local: { nSite: 4, nTile: 4, inset: 0, sigmaTileMark: 0.005 / 3, sigmaPattern: 0.005 / 3, sigmaLink: 0.005 / 3, sigmaMove: 0.003 / 3 },
       link: { from: 0, to: 1, model: 'rigid', text: '', conv: '', dir: 'ab', truth: { dx: 0.35, dy: -0.12, thetaDeg: 0.008, ppm: 30 } }
     };
   }
@@ -83,24 +87,68 @@
     return { ok: true, n, c, S, sT: s / Math.sqrt(n), sTh, src, base, marks: mk };
   }
 
-  // 解析式：各 Tile 的單軸 1σ 誤差分量（mm）
+  // 每片 Tile 四邊（或左右兩邊、三邊）的 Mark 相對 Tile 中心的位置
+  function sideOffsets(m, n) {
+    const t = m.tiles, e = +(m.local && m.local.inset) || 0, hx = t.w / 2 + e, hy = t.h / 2 + e;
+    const all = [{ x: -hx, y: 0 }, { x: hx, y: 0 }, { x: 0, y: -hy }, { x: 0, y: hy }];
+    return n >= 4 ? all : n === 3 ? all.slice(0, 3) : all.slice(0, 2);
+  }
+  function evalOffsets(m) {
+    const t = m.tiles;
+    return m.evalAt === 'corner' ? [{ x: -t.w / 2, y: -t.h / 2 }, { x: t.w / 2, y: -t.h / 2 }, { x: t.w / 2, y: t.h / 2 }, { x: -t.w / 2, y: t.h / 2 }] : [{ x: 0, y: 0 }];
+  }
+  const rss = comp => Math.sqrt(Object.values(comp).reduce((a, v) => a + v * v, 0));
+
+  // 局部對位：Tile 四邊 Mark ↔ SPB 預放位置 Mark，兩組各自的辨識誤差合成相對姿態誤差
+  function localInfo(m) {
+    const L = m.local, so = sideOffsets(m, +L.nSite), to = sideOffsets(m, +L.nTile);
+    const S = arr => arr.reduce((a, q) => a + q.x * q.x + q.y * q.y, 0);
+    return { nS: so.length, nT: to.length, Ss: S(so), St: S(to), so, to };
+  }
+
+  // 解析式：各 Tile 的誤差分量，皆為「位置誤差半徑」的 1σ（2D RMS）
   function analyze(m) {
     const fits = m.platforms.map((p, i) => platformFit(m, i));
+    const local = m.align === 'local';
+    const li = local ? localInfo(m) : null;
     const tiles = tileList(m).map(t => {
       const pi = platformOf(m, t.c);
       const f = fits[pi];
-      if (pi < 0 || !f || !f.ok) return Object.assign(t, { pi, bad: true });
-      const p = m.platforms[pi], d = Math.hypot(t.x - f.c.x, t.y - f.c.y);
-      // 皆為「位置誤差半徑」的 1σ（2D RMS）：平移類 ×√2，角度與比例類沿單一方向
-      const comp = {
-        'Mark 辨識': f.sT * Math.SQRT2,
-        'θ（角度）': d * f.sTh,
-        '軸比例': d * (+p.ppm || 0) * 1e-6,
-        '熱脹冷縮': d * (+m.common.cte || 0) * (+m.common.dT || 0) / 3 * 1e-6,
-        'Tile 貼附': (+m.common.sigmaTile || 0) * Math.SQRT2
-      };
-      const tot = Math.sqrt(Object.values(comp).reduce((a, v) => a + v * v, 0));
-      return Object.assign(t, { pi, d, comp, tot });
+      if (pi < 0) return Object.assign(t, { pi, bad: true });
+      let best = null;
+      evalOffsets(m).forEach(o => {
+        const q = { x: t.x + o.x, y: t.y + o.y };
+        let comp, d;
+        if (local) {
+          const L = m.local, ss = +L.sigmaPattern || 0, sm = m.common.sigmaMark, st = +L.sigmaTileMark || 0;
+          d = Math.hypot(o.x, o.y);
+          // 平移：√(2/n)·σ；旋轉：d·σ/√S（以 Tile 中心為擬合中心）
+          const part = (sg, n, S) => sg * Math.sqrt(2 / n + d * d / S);
+          comp = {
+            'SPB 預放 Mark 辨識': part(sm, li.nS, li.Ss),
+            'SPB Mark 圖形精度': part(ss, li.nS, li.Ss),
+            'Tile Mark 辨識': part(st, li.nT, li.St),
+            '相機連結（B_off）': (+L.sigmaLink || 0) * Math.SQRT2,
+            '移動定位': (+L.sigmaMove || 0) * Math.SQRT2,
+            'Tile 貼附': (+m.common.sigmaTile || 0) * Math.SQRT2
+          };
+        } else {
+          if (!f || !f.ok) return;
+          const p = m.platforms[pi];
+          d = Math.hypot(q.x - f.c.x, q.y - f.c.y);
+          comp = {
+            'Mark 辨識': f.sT * Math.SQRT2,
+            'θ（角度）': d * f.sTh,
+            '軸比例': d * (+p.ppm || 0) * 1e-6,
+            '熱脹冷縮': d * (+m.common.cte || 0) * (+m.common.dT || 0) / 3 * 1e-6,
+            'Tile 貼附': (+m.common.sigmaTile || 0) * Math.SQRT2
+          };
+        }
+        const tot = rss(comp);
+        if (!best || tot > best.tot) best = { comp, tot, d, at: q };
+      });
+      if (!best) return Object.assign(t, { pi, bad: true });
+      return Object.assign(t, { pi }, best);
     });
     // 交界：相鄰欄屬於不同平台的同列 Tile
     const joins = [];
@@ -108,11 +156,12 @@
       const b = tiles.find(x => x.r === a.r && x.c === a.c + 1);
       if (b && a.pi !== b.pi && !a.bad && !b.bad) joins.push({ a, b, tot: Math.hypot(a.tot, b.tot) });
     });
-    return { fits, tiles, joins };
+    return { fits, tiles, joins, local, li };
   }
 
   // Monte-Carlo：Mark 量測加雜訊 → 各平台擬合（剛體；1 點時 θ 取機構誤差）→ 實際貼附位置誤差
   function monteCarlo(m, trials = 2000, seed = 1) {
+    if (m.align === 'local') return monteCarloLocal(m, trials, seed);
     const R = VA.rng(seed);
     const tiles = tileList(m);
     const acc = tiles.map(() => ({ sx: 0, sy: 0 }));
@@ -149,6 +198,35 @@
       });
     }
     return tiles.map((tl, i) => Object.assign({}, tl, { rmsX: Math.sqrt(acc[i].sx / trials), rmsY: Math.sqrt(acc[i].sy / trials) }));
+  }
+
+  // 局部對位的 Monte-Carlo：每片分別量 SPB 預放 Mark 與 Tile Mark，擬合相對剛體後放置
+  function monteCarloLocal(m, trials, seed) {
+    const R = VA.rng(seed), L = m.local, li = localInfo(m);
+    const tiles = tileList(m), evs = evalOffsets(m);
+    const acc = tiles.map(() => evs.map(() => 0));
+    const g = s => R.gauss() * s;
+    for (let t = 0; t < trials; t++) {
+      tiles.forEach((tl, i) => {
+        // SPB 預放 Mark：實際位置（圖形誤差）＋辨識誤差；以 Tile 中心為原點
+        const site = li.so.map(o => ({ q: o, p: { x: o.x + g(L.sigmaPattern) + g(m.common.sigmaMark), y: o.y + g(L.sigmaPattern) + g(m.common.sigmaMark) } }));
+        const tm = li.to.map(o => ({ q: o, p: { x: o.x + g(L.sigmaTileMark), y: o.y + g(L.sigmaTileMark) } }));
+        // 量到的 SPB 預放位置姿態、量到的 Tile 姿態（名目 → 量測）
+        const fs = VA.fitRigid(site.map(x => ({ p: x.q, q: x.p })), { x: 0, y: 0 }, 0);
+        const ft = VA.fitRigid(tm.map(x => ({ p: x.q, q: x.p })), { x: 0, y: 0 }, 0);
+        // 放置後誤差 = (量到的 Tile 偏差 − 量到的預放偏差) 的反向殘留，再加連結、移動與貼附
+        const extra = { x: g(L.sigmaLink) + g(L.sigmaMove) + g(m.common.sigmaTile), y: g(L.sigmaLink) + g(L.sigmaMove) + g(m.common.sigmaTile) };
+        evs.forEach((o, k) => {
+          const a = VA.applyMove(o, fs.theta, fs.T, { x: 0, y: 0 }), b = VA.applyMove(o, ft.theta, ft.T, { x: 0, y: 0 });
+          const dx = a.x - b.x + extra.x, dy = a.y - b.y + extra.y;
+          acc[i][k] += dx * dx + dy * dy;
+        });
+      });
+    }
+    return tiles.map((tl, i) => {
+      const worst = Math.max(...acc[i].map(v => Math.sqrt(v / trials)));
+      return Object.assign({}, tl, { rmsX: worst / Math.SQRT2, rmsY: worst / Math.SQRT2 });
+    });
   }
 
   // ---------- 兩平台座標轉換（實測共同點） ----------
@@ -250,5 +328,5 @@
     }).join('\n');
   }
 
-  global.VA = Object.assign(global.VA || {}, { defaultMulti, MULTI_PRESETS, multiTiles: tileList, multiPlatformOf: platformOf, multiAnalyze: analyze, multiMonteCarlo: monteCarlo, fitLink, parseLinkRows, simulateLink });
+  global.VA = Object.assign(global.VA || {}, { defaultMulti, MULTI_PRESETS, multiTiles: tileList, multiPlatformOf: platformOf, multiAnalyze: analyze, multiMonteCarlo: monteCarlo, multiSideOffsets: sideOffsets, fitLink, parseLinkRows, simulateLink });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -228,5 +228,21 @@ if (VA.fitLink) test('two-platform transform fit', () => {
   ok(!VA.fitLink(rows.slice(0, 2), 'affine').ok, 'affine needs 3 points');
 });
 
+if (VA.multiAnalyze) test('multi-platform: per-site local alignment', () => {
+  const g = VA.defaultMulti(), l = VA.defaultMulti(); l.align = 'local';
+  const ag = VA.multiAnalyze(g), al = VA.multiAnalyze(l);
+  const w = a => Math.max(...a.tiles.map(t => t.tot));
+  ok(w(al) < w(ag) / 3, `local much better than global: ${w(al)} vs ${w(ag)}`);
+  // 局部對位：誤差與 Tile 位置無關（各欄相同）
+  const tots = al.tiles.map(t => t.tot);
+  ok(Math.max(...tots) - Math.min(...tots) < 1e-12, 'uniform across tiles');
+  ['center', 'corner'].forEach(ev => [4, 2].forEach(n => {
+    const m = VA.defaultMulti(); m.align = 'local'; m.evalAt = ev; m.local.nSite = n; m.local.nTile = n;
+    const a = VA.multiAnalyze(m), mc = VA.multiMonteCarlo(m, 3000, 4);
+    const t = a.tiles.find(x => x.name === '2-7'), q = mc.find(x => x.name === '2-7');
+    near(Math.hypot(q.rmsX, q.rmsY) / t.tot, 1, 0.05, `local MC ${ev} ${n}`);
+  }));
+});
+
 console.log(`${count - fails}/${count} checks passed`);
 process.exit(fails ? 1 : 0);

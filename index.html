@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>視覺對位除錯工具 <span class="ver">v0.6</span></h1>
+    <h1>視覺對位除錯工具 <span class="ver">v0.7</span></h1>
     <nav class="tabs" role="tablist">
       <button type="button" class="tab active" data-tab="layout">圖形設定</button>
       <button type="button" class="tab" data-tab="align">對位計算</button>
@@ -172,13 +172,20 @@
   <!-- ================= 多平台 ================= -->
   <main class="layout-proc tabpage" id="tab-multi" hidden>
     <section class="panel proc-config">
-      <h2>Mark 配置方案</h2>
+      <h2>對位基準</h2>
+      <div class="seg" id="mpAlign">
+        <button type="button" data-align="global">SPB 整體 Mark</button>
+        <button type="button" data-align="local">每片預放位置 Mark（局部對位）</button>
+      </div>
+      <div id="mpLocal" class="mp-ctls" hidden></div>
+      <h2>Mark 配置方案（整體 Mark）</h2>
       <div class="seg" id="mpPresets">
         <button type="button" data-preset="now">現況：左 A、右 B–C</button>
         <button type="button" data-preset="markD">左平台加 Mark D</button>
         <button type="button" data-preset="shared">交界加共用 Mark</button>
       </div>
       <div class="field-inline"><label>顯示</label><select id="mpK"><option value="1">1σ</option><option value="2">2σ</option><option value="3">3σ</option></select>
+        <label>評估點</label><select id="mpEval"><option value="center">Tile 中心</option><option value="corner">Tile 最遠角落</option></select>
         <button type="button" class="small" id="mpReset">重設為範例</button></div>
       <h2>誤差假設</h2>
       <div id="mpCommon" class="mp-ctls"></div>
@@ -188,14 +195,14 @@
     </section>
     <section class="panel proc-out">
       <h2>多平台分區貼附</h2>
-      <p class="hint">以基板（SPB）座標為共同座標。每個平台只用自己看得到的 Mark 求基板姿態，誤差隨「Tile 到該平台 Mark 擬合中心的距離」放大，所以交界兩側通常最差。顏色越深誤差越大（× 為各平台擬合中心，Mark 外圈顏色表示哪些平台看得到）。</p>
+      <p class="hint" id="mpIntro">以基板（SPB）座標為共同座標。每個平台只用自己看得到的 Mark 求基板姿態，誤差隨「Tile 到該平台 Mark 擬合中心的距離」放大，所以交界兩側通常最差。顏色越深誤差越大（× 為各平台擬合中心，Mark 外圈顏色表示哪些平台看得到）。</p>
       <svg id="mpSvg" class="mp-svg" role="img" aria-label="多平台分區與 Tile 誤差熱圖"></svg>
       <div id="mpDetail" class="mp-detail"></div>
       <div id="mpStats" class="stats"></div>
       <h3>各欄最大誤差</h3>
       <div id="mpLegend" class="chart-legend"></div>
       <svg id="mpBars" class="mp-bars" role="img" aria-label="各欄位置誤差長條圖"></svg>
-      <h3>三種 Mark 配置比較（目前的誤差假設）</h3>
+      <h3>對位基準與 Mark 配置比較（目前的誤差假設）</h3>
       <div class="table-wrap"><table id="mpCompare"></table></div>
       <h3>驗證</h3>
       <button type="button" id="mpMC">Monte-Carlo 驗證</button>

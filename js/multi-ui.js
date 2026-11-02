@@ -24,10 +24,25 @@
         <input type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-mc="${key}" data-scale="${scale}"></div>`;
     };
     $('mpCommon').innerHTML =
-      slider('sigmaMark', `Mark 辨識（${K()}σ）`, 0.001, 0.02, 0.001, K(), 'mm') +
+      slider('sigmaMark', `SPB Mark 辨識（${K()}σ）`, 0.001, 0.02, 0.001, K(), 'mm') +
       slider('sigmaTile', `Tile 貼附＋材料（${K()}σ）`, 0, 0.06, 0.001, K(), 'mm') +
       slider('dT', '量 Mark 到貼附的溫差（3σ）', 0, 5, 0.5, 1, '°C') +
       slider('cte', '基板熱膨脹係數', 0, 25, 0.5, 1, 'ppm/°C');
+    const L = m.local || (m.local = VA.defaultMulti().local);
+    const lslider = (key, label, min, max, step) => {
+      const v = +L[key] * K();
+      return `<div class="ctl"><label>${label}<output>${v.toFixed(3)} mm</output></label><input type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-ml="${key}"></div>`;
+    };
+    const nSel = (key, label) => `<div class="field"><label>${label}</label><select data-mlsel="${key}">${[[4, '四邊 4 點'], [3, '三邊 3 點'], [2, '左右 2 點']].map(([v, l]) => `<option value="${v}"${+L[key] === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    $('mpLocal').hidden = m.align !== 'local';
+    $('mpLocal').innerHTML = `
+      <div class="grid2">${nSel('nSite', 'SPB 預放位置 Mark')}${nSel('nTile', 'Tile 上的 Mark')}</div>
+      <div class="field"><label>Mark 距 Tile 邊（mm，向外為正）</label><input type="number" step="any" data-mlnum="inset" value="${L.inset}"></div>
+      ${lslider('sigmaTileMark', `Tile Mark 辨識（${K()}σ）`, 0, 0.02, 0.001)}
+      ${lslider('sigmaPattern', `SPB 預放 Mark 圖形精度（${K()}σ）`, 0, 0.02, 0.001)}
+      ${lslider('sigmaLink', `上下相機連結 B_off（${K()}σ）`, 0, 0.02, 0.001)}
+      ${lslider('sigmaMove', `量測後移到貼附位置的定位（${K()}σ）`, 0, 0.02, 0.001)}
+      <p class="hint">局部對位時，平台角度、軸比例、熱膨脹與「Tile 到 SPB 整體 Mark 的距離」都不再放大誤差；誤差只來自每片周圍 Mark 的量測、相機連結與貼附本身。若上方「Tile 貼附＋材料」已包含 Tile 4 點對位的誤差，請把「Tile Mark 辨識」設為 0，避免重複計算。</p>`;
     $('mpPlatforms').innerHTML = m.platforms.map((p, i) => `
       <div class="mp-plat" style="--pc:${p.color}">
         <div class="mp-ph"><span class="swatch" style="background:${p.color}"></span><input data-mp="platforms.${i}.name" value="${esc(p.name)}" aria-label="平台名稱"></div>
@@ -64,7 +79,9 @@
       <button type="button" class="small" id="mpAddMark">＋ Mark</button>
       <p class="hint">座標以基板左上 Mark 為原點，X 向右、Y 向下（與圖面一致）。</p>`;
     document.querySelectorAll('#mpPresets button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    document.querySelectorAll('#mpAlign button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.align === (m.align || 'global'))));
     $('mpK').value = m.k;
+    $('mpEval').value = m.evalAt || 'center';
   }
 
   // ---------- 圖 ----------
@@ -85,7 +102,7 @@
     // 顏色以三種 Mark 配置中最大的誤差為滿刻度，切換方案時顏色可直接比較
     let maxT = Math.max(1e-9, ...a.tiles.filter(x => !x.bad).map(x => x.tot));
     Object.values(VA.MULTI_PRESETS).forEach(pr => {
-      const mm = VA.clone(m); pr.apply(mm);
+      const mm = VA.clone(m); mm.align = 'global'; pr.apply(mm);
       VA.multiAnalyze(mm).tiles.forEach(x => { if (!x.bad) maxT = Math.max(maxT, x.tot); });
     });
     let h = `<rect x="${X(-15)}" y="${Y(-15)}" width="${(sb.w + 30) * sc}" height="${(sb.h + 30) * sc}" rx="6" class="mp-spb"/>`;
@@ -104,6 +121,14 @@
         <text x="${X(tl.x)}" y="${Y(tl.y) - 2}" text-anchor="middle" class="mp-tn${f > 0.6 ? ' inv' : ''}">${esc(tl.name)}</text>
         <text x="${X(tl.x)}" y="${Y(tl.y) + 12}" text-anchor="middle" class="mp-tv${f > 0.6 ? ' inv' : ''}">${tl.bad ? '無 Mark' : '±' + f3(tl.tot * K())}</text></g>`;
     });
+    // 局部對位：每片四邊的 Tile Mark（實心）與 SPB 預放 Mark（空心）
+    if (a.local) {
+      const so = VA.multiSideOffsets(m, +m.local.nSite), to = VA.multiSideOffsets(m, +m.local.nTile);
+      a.tiles.forEach(tl => {
+        so.forEach(o => { h += `<circle cx="${X(tl.x + o.x)}" cy="${Y(tl.y + o.y)}" r="5" class="mp-site"/>`; });
+        to.forEach(o => { h += `<circle cx="${X(tl.x + o.x)}" cy="${Y(tl.y + o.y)}" r="2.4" class="mp-tmark"/>`; });
+      });
+    }
     // 交界線
     a.joins.filter(j => j.a.r === 1).forEach(j => {
       const x = X((j.a.x + j.b.x) / 2);
@@ -111,19 +136,19 @@
     });
     // 擬合中心與 Mark
     a.fits.forEach((f, i) => {
-      if (!f.ok) return;
+      if (!f.ok || a.local) return;
       const p = m.platforms[i];
       h += `<g class="mp-cen" style="stroke:${p.color}"><line x1="${X(f.c.x) - 7}" y1="${Y(f.c.y) - 7}" x2="${X(f.c.x) + 7}" y2="${Y(f.c.y) + 7}"/><line x1="${X(f.c.x) - 7}" y1="${Y(f.c.y) + 7}" x2="${X(f.c.x) + 7}" y2="${Y(f.c.y) - 7}"/></g>`;
     });
     m.marks.forEach(mk => {
       const seers = m.platforms.filter(p => p.marks.includes(mk.name));
-      h += `<g data-hit="mark:${esc(mk.name)}" class="hit${sel === 'mark:' + mk.name ? ' sel' : ''}">`;
+      h += `<g data-hit="mark:${esc(mk.name)}" class="hit${sel === 'mark:' + mk.name ? ' sel' : ''}${a.local ? ' faded' : ''}">`;
       seers.forEach((p, k) => { h += `<circle cx="${X(mk.x)}" cy="${Y(mk.y)}" r="${11 + k * 4}" class="mp-ring" style="stroke:${p.color}"/>`; });
       h += `<circle cx="${X(mk.x)}" cy="${Y(mk.y)}" r="7" class="mp-mark"/><text x="${X(mk.x) + 14}" y="${Y(mk.y) + (mk.y < sb.h / 2 ? -12 : 24)}" class="mp-mt">${esc(mk.name)}</text></g>`;
     });
-    // 每平台到最遠 Tile 的距離標註
+    // 每平台到最遠 Tile 的距離標註（局部對位時不適用）
     a.fits.forEach((f, i) => {
-      if (!f.ok) return;
+      if (!f.ok || a.local) return;
       const far = a.tiles.filter(x => x.pi === i).sort((p, q) => q.d - p.d)[0];
       if (!far) return;
       const y = Y(sb.h + 15) + 22 + i * 18;
@@ -133,11 +158,21 @@
     svgEl.innerHTML = h;
   }
 
+  const INTRO_GLOBAL = $('mpIntro').textContent;
   function renderStats(a) {
+    $('mpIntro').textContent = a.local
+      ? '局部對位：每片 Tile 以自己四邊的 Mark 對準 SPB 上預放位置的 Mark（空心圈＝SPB 預放 Mark，實心點＝Tile Mark）。誤差與 Tile 在基板上的位置無關，各欄相同；SPB 整體 Mark（淡色）只用於粗定位。'
+      : INTRO_GLOBAL;
     const m = M(), k = K();
     const cards = m.platforms.map((p, i) => {
       const ts = a.tiles.filter(x => x.pi === i && !x.bad);
       const f = a.fits[i];
+      if (a.local && ts.length) {
+        const w = ts.slice().sort((x, y) => y.tot - x.tot)[0];
+        const dom = Object.entries(w.comp).sort((x, y) => y[1] - x[1])[0][0];
+        return `<div class="stat" style="border-color:${p.color}"><div class="k">${esc(p.name)} 最大（${esc(w.name)}）</div><div class="v">±${f3(w.tot * k)}</div>
+          <div class="d">主要：${esc(dom)}・每片 ${a.li.nS} 個預放 Mark ＋ ${a.li.nT} 個 Tile Mark</div></div>`;
+      }
       if (!ts.length || !f.ok) return `<div class="stat"><div class="k">${esc(p.name)}</div><div class="v" style="color:var(--danger)">—</div><div class="d">${f && f.reason ? esc(f.reason) : '沒有 Tile'}</div></div>`;
       const w = ts.slice().sort((x, y) => y.tot - x.tot)[0];
       const dom = Object.entries(w.comp).sort((x, y) => y[1] - x[1])[0][0];
@@ -200,8 +235,10 @@
   // 方案比較
   function renderCompare() {
     const m = M(), k = K();
-    const rows = Object.entries(VA.MULTI_PRESETS).map(([key, pr]) => {
-      const mm = VA.clone(m); pr.apply(mm);
+    const cases = Object.entries(VA.MULTI_PRESETS).map(([key, pr]) => ({ label: 'SPB 整體 Mark：' + pr.label, make: () => { const mm = VA.clone(m); mm.align = 'global'; pr.apply(mm); return mm; } }));
+    cases.push({ label: '每片預放 Mark（局部對位）', make: () => { const mm = VA.clone(m); mm.align = 'local'; return mm; } });
+    const rows = cases.map(cs => {
+      const mm = cs.make(), pr = { label: cs.label };
       const a = VA.multiAnalyze(mm);
       const worst = i => Math.max(0, ...a.tiles.filter(x => x.pi === i && !x.bad).map(x => x.tot));
       const j = Math.max(0, ...a.joins.map(x => x.tot));
@@ -374,7 +411,13 @@
   const page = $('tab-multi');
   page.addEventListener('input', e => {
     const el = e.target, m = M();
-    if (el.dataset.mc) {
+    if (el.dataset.ml) {
+      m.local[el.dataset.ml] = +el.value / K();
+      el.previousElementSibling.querySelector('output').textContent = `${(+el.value).toFixed(3)} mm`;
+    } else if (el.dataset.mlnum) {
+      if (el.value === '' || isNaN(+el.value)) return;
+      m.local[el.dataset.mlnum] = +el.value;
+    } else if (el.dataset.mc) {
       m.common[el.dataset.mc] = +el.value / +el.dataset.scale;
       el.previousElementSibling.querySelector('output').textContent = `${(+el.value).toFixed(+el.step < 0.01 ? 3 : +el.step < 1 ? 1 : 0)} ${el.previousElementSibling.querySelector('output').textContent.split(' ').pop()}`;
     } else if (el.dataset.mp) {
@@ -391,12 +434,15 @@
   page.addEventListener('change', e => {
     if (e.target.dataset.mp && /marks\.\d+\.name|cols|tiles\.(rows|cols)/.test(e.target.dataset.mp)) { App.save(); full(); }
     if (e.target.id === 'mpK') { M().k = +e.target.value; App.save(); full(); }
+    if (e.target.id === 'mpEval') { M().evalAt = e.target.value; App.save(); full(); }
+    if (e.target.dataset.mlsel) { M().local[e.target.dataset.mlsel] = +e.target.value; App.save(); full(); }
   });
   page.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
     const m = M();
-    if (b.dataset.preset) { VA.MULTI_PRESETS[b.dataset.preset].apply(m); App.save(); full(); b.setAttribute('aria-pressed', 'true'); return; }
+    if (b.dataset.align) { m.align = b.dataset.align; App.save(); full(); return; }
+    if (b.dataset.preset) { m.align = 'global'; VA.MULTI_PRESETS[b.dataset.preset].apply(m); App.save(); full(); b.setAttribute('aria-pressed', 'true'); return; }
     if (b.dataset.pmark) {
       const [i, name] = [+b.dataset.pmark.split(',')[0], b.dataset.pmark.split(',').slice(1).join(',')];
       const p = m.platforms[i];
@@ -455,7 +501,7 @@
       $('mpMCOut').innerHTML = `<table><thead><tr><th>Tile</th><th>解析式 ±${k}σ</th><th>模擬 ±${k}σ（3000 次）</th><th>差異</th></tr></thead><tbody>${pick.map(t => {
         const q = mc.find(x => x.name === t.name), r = Math.hypot(q.rmsX, q.rmsY);
         return `<tr><td>${esc(t.name)}</td><td class="num">${f3(t.tot * k)}</td><td class="num">${f3(r * k)}</td><td class="num">${((r / t.tot - 1) * 100).toFixed(1)}%</td></tr>`;
-      }).join('')}</tbody></table><p class="hint">模擬：每次對 Mark 量測加入雜訊、各平台重新擬合、加入機構角度、軸比例、熱膨脹與貼附誤差，統計實際位置誤差。</p>`;
+      }).join('')}</tbody></table><p class="hint">${m.align === 'local' ? '模擬：每片分別對 SPB 預放 Mark（圖形誤差＋辨識）與 Tile Mark 加入雜訊、各自擬合後求相對姿態，再加入相機連結、移動定位與貼附誤差，統計評估點的實際位置誤差。' : '模擬：每次對 Mark 量測加入雜訊、各平台重新擬合、加入機構角度、軸比例、熱膨脹與貼附誤差，統計實際位置誤差。'}</p>`;
       btn.disabled = false; btn.textContent = 'Monte-Carlo 驗證';
     }, 20);
   }
