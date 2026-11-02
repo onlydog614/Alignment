@@ -226,10 +226,138 @@
     box.innerHTML = '<p class="hint">點選 Tile 看誤差分量；點選或拖曳 Mark 修改位置與可見平台。</p>';
   }
 
+  // ---------- 兩平台座標轉換 ----------
+  function L() {
+    const m = M();
+    if (!m.link) m.link = VA.defaultMulti().link;
+    m.link.truth = Object.assign(VA.defaultMulti().link.truth, m.link.truth);
+    return m.link;
+  }
+  function currentFit() {
+    const lk = L();
+    const rows = VA.parseLinkRows(lk.text);
+    return { rows, fit: rows.length ? VA.fitLink(rows, lk.model) : null };
+  }
+  function renderLink() {
+    const m = M(), lk = L(), k = K();
+    const opts = m.platforms.map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join('');
+    ['lkFrom', 'lkTo'].forEach(id => { if ($(id).innerHTML !== opts) $(id).innerHTML = opts; });
+    $('lkFrom').value = lk.from; $('lkTo').value = lk.to; $('lkModel').value = lk.model; $('lkDir').value = lk.dir;
+    if (document.activeElement !== $('lkText')) $('lkText').value = lk.text;
+    if (document.activeElement !== $('lkConvIn')) $('lkConvIn').value = lk.conv;
+    document.querySelectorAll('[data-lkt]').forEach(el => { if (el !== document.activeElement) el.value = lk.truth[el.dataset.lkt]; });
+    const A = esc(m.platforms[lk.from] ? m.platforms[lk.from].name : 'A'), B = esc(m.platforms[lk.to] ? m.platforms[lk.to].name : 'B');
+    const { rows, fit } = currentFit();
+    const out = $('lkResult'), svg = $('lkSvg');
+    if (!rows.length) { out.innerHTML = '<p class="hint">尚未輸入共同點。可先展開「產生模擬資料」試用。</p>'; svg.hidden = true; convert(null); return; }
+    if (!fit.ok) { out.innerHTML = `<p class="warnings">${esc(fit.reason)}</p>`; svg.hidden = true; convert(null); return; }
+    const um = v => (v * 1000).toFixed(2);
+    const warn = [];
+    if (fit.dof === 0) warn.push('點數剛好等於未知數，殘差必為 0，無法檢查量測是否正確；建議多量 1–2 點。');
+    const sm = m.common.sigmaMark;
+    if (Number.isFinite(fit.sigma) && fit.sigma > 3 * sm * Math.SQRT2 && fit.dof > 0) warn.push(`殘差（${um(fit.sigma)} µm）明顯大於 Mark 辨識誤差（${um(sm)} µm）：可能有點位對應錯誤，或兩平台之間有比例／直角度差（試試「相似」或「仿射」）。`);
+    if (fit.dof > 1) {
+      const worst = fit.residuals.slice().sort((a, b) => b.d - a.d)[0];
+      if (worst.d > 3 * fit.sigma * Math.SQRT2 && rows.length >= 4) warn.push(`${worst.name} 的殘差特別大（${um(worst.d)} µm），請確認該點兩邊量的是同一個位置。`);
+    }
+    // 模型建議：比例是否顯著
+    const alt = VA.fitLink(rows, 'similarity');
+    if (lk.model === 'rigid' && alt.ok && alt.dof > 0 && Math.abs((alt.scaleX - 1) * 1e6) > 3 * alt.sdScalePpm && Math.abs((alt.scaleX - 1) * 1e6) > 5) {
+      warn.push(`以相似模型估計兩平台比例差 ${((alt.scaleX - 1) * 1e6).toFixed(1)} ± ${alt.sdScalePpm.toFixed(1)} ppm，明顯不為 0，建議改用「相似」模型（或先校正軸比例）。`);
+    }
+    // 轉換對各 Tile 造成的不確定度
+    const tiles = VA.multiTiles(m).map(t => ({ t, sd: fit.sdAt(t) }));
+    const tmax = tiles.slice().sort((a, b) => b.sd - a.sd)[0], tmin = tiles.slice().sort((a, b) => a.sd - b.sd)[0];
+    const ppmX = (fit.scaleX - 1) * 1e6, ppmY = (fit.scaleY - 1) * 1e6;
+    out.innerHTML = `
+      <div class="kv">
+        <span>轉換</span><b>${A} → ${B}・${{ rigid: '剛體', similarity: '相似', affine: '仿射' }[fit.model]}・${fit.n} 點（自由度 ${fit.dof}）</b>
+        <span>平移 ΔX, ΔY（A 原點）</span><b>${fit.T.x.toFixed(4)}, ${fit.T.y.toFixed(4)} mm</b>
+        <span>旋轉 θ</span><b>${fit.theta.toFixed(5)}°${Number.isFinite(fit.sdTheta) ? ` ± ${(fit.sdTheta * k).toFixed(5)}°（${k}σ）` : ''}</b>
+        ${fit.model === 'similarity' ? `<span>比例差</span><b>${ppmX.toFixed(1)} ppm${Number.isFinite(fit.sdScalePpm) ? ` ± ${(fit.sdScalePpm * k).toFixed(1)}` : ''}</b>` : ''}
+        ${fit.model === 'affine' ? `<span>比例差 X / Y</span><b>${ppmX.toFixed(1)} / ${ppmY.toFixed(1)} ppm</b><span>直角度差</span><b>${fit.skew.toFixed(5)}°</b>` : ''}
+        <span>殘差（單軸 1σ／最大）</span><b>${Number.isFinite(fit.sigma) ? um(fit.sigma) : '—'} / ${um(fit.maxRes)} µm</b>
+        <span>轉換造成的誤差（${k}σ）</span><b>${Number.isFinite(tmax.sd) ? `${tmin.t.name} ±${f3(tmin.sd * k)} ～ ${tmax.t.name} ±${f3(tmax.sd * k)} mm` : '需多量點才能估計'}</b>
+      </div>
+      ${warn.length ? `<ul class="warnings">${warn.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+      <div class="table-wrap"><table><thead><tr><th>共同點</th><th>A (X, Y)</th><th>B (X, Y)</th><th>殘差 X µm</th><th>殘差 Y µm</th><th>|殘差| µm</th></tr></thead><tbody>
+      ${rows.map((r, i) => { const e = fit.residuals[i]; return `<tr><td>${esc(r.name)}</td><td class="num">${r.a.x.toFixed(4)}, ${r.a.y.toFixed(4)}</td><td class="num">${r.b.x.toFixed(4)}, ${r.b.y.toFixed(4)}</td><td class="num">${um(e.x)}</td><td class="num">${um(e.y)}</td><td class="num">${um(e.d)}</td></tr>`; }).join('')}
+      </tbody></table></div>
+      <p class="hint">「轉換造成的誤差」是把 A 平台座標換到 B 平台時，由共同點量測誤差帶來的不確定度；離共同點越遠越大，所以共同點應盡量分散並靠近要換算的區域。</p>`;
+    drawLinkSvg(rows, fit);
+    convert(fit);
+  }
+
+  function drawLinkSvg(rows, fit) {
+    const svg = $('lkSvg'), m = M(), sb = m.substrate;
+    svg.hidden = false;
+    const W = svg.clientWidth || 700, H = svg.clientHeight || 220, pad = 30;
+    const sc = Math.min((W - 2 * pad) / sb.w, (H - 2 * pad) / sb.h), ox = (W - sb.w * sc) / 2, oy = (H - sb.h * sc) / 2;
+    const X = x => ox + x * sc, Y = y => oy + y * sc;
+    const maxR = Math.max(1e-9, ...fit.residuals.map(r => r.d)), amp = 40 / maxR;
+    let h = `<rect x="${X(0)}" y="${Y(0)}" width="${sb.w * sc}" height="${sb.h * sc}" class="mp-spb"/>`;
+    h += `<text x="8" y="16" class="g-m">共同點（A 座標）與殘差向量：最長箭頭 = ${(maxR * 1000).toFixed(2)} µm</text>`;
+    rows.forEach((r, i) => {
+      const e = fit.residuals[i], x = X(r.a.x), y = Y(r.a.y);
+      h += `<line x1="${x}" y1="${y}" x2="${x + e.x * amp}" y2="${y + e.y * amp}" class="lk-arrow" marker-end="url(#lkah)"/>`;
+      h += `<circle cx="${x}" cy="${y}" r="5" class="lk-pt"/><text x="${x + 8}" y="${y - 8}" class="g-t">${esc(r.name)}</text>`;
+    });
+    svg.innerHTML = `<defs><marker id="lkah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" class="g-ahead"/></marker></defs>` + h;
+  }
+
+  function convert(fit) {
+    const lk = L(), k = K(), outEl = $('lkConvOut');
+    if (!fit || !fit.ok) { outEl.value = ''; return; }
+    const lines = String(lk.conv || '').split(/\r?\n/);
+    outEl.value = lines.map((line, i) => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return t;
+      const parts = t.split(/[\s,;]+/);
+      let name = '';
+      if (isNaN(+parts[0])) name = parts.shift();
+      const x = +parts[0], y = +parts[1];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return `${t}\t（格式錯誤）`;
+      const p = { x, y };
+      const q = lk.dir === 'ab' ? fit.fwd(p) : fit.inv(p);
+      const pa = lk.dir === 'ab' ? p : q;
+      const sd = fit.sdAt(pa);
+      return `${name ? name + '\t' : ''}${q.x.toFixed(4)}\t${q.y.toFixed(4)}\t${Number.isFinite(sd) ? '±' + (sd * k).toFixed(4) : ''}`;
+    }).join('\n');
+  }
+
+  ['lkFrom', 'lkTo', 'lkModel', 'lkDir'].forEach(id => $(id).addEventListener('change', e => {
+    const lk = L(), key = { lkFrom: 'from', lkTo: 'to', lkModel: 'model', lkDir: 'dir' }[id];
+    lk[key] = id === 'lkFrom' || id === 'lkTo' ? +e.target.value : e.target.value;
+    App.save(); renderLink();
+  }));
+  $('lkText').addEventListener('input', e => { L().text = e.target.value; App.save(); renderLink(); });
+  $('lkConvIn').addEventListener('input', e => { L().conv = e.target.value; App.save(); convert(currentFit().fit); });
+  document.querySelectorAll('[data-lkt]').forEach(el => el.addEventListener('input', () => {
+    if (el.value === '' || isNaN(+el.value)) return;
+    L().truth[el.dataset.lkt] = +el.value; App.save();
+  }));
+  $('lkGen').addEventListener('click', () => {
+    const lk = L();
+    lk.text = `# 模擬：ΔX ${lk.truth.dx}、ΔY ${lk.truth.dy} mm、θ ${lk.truth.thetaDeg}°、比例 ${lk.truth.ppm} ppm\n` +
+      VA.simulateLink(M(), Object.assign({ from: lk.from, to: lk.to }, lk.truth), VA.rng((Date.now() & 0xffff) + 1));
+    App.save(); renderLink();
+  });
+  $('lkFillTiles').addEventListener('click', () => {
+    const lk = L();
+    lk.conv = VA.multiTiles(M()).map(t => `${t.name}\t${t.x}\t${t.y}`).join('\n');
+    App.save(); renderLink();
+  });
+  $('lkCopy').addEventListener('click', () => {
+    const v = $('lkConvOut').value;
+    if (navigator.clipboard) navigator.clipboard.writeText(v).catch(() => { $('lkConvOut').select(); });
+    else $('lkConvOut').select();
+  });
+
   function renderAll() {
     if ($('tab-multi').hidden) return;
     const a = VA.multiAnalyze(M());
     renderSvg(a); renderStats(a); renderBars(a); renderCompare(); renderDetail(a);
+    renderLink();
   }
   function full() { renderConfig(); renderAll(); }
 

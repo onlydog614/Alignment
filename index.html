@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>視覺對位除錯工具 <span class="ver">v0.5</span></h1>
+    <h1>視覺對位除錯工具 <span class="ver">v0.6</span></h1>
     <nav class="tabs" role="tablist">
       <button type="button" class="tab active" data-tab="layout">圖形設定</button>
       <button type="button" class="tab" data-tab="align">對位計算</button>
@@ -200,6 +200,42 @@
       <h3>驗證</h3>
       <button type="button" id="mpMC">Monte-Carlo 驗證</button>
       <div id="mpMCOut"></div>
+      <h2 class="mp-sec">兩平台座標轉換（實測輸入）</h2>
+      <p class="hint">在兩個平台都量得到的共同點（交界共用 Mark、玻璃標準尺刻線、標準片）各量一次，求「來源平台 → 目標平台」的座標轉換。之後可把一個平台的座標（例如右平台的推估座標）批次換算到另一個平台。</p>
+      <div class="lk-row">
+        <div class="field"><label>來源平台（A）</label><select id="lkFrom"></select></div>
+        <div class="field"><label>目標平台（B）</label><select id="lkTo"></select></div>
+        <div class="field"><label>轉換模型</label><select id="lkModel">
+          <option value="rigid">剛體：平移＋旋轉（≥2 點）</option>
+          <option value="similarity">相似：＋等比例（≥2 點，建議 ≥3）</option>
+          <option value="affine">仿射：＋X/Y 比例差、直角度（≥3 點，建議 ≥4）</option>
+        </select></div>
+      </div>
+      <p class="hint">每行一個共同點：<code>名稱 A平台X A平台Y B平台X B平台Y</code>（空白、逗號或 Tab 分隔，可直接從 Excel 貼上；名稱可省略）。</p>
+      <textarea id="lkText" rows="6" class="mono" spellcheck="false" placeholder="S1  810.0012  0.0031  810.3487  -0.0185"></textarea>
+      <details class="lk-sim"><summary>產生模擬資料（測試用）</summary>
+        <div class="lk-row">
+          <div class="field"><label>真實 ΔX (mm)</label><input type="number" step="any" data-lkt="dx"></div>
+          <div class="field"><label>真實 ΔY (mm)</label><input type="number" step="any" data-lkt="dy"></div>
+          <div class="field"><label>真實 θ (°)</label><input type="number" step="any" data-lkt="thetaDeg"></div>
+          <div class="field"><label>真實比例差 (ppm)</label><input type="number" step="any" data-lkt="ppm"></div>
+        </div>
+        <button type="button" class="small" id="lkGen">產生（雜訊＝上方 Mark 辨識誤差）</button>
+        <span class="hint">共同點：兩平台都看得到的 Mark；不足 4 點時在交界兩側補標準尺點。</span>
+      </details>
+      <div id="lkResult"></div>
+      <svg id="lkSvg" class="lk-svg" role="img" aria-label="共同點殘差圖" hidden></svg>
+      <h3>批次換算</h3>
+      <div class="lk-row">
+        <div class="field"><label>方向</label><select id="lkDir"><option value="ab">A → B</option><option value="ba">B → A</option></select></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="small" id="lkFillTiles">填入 Tile 中心（範例）</button></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="small" id="lkCopy">複製結果</button></div>
+      </div>
+      <div class="lk-conv">
+        <div><label class="hint">輸入：<code>名稱 X Y</code></label><textarea id="lkConvIn" rows="8" class="mono" spellcheck="false"></textarea></div>
+        <div><label class="hint">輸出：換算後 X、Y 與轉換造成的不確定度</label><textarea id="lkConvOut" rows="8" class="mono" readonly></textarea></div>
+      </div>
+
       <h3>在除錯工具中的對應</h3>
       <ul class="pbul">
         <li>每個平台 = 一組獨立的「平台＋相機＋拍照點」：可在「圖形設定／對位計算」分別建立（匯出成兩個設定檔），各自校正旋轉中心與九點。</li>

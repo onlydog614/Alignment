@@ -198,5 +198,35 @@ if (VA.multiAnalyze) test('multi-platform: analytic vs Monte-Carlo and scenarios
   ok(a.fits[0].src === 'mech' && a.tiles.find(x => x.name === '1-6').tot > 2 * a.tiles.find(x => x.name === '1-1').tot, 'lever arm');
 });
 
+if (VA.fitLink) test('two-platform transform fit', () => {
+  const m = VA.defaultMulti();
+  const truth = { from: 0, to: 1, dx: 0.35, dy: -0.12, thetaDeg: 0.008, ppm: 30 };
+  // 無雜訊：三種模型都要能還原（rigid 會留下比例造成的殘差）
+  m.common.sigmaMark = 0;
+  const rows = VA.parseLinkRows(VA.simulateLink(m, truth, VA.rng(1)));
+  ok(rows.length === 4, 'four ruler points ' + rows.length);
+  const sim = VA.fitLink(rows, 'similarity');
+  near(sim.theta, truth.thetaDeg, 1e-6, 'theta'); near((sim.scaleX - 1) * 1e6, 30, 0.01, 'ppm');
+  near(sim.T.x, truth.dx, 1e-5, 'Tx'); near(sim.T.y, truth.dy, 1e-5, 'Ty');
+  ok(sim.maxRes < 2e-6, 'exact similarity ' + sim.maxRes);
+  const rig = VA.fitLink(rows, 'rigid');
+  ok(rig.maxRes > 1e-4, 'rigid leaves scale residual ' + rig.maxRes);
+  const aff = VA.fitLink(rows, 'affine');
+  ok(aff.maxRes < 2e-6 && Math.abs(aff.skew) < 1e-5, 'affine exact ' + aff.maxRes);
+  const back = sim.inv(sim.fwd({ x: 100, y: 50 }));
+  near(back.x, 100, 1e-9, 'inverse x'); near(back.y, 50, 1e-9, 'inverse y');
+  // 有雜訊：不確定度估計與 Monte-Carlo 一致
+  const m2 = VA.defaultMulti(), R = VA.rng(9), far = { x: 67.5, y: 213.5 };
+  let sq = 0, sdSum = 0; const N = 600;
+  for (let i = 0; i < N; i++) {
+    const f = VA.fitLink(VA.parseLinkRows(VA.simulateLink(m2, truth, R)), 'similarity');
+    const th = truth.thetaDeg * Math.PI / 180, sc = 1 + 30e-6;
+    const tx = sc * (Math.cos(th) * far.x - Math.sin(th) * far.y) + truth.dx, ty = sc * (Math.sin(th) * far.x + Math.cos(th) * far.y) + truth.dy;
+    const q = f.fwd(far); sq += (q.x - tx) ** 2 + (q.y - ty) ** 2; sdSum += f.sdAt(far) ** 2;
+  }
+  near(Math.sqrt(sq / N) / Math.sqrt(sdSum / N), 1, 0.25, 'predicted sd vs MC at far tile');
+  ok(!VA.fitLink(rows.slice(0, 2), 'affine').ok, 'affine needs 3 points');
+});
+
 console.log(`${count - fails}/${count} checks passed`);
 process.exit(fails ? 1 : 0);

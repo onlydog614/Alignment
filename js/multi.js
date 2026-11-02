@@ -20,7 +20,8 @@
         { name: '右平台', cols: [7, 12], marks: ['B', 'C'], thetaSrc: 'marks', sigmaThMech: 0.01 / 3, ppm: 50 / 3, color: '#d4612a' }
       ],
       // σ 類參數存 1σ；dT 為溫差的 3σ 值
-      common: { sigmaMark: 0.005 / 3, dT: 1, cte: 10, sigmaTile: 0.021 / 3 }
+      common: { sigmaMark: 0.005 / 3, dT: 1, cte: 10, sigmaTile: 0.021 / 3 },
+      link: { from: 0, to: 1, model: 'rigid', text: '', conv: '', dir: 'ab', truth: { dx: 0.35, dy: -0.12, thetaDeg: 0.008, ppm: 30 } }
     };
   }
 
@@ -150,5 +151,104 @@
     return tiles.map((tl, i) => Object.assign({}, tl, { rmsX: Math.sqrt(acc[i].sx / trials), rmsY: Math.sqrt(acc[i].sy / trials) }));
   }
 
-  global.VA = Object.assign(global.VA || {}, { defaultMulti, MULTI_PRESETS, multiTiles: tileList, multiPlatformOf: platformOf, multiAnalyze: analyze, multiMonteCarlo: monteCarlo });
+  // ---------- 兩平台座標轉換（實測共同點） ----------
+  // rows：[{ name, a:{x,y}, b:{x,y} }]，a 為「來源平台」座標、b 為「目標平台」座標
+  // model：'rigid'（平移＋旋轉）、'similarity'（＋等比例）、'affine'（＋X/Y 比例差與直角度）
+  const LINK_K = { rigid: 3, similarity: 4, affine: 6 };
+  const LINK_MIN = { rigid: 2, similarity: 2, affine: 3 };
+
+  function fitLink(rows, model) {
+    const n = rows.length, k = LINK_K[model] || 3;
+    if (n < (LINK_MIN[model] || 2)) return { ok: false, reason: `${model === 'affine' ? '仿射' : '此模型'}至少需要 ${LINK_MIN[model]} 個共同點` };
+    const ca = { x: rows.reduce((a, r) => a + r.a.x, 0) / n, y: rows.reduce((a, r) => a + r.a.y, 0) / n };
+    const cb = { x: rows.reduce((a, r) => a + r.b.x, 0) / n, y: rows.reduce((a, r) => a + r.b.y, 0) / n };
+    const S = rows.reduce((a, r) => a + (r.a.x - ca.x) ** 2 + (r.a.y - ca.y) ** 2, 0);
+    let m;
+    if (model === 'affine') {
+      const f = VA.fitAffine(rows.map(r => ({ u: r.a.x, v: r.a.y, x: r.b.x, y: r.b.y })));
+      if (!f) return { ok: false, reason: '共同點共線，無法求仿射（請加一個不在同一直線上的點）' };
+      m = f.m;
+    } else {
+      let sd = 0, sc = 0;
+      rows.forEach(r => {
+        const px = r.a.x - ca.x, py = r.a.y - ca.y, qx = r.b.x - cb.x, qy = r.b.y - cb.y;
+        sd += px * qx + py * qy; sc += px * qy - py * qx;
+      });
+      if (S < 1e-12) return { ok: false, reason: '共同點重合，無法求旋轉' };
+      const th = Math.atan2(sc, sd);
+      const sca = model === 'similarity' ? Math.hypot(sd, sc) / S : 1;
+      const c = Math.cos(th) * sca, si = Math.sin(th) * sca;
+      m = { A: c, B: -si, D: si, E: c, C: 0, F: 0 };
+      m.C = cb.x - (m.A * ca.x + m.B * ca.y); m.F = cb.y - (m.D * ca.x + m.E * ca.y);
+    }
+    const fwd = p => VA.pixToWorld(m, p.x, p.y);
+    const inv = q => { const r = VA.worldToPix(m, q.x, q.y); return { x: r.u, y: r.v }; };
+    const residuals = rows.map(r => { const q = fwd(r.a), dx = r.b.x - q.x, dy = r.b.y - q.y; return { name: r.name, x: dx, y: dy, d: Math.hypot(dx, dy) }; });
+    const dof = 2 * n - k;
+    const ss = residuals.reduce((a, r) => a + r.x * r.x + r.y * r.y, 0);
+    const sigma = dof > 0 ? Math.sqrt(ss / dof) : NaN; // 單軸 1σ
+    const info = VA.describeAffine(m);
+    // 轉換後某點的不確定度（位置半徑 1σ）
+    let sdAt;
+    if (model === 'affine') {
+      const mu = ca.x, mv = ca.y, Z = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      rows.forEach(r => { const z = [r.a.x - mu, r.a.y - mv, 1]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) Z[i][j] += z[i] * z[j]; });
+      const Zi = [0, 1, 2].map(c => VA.solveN(Z, [0, 1, 2].map(i => (i === c ? 1 : 0))));
+      sdAt = p => {
+        const z = [p.x - mu, p.y - mv, 1];
+        let v = 0;
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) v += z[i] * Zi[j][i] * z[j];
+        return sigma * Math.sqrt(2 * Math.max(v, 0));
+      };
+    } else {
+      const extra = model === 'similarity' ? 2 : 1; // 旋轉（＋比例）
+      sdAt = p => sigma * Math.sqrt(2 / n + extra * ((p.x - ca.x) ** 2 + (p.y - ca.y) ** 2) / S);
+    }
+    return {
+      ok: true, model, n, dof, m, fwd, inv, residuals, sigma, sdAt, ca, S,
+      theta: info.angle, scaleX: info.sx, scaleY: info.sy, skew: info.skew,
+      // 原點（來源座標 0,0）的平移量
+      T: { x: m.C, y: m.F },
+      sdTheta: sigma / Math.sqrt(S) * 180 / Math.PI,
+      sdScalePpm: model === 'rigid' ? NaN : sigma / Math.sqrt(S) * 1e6,
+      maxRes: Math.max(...residuals.map(r => r.d))
+    };
+  }
+
+  function parseLinkRows(text) {
+    const out = [];
+    String(text || '').split(/\r?\n/).forEach((line, i) => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return;
+      const parts = t.split(/[\s,;]+/);
+      let name = 'P' + (out.length + 1);
+      if (isNaN(+parts[0])) name = parts.shift();
+      const v = parts.slice(0, 4).map(Number);
+      if (v.length === 4 && v.every(Number.isFinite)) out.push({ name, a: { x: v[0], y: v[1] }, b: { x: v[2], y: v[3] } });
+    });
+    return out;
+  }
+
+  // 模擬資料：在交界附近取共同點，加入已知轉換與量測雜訊
+  function simulateLink(m, truth, R) {
+    const fromP = m.platforms[truth.from] || m.platforms[0], toP = m.platforms[truth.to] || m.platforms[1];
+    const shared = m.marks.filter(mk => fromP.marks.includes(mk.name) && toP.marks.includes(mk.name));
+    let pts = shared.map(mk => ({ name: mk.name, x: mk.x, y: mk.y }));
+    if (pts.length < 4) {
+      const t = m.tiles, jx = t.x0 + t.pitchX * (+fromP.cols[1] - 1) + t.pitchX / 2; // 兩平台交界
+      const h = m.substrate.h;
+      pts = pts.concat([[-60, 0.15], [60, 0.15], [-60, 0.85], [60, 0.85]].map(([dx, fy], i) => ({ name: 'R' + (i + 1), x: +(jx + dx).toFixed(3), y: +(h * fy).toFixed(3) })))
+        .slice(0, Math.max(4, shared.length));
+    }
+    const th = truth.thetaDeg * D2R, sc = 1 + truth.ppm * 1e-6;
+    const s = m.common.sigmaMark;
+    return pts.map(p => {
+      const ax = p.x + R.gauss() * s, ay = p.y + R.gauss() * s;
+      const bx = sc * (Math.cos(th) * p.x - Math.sin(th) * p.y) + truth.dx + R.gauss() * s;
+      const by = sc * (Math.sin(th) * p.x + Math.cos(th) * p.y) + truth.dy + R.gauss() * s;
+      return `${p.name}\t${ax.toFixed(6)}\t${ay.toFixed(6)}\t${bx.toFixed(6)}\t${by.toFixed(6)}`;
+    }).join('\n');
+  }
+
+  global.VA = Object.assign(global.VA || {}, { defaultMulti, MULTI_PRESETS, multiTiles: tileList, multiPlatformOf: platformOf, multiAnalyze: analyze, multiMonteCarlo: monteCarlo, fitLink, parseLinkRows, simulateLink });
 })(typeof window !== 'undefined' ? window : globalThis);
