@@ -1,7 +1,7 @@
 // 執行：node tests/run.js
 'use strict';
 const path = require('path');
-['geometry', 'platforms', 'optics', 'model', 'builder', 'scenarios', 'simulator', 'diagnose', 'procedure']
+['geometry', 'platforms', 'optics', 'model', 'builder', 'scenarios', 'simulator', 'diagnose', 'procedure', 'multi']
   .forEach(f => { try { require(path.join(__dirname, '..', 'js', f + '.js')); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } });
 const VA = globalThis.VA;
 let fails = 0, count = 0;
@@ -184,6 +184,18 @@ if (VA.buildShots) test('builder default state and failure without gantry', () =
   ok(b.shots.length === 2 && b.shots[0].cam === 0 && b.shots[1].cam === 1, 'each side camera sees one mark');
   s.layout.work.pattern = '4corner'; s.layout.work.h = 100;
   ok(VA.buildShots(s).report[0].fail.length === 4, 'corners out of view');
+});
+
+if (VA.multiAnalyze) test('multi-platform: analytic vs Monte-Carlo and scenarios', () => {
+  const worstJoin = k => { const m = VA.defaultMulti(); VA.MULTI_PRESETS[k].apply(m); return Math.max(...VA.multiAnalyze(m).joins.map(j => j.tot)); };
+  ok(worstJoin('now') > worstJoin('markD') && worstJoin('markD') > worstJoin('shared'), 'shared mark best, current worst');
+  const m = VA.defaultMulti(), a = VA.multiAnalyze(m), mc = VA.multiMonteCarlo(m, 3000, 5);
+  ['1-1', '1-6', '1-7', '2-12'].forEach(n => {
+    const t = a.tiles.find(x => x.name === n), q = mc.find(x => x.name === n);
+    near(Math.hypot(q.rmsX, q.rmsY) / t.tot, 1, 0.06, 'MC/analytic ' + n);
+  });
+  // 左平台只有 1 個 Mark → θ 靠機構，第 6 欄比第 1 欄差
+  ok(a.fits[0].src === 'mech' && a.tiles.find(x => x.name === '1-6').tot > 2 * a.tiles.find(x => x.name === '1-1').tot, 'lever arm');
 });
 
 console.log(`${count - fails}/${count} checks passed`);

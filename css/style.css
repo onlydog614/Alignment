@@ -332,3 +332,40 @@ legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
 .chip { border-radius: 999px; padding: 2px 10px; font-size: 12px; border: 1.5px solid var(--cc); color: var(--text); background: var(--panel); }
 .chip.on { background: var(--cc); color: #fff; }
 @media (max-width: 560px) { .pcard { width: 100%; } .parrow { transform: rotate(90deg); width: 100%; text-align: center; } }
+
+/* ---- 多平台 ---- */
+:root { --heat: #b8322a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --heat: #f06b5f; } }
+:root[data-theme="dark"] { --heat: #f06b5f; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: var(--focus-bg); font-weight: 700; }
+.mp-ctls .ctl { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.mp-ctls .ctl label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.mp-ctls output { color: var(--text); font-variant-numeric: tabular-nums; }
+.mp-ctls input[type=range] { width: 100%; accent-color: var(--accent); }
+.mp-plat { border: 1px solid var(--border); border-left: 4px solid var(--pc); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.mp-ph { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.mp-ph input { flex: 1; font-weight: 600; }
+.mp-marks input { width: 70px; }
+.mp-svg { width: 100%; height: 300px; display: block; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; touch-action: none; }
+
+.mp-bars { width: 100%; height: 260px; display: block; }
+.mp-spb { fill: var(--stage-fill); stroke: var(--muted); stroke-width: 1.5; }
+.mp-zone { fill-opacity: .07; stroke-opacity: .6; stroke-width: 1.5; stroke-dasharray: 6 4; }
+.mp-zt { font-size: 13px; font-weight: 700; }
+.mp-tile { stroke-width: 1.5; }
+.mp-tn { fill: var(--text); font-size: 11px; font-weight: 700; }
+.mp-tv { fill: var(--text); font-size: 10px; font-variant-numeric: tabular-nums; }
+.mp-tn.inv, .mp-tv.inv { fill: #fff; }
+.mp-join { stroke: var(--danger); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.mp-mark { fill: #6b4fbb; stroke: var(--panel); stroke-width: 2; }
+.mp-ring { fill: none; stroke-width: 2.5; }
+.mp-mt { fill: #6b4fbb; font-size: 13px; font-weight: 700; }
+.mp-cen line { stroke-width: 2.5; }
+.mp-dim { stroke-width: 2; }
+.mp-dt { font-size: 11px; font-weight: 600; }
+.mp-bv { fill: var(--text); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.mp-detail { margin: 8px 0; font-size: 13px; }
+.mp-detail table { max-width: 360px; }
+td.num { font-variant-numeric: tabular-nums; }
+.hit.sel .mp-tile { stroke: var(--accent) !important; stroke-width: 3.5; }

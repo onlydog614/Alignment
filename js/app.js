@@ -410,7 +410,7 @@
   }
   function syncStatic() {
     document.querySelectorAll('[data-bind]').forEach(el => {
-      if (el.closest('#cameraList, #axisRows, #shotList, #stepRows, #procMounts')) return;
+      if (el.closest('#cameraList, #axisRows, #shotList, #stepRows, #procMounts, #tab-multi')) return;
       const v = getPath(state, el.dataset.bind);
       if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
     });
@@ -622,10 +622,13 @@
   };
 
   fullRender();
-  // 初始分頁：網址 #calib / #scen / #help 優先，其次上次使用的分頁
-  setTimeout(() => {
+  // 初始分頁：網址 #multi / #calib… 優先，其次上次使用的分頁。
+  // 等所有 script 都執行完（DOMContentLoaded）再切換，各分頁的監聽才都已註冊。
+  function initialTab() {
     let t = (location.hash || '').slice(1);
-    if (!['layout', 'align', 'proc', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
+    if (!['layout', 'align', 'multi', 'proc', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
     showTab(t || 'layout');
-  }, 0);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialTab);
+  else setTimeout(initialTab, 0);
 })();
