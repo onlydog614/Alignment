@@ -1,7 +1,7 @@
 // 執行：node tests/run.js
 'use strict';
 const path = require('path');
-['geometry', 'platforms', 'optics', 'model', 'scenarios', 'simulator', 'diagnose', 'procedure']
+['geometry', 'platforms', 'optics', 'model', 'builder', 'scenarios', 'simulator', 'diagnose', 'procedure']
   .forEach(f => { try { require(path.join(__dirname, '..', 'js', f + '.js')); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } });
 const VA = globalThis.VA;
 let fails = 0, count = 0;
@@ -163,6 +163,27 @@ if (VA.buildProcedure) test('procedure for FPC scenario', () => {
   ok(r.rc.method === 'follow' && r.rc.ok, 'rc via gantry follow and sufficient');
   s.proc.mounts = ['down', 'up'];
   ok(VA.buildProcedure(s).steps.some(x => x.fig.type === 'linkUpDown'), 'up/down link step');
+});
+
+if (VA.buildShots) test('builder reproduces FPC preset shots', () => {
+  const s = VA.SCENARIOS.fpc.make();
+  const b = VA.buildShots(s);
+  ok(b.shots.length === 8, 'shots ' + b.shots.length);
+  ok(b.report[0].single === 4 && b.report[1].gantry === 4, 'coarse single, fine gantry ' + JSON.stringify(b.report));
+  b.shots.forEach((x, i) => {
+    const o = s.shots[i];
+    ok(x.mark === o.mark && +x.cam === +o.cam && +x.step === +o.step, 'shot meta ' + i);
+    near(x.gx, o.gx, 1e-3, 'gx ' + i); near(x.gy, o.gy, 1e-3, 'gy ' + i);
+    near(x.tgt.u, o.tgt.u, 1e-2, 'u ' + i); near(x.tgt.v, o.tgt.v, 1e-2, 'v ' + i);
+  });
+});
+
+if (VA.buildShots) test('builder default state and failure without gantry', () => {
+  const s = VA.defaultState();
+  const b = VA.buildShots(s);
+  ok(b.shots.length === 2 && b.shots[0].cam === 0 && b.shots[1].cam === 1, 'each side camera sees one mark');
+  s.layout.work.pattern = '4corner'; s.layout.work.h = 100;
+  ok(VA.buildShots(s).report[0].fail.length === 4, 'corners out of view');
 });
 
 console.log(`${count - fails}/${count} checks passed`);

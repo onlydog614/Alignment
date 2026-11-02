@@ -249,3 +249,86 @@ legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
   .pstep { break-inside: avoid; }
   body { background: #fff; }
 }
+
+/* ---- 圖形設定 ---- */
+.layout-gui { display: grid; gap: 12px; padding: 12px; grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+@media (max-width: 1000px) { .layout-gui { grid-template-columns: minmax(0, 1fr); padding: 8px 16px; } }
+.gui-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+.gui-toolbar .spacer { flex: 1; }
+.gui-svg { width: 100%; height: min(62vh, 620px); min-height: 320px; display: block; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; touch-action: none; user-select: none; }
+.gui-inspector { max-height: calc(100vh - 80px); overflow-y: auto; position: sticky; top: 12px; }
+@media (max-width: 1000px) { .gui-inspector { position: static; max-height: none; } }
+.flash { background: var(--rcc-bg); color: var(--rcc); border: 1px solid var(--rcc); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; font-size: 13px; }
+.back { margin-bottom: 6px; }
+.gname { font-size: 15px; font-weight: 600; width: 60%; }
+.g-grid { stroke: var(--grid); stroke-width: 1; }
+.g-m { fill: var(--muted); font-size: 11px; }
+.g-t { fill: var(--text); font-size: 12px; font-weight: 600; }
+.g-stage { fill: var(--stage-fill); stroke: var(--muted); stroke-width: 1.5; }
+.g-work { fill: var(--glass-fill); fill-opacity: .55; stroke: var(--rcc); stroke-width: 1.5; }
+.g-fov { fill: none; stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.g-fovhit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; }
+.g-handle { fill: var(--panel); stroke-width: 2.5; }
+.g-shotfov, .g-grid, .g-gantry { pointer-events: none; }
+.g-shotfov { fill: none; stroke-width: 1.2; stroke-dasharray: 2 2; opacity: .8; }
+.g-camsym { fill: var(--panel); stroke-width: 2; }
+.g-cross { stroke-width: 1.5; }
+.g-camt { font-size: 12px; font-weight: 700; }
+.g-mark { fill: var(--link); stroke: var(--panel); stroke-width: 2; }
+.g-markbad { fill: var(--panel); stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 3 2; }
+.g-rc { fill: none; stroke: var(--rc); stroke-width: 2; }
+.g-rcl { stroke: var(--rc); stroke-width: 1.5; }
+.g-rct { fill: var(--rc); font-size: 11px; }
+.g-axis { stroke: var(--axis); stroke-width: 2; }
+.g-axist { fill: var(--axis); font-size: 11px; font-weight: 600; }
+.g-ahead { fill: var(--muted); }
+.g-gantry { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.hit { cursor: pointer; }
+.hit.sel .g-stage, .hit.sel .g-work { stroke: var(--accent); stroke-width: 3; }
+.hit.sel .g-fov { stroke-width: 3.5; stroke-dasharray: none; }
+.hit.sel .g-mark, .hit.sel .g-rc { stroke: var(--accent); stroke-width: 3; }
+.hit:hover .g-fov, .hit:hover .g-work, .hit:hover .g-stage { filter: brightness(0.97); }
+.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.gcards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gcard { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--panel); text-align: center; min-width: 0; }
+.gcard.on { border-color: var(--accent); background: var(--focus-bg); }
+.gcard .icon { width: 46px; height: 46px; }
+.gc-t { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.gc-s { font-size: 10.5px; color: var(--muted); line-height: 1.2; }
+.icon .i-stage { fill: var(--stage-fill); stroke: var(--muted); }
+.icon .i-work { fill: var(--glass-fill); stroke: var(--rcc); }
+.icon .i-mark { fill: var(--link); }
+.icon .i-ax { stroke: var(--axis); stroke-width: 2.5; fill: none; }
+.icon .i-ax.rot { stroke-dasharray: 3 2; }
+.icon .i-pt { fill: var(--axis); }
+.icon .i-head { fill: var(--axis); }
+.icon .i-cam { fill: var(--nine-bg); stroke: var(--nine); stroke-width: 1.5; }
+.icon .i-lens { fill: var(--stage-fill); stroke: var(--muted); }
+.icon .i-ray { stroke: var(--pred); stroke-width: 1.2; fill: none; }
+.icon .i-rail { stroke: var(--muted); stroke-width: 3; }
+.icon .i-t { fill: var(--muted); font-size: 18px; }
+.readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0 4px; }
+.readout div { background: var(--bg); border-radius: 6px; padding: 6px; text-align: center; }
+.readout b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
+.readout span { font-size: 11px; color: var(--muted); }
+.checks { list-style: none; padding: 0; margin: 0 0 8px; font-size: 13px; }
+.checks li { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.checks li span { font-weight: 700; width: 16px; flex: none; }
+.checks li.ok span { color: var(--ok); }
+.checks li.bad { color: var(--danger); }
+.howto { padding-left: 18px; font-size: 13px; }
+.howto li { margin-bottom: 4px; }
+.pipeline { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.pcard { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px; width: 230px; background: var(--panel); }
+.pcard.bad { border-color: var(--danger); }
+.pcard.add { width: 110px; border-style: dashed; color: var(--muted); font-size: 14px; }
+.pc-h { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.pc-h input { flex: 1; font-weight: 600; }
+.pc-n { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-text); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+.pc-s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.pcard.bad .pc-s { color: var(--danger); }
+.parrow { align-self: center; color: var(--muted); font-size: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.chip { border-radius: 999px; padding: 2px 10px; font-size: 12px; border: 1.5px solid var(--cc); color: var(--text); background: var(--panel); }
+.chip.on { background: var(--cc); color: #fff; }
+@media (max-width: 560px) { .pcard { width: 100%; } .parrow { transform: rotate(90deg); width: 100%; text-align: center; } }

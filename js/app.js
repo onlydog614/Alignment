@@ -625,7 +625,7 @@
   // 初始分頁：網址 #calib / #scen / #help 優先，其次上次使用的分頁
   setTimeout(() => {
     let t = (location.hash || '').slice(1);
-    if (!['align', 'proc', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
-    if (t && t !== 'align') showTab(t);
+    if (!['layout', 'align', 'proc', 'calib', 'scen', 'help'].includes(t)) { try { t = localStorage.getItem('va-tab'); } catch (e) { t = null; } }
+    showTab(t || 'layout');
   }, 0);
 })();

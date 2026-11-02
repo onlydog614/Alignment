@@ -76,6 +76,8 @@
       });
     });
     s.activeStep = 0;
+    s.steps[0].cams = [0]; s.steps[1].cams = [1];
+    s.layout = { stageW: 250, stageH: 250, work: { w: 135, h: 135, inset: 5, pattern: '4corner', x: 0, y: 0 }, auto: true };
     s.scen = Object.assign(VA.defaultScen(), { initX: 3, initY: 3, initT: 1, noisePx: 0.15 });
     s.sim = { noisePx: 0.15, gainErr: 0, rcErrX: 0, rcErrY: 0 };
     return offsetCurrent(s, 0.8, -0.5, 0.3);

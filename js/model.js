@@ -45,6 +45,7 @@
       shots: [newShot(0, 0), newShot(1, 1)],
       sim: { noisePx: 0, gainErr: 0, rcErrX: 0, rcErrY: 0 },
       scen: defaultScen(),
+      layout: { stageW: 400, stageH: 250, work: { w: 310, h: 60, inset: 5, pattern: '2side', x: 0, y: 0 }, auto: true },
       proc: { mode: 'teach', zAxis: true, glass: true, maxCorrDeg: 1, noisePx: 0.15, gantryRepeatUm: 1, mounts: [] },
       history: []
     };
@@ -74,6 +75,8 @@
       out.platform = Object.assign(d.platform, s.platform);
       out.scen = Object.assign(defaultScen(), s.scen);
       out.proc = Object.assign(d.proc, s.proc);
+      // 舊資料沒有圖形配置：保留原有拍照點，不自動重建
+      out.layout = s.layout ? Object.assign(d.layout, s.layout, { work: Object.assign(d.layout.work, s.layout.work) }) : Object.assign(d.layout, { auto: false });
       out.cameras.forEach(c => { if (!c.optics) c.optics = newCamera(0).optics; });
       return out;
     }
@@ -88,6 +91,7 @@
       ['name', 'width', 'height', 'calMode', 'simple', 'matrix'].forEach(k => { if (c[k] !== undefined) nc[k] = c[k]; });
       return nc;
     });
+    d.layout.auto = false;
     d.shots = s.cameras.map((c, i) => Object.assign(newShot(i, i), {
       name: c.name, mark: 'M' + (i + 1), enabled: c.enabled !== false, cur: c.cur, tgt: c.tgt
     }));
