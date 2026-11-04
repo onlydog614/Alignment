@@ -111,9 +111,9 @@
     ok('料盤中間共用 Mark：兩平台各自量到（各自座標系）', isFinite(P1[0]) && isFinite(P2[0]), `平台1 (${P1[0].toFixed(3)}, ${P1[1].toFixed(3)})；平台2 (${P2[0].toFixed(3)}, ${P2[1].toFixed(3)})`);
     // 12. 長方形料：長邊沿 Y（轉 90°）、斜對角 Mark；治具 Mark 也斜放
     const base = CAL.loadParams();
-    const PR = Object.assign({}, base, { part_len: 90, part_wid: 30, part_mark_dx: 80, part_mark_dy: 20, part_orient: 90, jig_mark_dx: 60, jig_mark_dy: 12, jig_wid: 22 });
+    const PR = Object.assign({}, base, { part_len: 90, part_wid: 30, part_mark_dx: 80, part_mark_dy: 22, pocket_mark_dx: 80, pocket_mark_dy: 20, part_orient: 90, jig_mark_dx: 60, jig_mark_dy: 12, jig_wid: 22 });
     const mRc = CAL.defaultMachine(PR);
-    ok('長方形料（長邊沿 Y）：Mark 向量轉到料盤座標', V.len(V.sub(mRc.tray.markV, [-10, 40])) < 1e-9 && V.len(V.sub(mRc.part.ext, [15, 45])) < 1e-9, `半 Mark 向量 (${mRc.tray.markV.map(v => v.toFixed(2)).join(', ')})、料盤上半外形 (${mRc.part.ext.map(v => v.toFixed(1)).join(', ')})`);
+    ok('長方形料（長邊沿 Y）：穴位 Mark 向量轉到料盤座標', V.len(V.sub(mRc.tray.markV, [-10, 40])) < 1e-9 && V.len(V.sub(mRc.part.ext, [15, 45])) < 1e-9, `半 Mark 向量 (${mRc.tray.markV.map(v => v.toFixed(2)).join(', ')})、料盤上半外形 (${mRc.part.ext.map(v => v.toFixed(1)).join(', ')})`);
     const mRi = CAL.clone(mRc); mRi.hCal = mRi.hPlace; mRi.plat[0].tilt = [0.8, -0.5];
     const estRc = CAL.calibrateAll(mRi, { px: 0 });
     const prRc = CAL.runProduction(mRi, mRi, estRc, { px: 0, reps: 2, phiDeg: 2 });
@@ -129,9 +129,20 @@
     ok('長方形料＋模式 B：料盤 +200 ppm → 回歸 X 比例 ≈ −200 ppm', aRB && Math.abs(aRB.scaleX * 1e6 + 200) < 5, aRB ? `X ${(aRB.scaleX * 1e6).toFixed(1)} ppm` : '無');
     const jl = estRc.link[0].check.diff;
     ok('斜放治具 Mark：上下連結第二點檢查 ≈ 0', V.len(jl) < 1e-6, `差 ${um(V.len(jl))}`);
+    // 12b. 四角 Mark：上相機逐顆拍、四點擬合
+    const rC = CAL.placeOne(mRi, estRc, 1, { ci: 4, ri: 0 }, { qc: [0.4, -0.3], phi: -0.9 * D2R }, {}, N0);
+    ok('四角 Mark：上相機拍 4 次、四點擬合殘差 ≈ 0、量到的料角度 = 真值', rC.tops.length === 4 && rC.cornerMax < 1e-6 && Math.abs(rC.phiHat + 0.9 * D2R) < 1e-7, `殘差 ${um(rC.cornerMax)}、φ̂ ${(rC.phiHat * R2D).toFixed(5)}°（真值 −0.9°）`);
+    const ex0 = CAL.placeOne(m, est, 0, { ci: 0, ri: 0 }, { qc: [0, 0], phi: 0 }, {}, N0);
+    const cs = ex0.tops.map(t => t.S), spanX = Math.max(...cs.map(v => v[0])) - Math.min(...cs.map(v => v[0])), spanY = Math.max(...cs.map(v => v[1])) - Math.min(...cs.map(v => v[1]));
+    ok('四角逐顆拍：平台在上相機下走出的範圍 = 四角 Mark 間距（含料的方向）', Math.abs(spanX - 2 * Math.max(...m.part.corners.map(c => c[0]))) < 1e-9 && Math.abs(spanY - 2 * Math.max(...m.part.corners.map(c => c[1]))) < 1e-9, `X ${spanX.toFixed(2)}、Y ${spanY.toFixed(2)} mm`);
+    const Nn = CAL.noiseCtx({ px: 0.1, rep: 1, seed: 21 }), angs = [];
+    for (let i = 0; i < 200; i++) angs.push(CAL.placeOne(m, est, 0, { ci: 1, ri: 0 }, { qc: [0, 0], phi: 0 }, {}, Nn).phiHat);
+    const sdA = Math.sqrt(angs.reduce((a, x) => a + x * x, 0) / angs.length);
+    const thA = Math.hypot(0.1 * m.top[0].mmpp, 0.001) / Math.hypot(m.P.part_mark_dx, m.P.part_mark_dy);
+    ok('四角擬合角度精度（0.1 px＋1 µm 平台重複性，Monte-Carlo）接近理論 σ/√(Σr²)', sdA < thA * 1.6 && sdA > thA * 0.6, `模擬 ${(sdA * R2D * 3600).toFixed(2)}″；理論 ${(thA * R2D * 3600).toFixed(2)}″`);
     // 13. 舊版 CSV（只有 part_pitch、jig_pitch）仍可匯入
     const old = CAL.parseParamsCSV('part_pitch,產品,舊,55,mm,\njig_pitch,校正片,舊,50,mm,\n', base);
-    ok('舊版 CSV 代碼 part_pitch／jig_pitch 自動對應到新的 Mark 間距', old.params.part_mark_dx === 55 && old.params.jig_mark_dx === 50 && old.params.part_mark_dy === base.part_mark_dy, `part_mark_dx=${old.params.part_mark_dx}、jig_mark_dx=${old.params.jig_mark_dx}`);
+    ok('舊版 CSV 代碼 part_pitch／jig_pitch 自動對應到穴位／治具 Mark 間距', old.params.pocket_mark_dx === 55 && old.params.jig_mark_dx === 50 && old.params.part_mark_dx === base.part_mark_dx, `pocket_mark_dx=${old.params.pocket_mark_dx}、jig_mark_dx=${old.params.jig_mark_dx}`);
     return T;
   }
   G.selfTest = selfTest;

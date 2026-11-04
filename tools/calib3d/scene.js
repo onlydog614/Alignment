@@ -130,7 +130,7 @@
       if (type === 'mark') { g.add(box(24, 24, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
       else if (type === 'rcmark') { g.add(box(16, 16, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
       else if (type === 'jig') { g.add(box(m.jig.len, m.jig.wid, m.jig.thick, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.jig.mv[0], s * m.jig.mv[1], m.jig.thick + 0.1)); const d = disc(2.6, mMark, s * m.jig.mv[0], s * m.jig.mv[1], -0.1); d.rotation.x = Math.PI; g.add(d); }); }
-      else if (type === 'wp') { const b = box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0); b.rotation.z = m.part.orient; g.add(b); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markV[0], s * m.tray.markV[1], m.part.thick + 0.1))); }
+      else if (type === 'wp') { const b = box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0); b.rotation.z = m.part.orient; g.add(b); m.part.corners.forEach(c => g.add(disc(2.6, mMark, c[0], c[1], m.part.thick + 0.1))); }
       g.userData.type = type; return g;
     }
     const chuckCache = [{}, {}];

@@ -29,7 +29,8 @@
     if (!it) return [];
     if (it.type === 'mark') return [[0, 0]];
     if (it.type === 'rcmark') return [[0, 0]];
-    const mv = it.type === 'jig' ? M0.jig.mv : M0.tray.markV;
+    if (it.type === 'wp') return M0.part.corners.slice();   // 料：四角 Mark
+    const mv = M0.jig.mv;
     return [V.mul(mv, -1), mv];
   }
   function itemOutline(it) { const b = (l, w, a) => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]].map(p => V.rot(p, a)); return it && it.type === 'wp' ? b(M0.part.len, M0.part.wid, M0.part.orient) : (it && it.type === 'jig' ? b(M0.jig.len, M0.jig.wid, 0) : null); }
@@ -151,7 +152,7 @@
         <li>下相機跟著 XY 移動，<b>不隨 DD 旋轉、不隨 Z 升降</b>。如果實際上裝在 DD 或 Z 上，步驟 4、5 要改寫。</li>
         <li>上相機1、2 各在平台3 前方的取像站往下看（不被平台3 擋住）。</li>
         <li>平台3 固定在上方，料盤的放料面朝下；下相機往上看料盤的穴位 Mark 與平台3 上的固定基準 Mark（左、中、右）。</li>
-        <li>料與穴位各有兩個 Mark。目前設定：料 ${M0.part.len}×${M0.part.wid} mm（${M0.part.len === M0.part.wid ? '正方形' : '長方形'}，${M0.P.part_orient % 180 ? '長邊沿 Y 放' : '長邊沿 X 放'}），兩 Mark 間距長邊 ${M0.P.part_mark_dx} mm、短邊 ${M0.P.part_mark_dy} mm${M0.P.part_mark_dy ? '（斜對角）' : ''}。平台1 放左半盤（第 1–3 欄），平台2 放右半盤（第 4–6 欄）；中間基準 Mark 兩個平台都量得到。</li>
+        <li>料的四個角各有一顆 Mark，上相機視野只拍得到一顆，所以<b>平台移動逐顆拍四角</b>，再四點擬合求料的中心與角度。穴位兩邊各有一顆 Mark，由該平台的下相機各拍一次。目前設定：料 ${M0.part.len}×${M0.part.wid} mm（${M0.part.len === M0.part.wid ? '正方形' : '長方形'}，${M0.P.part_orient % 180 ? '長邊沿 Y 放' : '長邊沿 X 放'}），四角 Mark 間距 ${M0.P.part_mark_dx}×${M0.P.part_mark_dy} mm，穴位兩邊 Mark 間距 ${M0.P.pocket_mark_dx} mm${M0.P.pocket_mark_dy ? `（短邊方向 ${M0.P.pocket_mark_dy} mm）` : ''}。平台1 放左半盤（第 1–3 欄），平台2 放右半盤（第 4–6 欄）；中間基準 Mark 兩個平台都量得到。</li>
         <li>座標：X 往右、Y 往後、Z 往上，θ 由上往下看逆時針為正。尺寸與誤差數值是模擬用的示意值，請換成機台實際值。</li>
       </ul>
       <h4>參數總表</h4>
@@ -200,10 +201,10 @@
       const tl = TL();
       [0, 1].forEach(k => {
         tl.set(c => { c.chuck[k] = { type: 'mark', q: [3, -2], ang: 0 }; }, `平台${k + 1} 吸盤放單點玻璃 Mark（θ=0、Z=Z_cam）`);
-        tl.go(k, { S: Sc(k) }, 1.8, `平台${k + 1} 到上相機${k + 1} 下方 S_c`);
+        tl.go(k, { S: V.sub(Sc(k), [3, -2]) }, 1.8, `平台${k + 1} 移到 S_0：玻璃 Mark 在上相機${k + 1} 畫面中心`);
         let n = 0;
         for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-          n++; const g = M0.top[k].grid; tl.go(k, { S: V.add(Sc(k), [i * g, j * g]) }, 0.45, `第 ${n}/9 點：S = S_c + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
+          n++; const g = M0.top[k].grid; tl.go(k, { S: V.add(V.sub(Sc(k), [3, -2]), [i * g, j * g]) }, 0.45, `第 ${n}/9 點：S = S_0 + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
         }
         tl.go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
@@ -215,7 +216,7 @@
       <p class="lead">求上相機的像素 → 平台座標轉換：上相機1 用平台1 的 XY 校，上相機2 用平台2 的 XY 校，得到兩組 Â_top、Ĉ_top。相機要用「它實際服務的那個平台」來校，因為結果同時包含相機角度和該平台 XY 軸的方向。</p>
       <h4>動作</h4><ol>
         <li>單點玻璃 Mark 吸在吸盤上，θ = 0、Z = Z_cam。</li>
-        <li>平台1 移到上相機1 下方 S_c（平台2 對上相機2），Mark 在影像中心附近。</li>
+        <li>平台1 移到上相機1 下方（平台2 對上相機2），讓 Mark 在影像中心，記這個位置 S_0。之後步驟 3 用的 S_c 是「吸盤中心在相機下方」的位置。</li>
         <li>XY 走 3×3，間距 ${M0.top[0].grid} mm（約視野 ${f1(M0.top[0].fov[0])}×${f1(M0.top[0].fov[1])} mm 的 1/3；相機2 為 ${M0.top[1].grid} mm）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
         <li>記錄 S_i（光學尺實際值）與 Mark 像素 u_i。平台2／上相機2 重做。</li></ol>
       <h4>公式</h4>
@@ -225,7 +226,7 @@
 mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
 往下看的相機：det G &lt; 0（因為影像 v 往下）</pre>
       <h4>判定</h4><ul><li>九點殘差 &lt; 0.3 px（約 ${(0.3 * M0.top[0].mmpp * 1000).toFixed(0)} µm）。</li><li>X、Y 像素當量差 &lt; 0.5%，正交偏差 &lt; 0.1°。</li><li>兩台上相機若是同規格，mm/px 差應 &lt; 0.5%；差很多表示工作距離（Z）不同，或某一軸比例錯。</li></ul>
-      <h4>模擬結果（含 0.1 px 雜訊、1 µm 重複性；真值 0.065 mm/px；相機角度 0.35°、−0.28°）</h4>
+      <h4>模擬結果（含 0.1 px 雜訊、1 µm 重複性；真值 ${M0.top[0].mmpp.toFixed(4)} mm/px；相機角度 0.35°、−0.28°）</h4>
       ${table(['相機／平台', 'mm/px', '相機角度', '正交偏差', 'det G', '殘差 RMS'], rows)}
       <p class="note">求得的相機角度 = 相機本身角度 − 平台 XY 軸安裝角（模擬設定平台1 0.05°、平台2 −0.08°），所以 0.30° 與 −0.20° 才是對的。</p>`;
     }
@@ -306,7 +307,8 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       [0, 1].forEach(k => {
         const t = [M0.tray.cols[k === 0 ? 1 : 4], M0.tray.rows[0]], Sp = SpT(k, t);
         tl.set(c => { c.chuck[k] = Object.assign({}, JIG); }, `平台${k + 1}：雙 Mark 玻璃治具放上吸盤`);
-        tl.go(k, { S: Sc(k) }, 1.8, `到上相機${k + 1} 下方`).shot([k + 1], `① 上相機${k + 1} 量治具兩個 Mark → q̂_L、q̂_R`);
+        tl.go(k, { S: V.add(Sc(k), M0.jig.mv) }, 1.8, `① 平台移動，治具左 Mark 到上相機${k + 1} 下方`).shot([k + 1], '拍左 Mark → q̂_L')
+          .go(k, { S: V.sub(Sc(k), M0.jig.mv) }, 0.9, `平台移動，右 Mark 到上相機${k + 1} 下方`).shot([k + 1], '拍右 Mark → q̂_R');
         tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hCal }, 1, 'Z 上升到治具行程').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
         const j = k + 3;
         tl.go(k, { S: SvT(j, V.sub(t, M0.jig.mv)) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
@@ -322,7 +324,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       <p class="lead">這是最關鍵的一步：求每台下相機影像中心在平台座標的位置 D_j（相機中心 = S + D_j），把「上相機量的料」和「下相機量的穴位」接到同一個座標系。平台1（上相機1＋下相機3）、平台2（上相機2＋下相機4）各做一次。偏移量大多從這裡來。</p>
       ${FIG.link}
       <h4>動作</h4><ol>
-        <li>雙 Mark 玻璃治具吸在吸盤上，到 S_c（θ = 0、Z = Z_cam），上相機（平台1 用相機1、平台2 用相機2）量兩個 Mark：q̂_L、q̂_R（相對旋轉中心）。</li>
+        <li>雙 Mark 玻璃治具吸在吸盤上（θ = 0、Z = Z_cam）。上相機（平台1 用相機1、平台2 用相機2）一次只拍一顆：平台移到 S_L 讓左 Mark 在相機下方拍一張，再移到 S_R 拍右 Mark，得到 q̂_L、q̂_R（相對旋轉中心）。</li>
         <li>平台移到放料位置 S_p（θ = 0），Z 上升到放料行程 h，把治具交給平台3（和放料完全相同的動作：破真空、吹氣、平台3 吸附），Z 下降。</li>
         <li>平台移到 S_v，下相機（3 或 4）先拍左 Mark 求 D_j，再移到右 Mark 拍一張當檢查點。</li>
         <li>回到 S_p 把治具取回。治具轉 180° 再做一次取平均（消除治具上下面 Mark 不同心），共做 3 次。</li></ol>
@@ -330,10 +332,10 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       <pre>治具放下後 Mark 的平台座標（預測）：P_m = S_p + R̂ + q̂_m
 下相機量到：                       P_m = S_v + D_j + A_j·u
 → D_j = S_p + R̂ + q̂_m − S_v − A_j·u
-其中 q̂_m = Â_top·u₁ + Ĉ_top − S_c − R̂      （R̂ 會抵銷，D_j 不受旋轉中心誤差影響）</pre>
+其中 q̂_m = Â_top·u_m + Ĉ_top − S_m − R̂     （S_m：拍這顆 Mark 時的平台位置；R̂ 會抵銷，D_j 不受旋轉中心誤差影響）</pre>
       <p>因為治具是用「和放料一樣的動作」放下去再量，Z 軸傾斜 × 行程、破真空時的位移都會被量進 D_j。代價是：Z 行程、料厚、放料參數一改，就要重做這一步。</p>
       <h4>判定</h4><ul><li>3 次 D_j 變異 &lt; 3 µm。</li><li>右 Mark 檢查點：預測與實測差 &lt; 5 µm。太大表示下相機比例 A、X 軸直線度或偏擺有問題，或上相機量到的治具間距不準。</li></ul>
-      <h4>精度預估</h4><p>上相機是 0.065 mm/px 的大視野相機，單次辨識雜訊 0.1 px 就是 6.5 µm，D_j 的精度主要受它限制。每點拍 3 次、整個連結做 3 次取平均後，D_j 約有 3–5 µm 的誤差；要更準就要提高上相機倍率，或增加平均次數。</p>
+      <h4>精度預估</h4><p>上相機目前是 ${M0.top[0].mmpp.toFixed(4)} mm/px，單次辨識雜訊 0.1 px 就是 ${(M0.top[0].mmpp * 100).toFixed(1)} µm；上相機逐顆拍時，平台重複性（約 1 µm）也會加進每一顆 Mark。每點拍 3 次、整個連結做 3 次取平均後，D_j 的誤差約為 ${(Math.hypot(0.1 * M0.top[0].mmpp / Math.sqrt(3), 0.001) / Math.sqrt(3) * 1000 * 1.5).toFixed(1)} µm 等級；要更準就要提高上相機倍率，或增加平均次數。</p>
       <h4>沒有雙面治具時</h4><p>用真的料做「放一片 → 下相機拍料的 Mark 與穴位 Mark → 差值修正 D」的迭代，原理相同，但料的 Mark 若不是雙面可視，要改拍料的外形邊。</p>
       <h4>模擬結果：D_j − R̂（相機中心到旋轉中心的向量）</h4>${table(['相機', '求得', '真值', '差'], rows)}
       <p class="note">右 Mark 檢查點差：下相機3 (${um(c0.diff[0])}, ${um(c0.diff[1])}) µm；下相機4 (${um(c1.diff[0])}, ${um(c1.diff[1])}) µm。</p>`;
@@ -382,6 +384,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     demo = [CAL.placeOne(M0, EST, 0, { ci: 0, ri: 0 }, { qc: [0.35, -0.22], phi: 0.8 * D2R }, {}, N), CAL.placeOne(M0, EST, 1, { ci: 5, ri: 1 }, { qc: [-0.4, 0.3], phi: -1.1 * D2R }, {}, N)];
     return demo;
   }
+  const CORNER_NAMES = M0.P.part_orient % 180 ? ['右前', '右後', '左後', '左前'] : ['左前', '右前', '右後', '左後'];
   STEPS.push({
     id: 'cycle', title: '放料一個循環', sub: '生產時的完整計算',
     build() {
@@ -390,8 +393,10 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         const it = { type: 'wp', q: wp.qc, ang: wp.phi }, t = CAL.pocketT(M0, pk.ci, pk.ri);
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：料放上吸盤（位置、角度隨機）`);
         const j = k + 3;
-        tl.go(k, { S: Sc(k) }, 1.8, `1. 到上相機${k + 1} 下方`).shot([k + 1], `上相機${k + 1} 量料：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`);
-        tl.go(k, { S: SvT(j, CAL.trayMarkT(M0, t, -1)) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, CAL.trayMarkT(M0, t, 1)) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
+        M0.part.corners.forEach((cq, i) => {
+          tl.go(k, { S: V.sub(Sc(k), cq) }, i ? 0.8 : 1.8, `1. 平台移動，料的第 ${i + 1} 顆角 Mark（${CORNER_NAMES[i]}）到上相機${k + 1} 下方`).shot([k + 1], i < 3 ? `拍角 Mark ${i + 1} → q̂_${i + 1}` : `四點擬合：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°，殘差 ${um(res.cornerMax)} µm`, 0.55);
+        });
+        tl.go(k, { S: SvT(j, CAL.trayMarkT(M0, t, -1)) }, 2, `2. 下相機${j} 拍穴位第 1 顆 Mark`).shot([j], '穴位 Mark 1').go(k, { S: SvT(j, CAL.trayMarkT(M0, t, 1)) }, 0.9, `下相機${j} 拍穴位另一邊的 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
         tl.go(k, { h: M0.hPlace }, 0.9, '4. Z 上升放料').set(release(k, it), '破真空，料留在平台3').go(k, { h: 0 }, 0.7, 'Z 下降').go(k, { S: [0, 0], th: 0 }, 1.6, `完成：偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm`);
       });
@@ -399,18 +404,20 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     },
     html: () => {
       const d = demoPlace();
-      const rows = d.map((r, i) => [`平台${r.k + 1}`, `${r.pocket.ri + 1}-${r.pocket.ci + 1}`, pt(r.wHat), (r.phiHat * R2D).toFixed(4) + '°', (r.psiHat * R2D).toFixed(4) + '°', (r.dth * R2D).toFixed(4) + '°', pt(r.Sp), `(${um(r.err[0])}, ${um(r.err[1])}) µm`]);
+      const rows = d.map((r, i) => [`平台${r.k + 1}`, `${r.pocket.ri + 1}-${r.pocket.ci + 1}`, pt(r.wHat), (r.phiHat * R2D).toFixed(4) + '°', (r.psiHat * R2D).toFixed(4) + '°', (r.dth * R2D).toFixed(4) + '°', um(r.cornerMax) + ' µm', pt(r.Sp), `(${um(r.err[0])}, ${um(r.err[1])}) µm`]);
       return `
       <p class="lead">把前面所有參數串起來，就是生產時每一片料的計算。偏移排查時，請拿機台的 log 逐項對照這幾個中間值。</p>
       <h4>流程與公式</h4>
-      <pre>1. 料放上吸盤，平台到 S_c（θ = 0），上相機（平台1→相機1、平台2→相機2）拍兩個 Mark
-   q̂_m = Â_top·u_m + Ĉ_top − S_c − R̂
-   ŵ = (q̂_L + q̂_R)/2，  φ̂ = ang(q̂_R − q̂_L) − α0
-   （α0：兩 Mark 連線的設計角度，Mark 在長邊中心線且長邊沿 X 時 α0 = 0）
+      <pre>1. 料放上吸盤（θ = 0），上相機（平台1→相機1、平台2→相機2）一次拍一顆：
+   平台依序移到 S_i = S_c − R̂ − c_i，讓第 i 顆角 Mark 到相機下方（i = 1…4）
+   （c_i：第 i 顆角 Mark 的設計位置，相對料中心）
+   q̂_i = Â_top·u_i + Ĉ_top − S_i − R̂
+   四點擬合 q̂_i ≈ ŵ + Rot(φ̂)·c_i  →  料中心 ŵ、料角度 φ̂、殘差
 
-2. 平台移到穴位下方，下相機（平台1→相機3、平台2→相機4）先拍左 Mark、再拍右 Mark
+2. 平台移到穴位下方，下相機（平台1→相機3、平台2→相機4）拍穴位兩邊的 Mark
    P_m = S_v,m + D_j + A_j·u_m        （S_v,m：拍該 Mark 時的平台位置）
-   T̂ = (P_L + P_R)/2，  ψ̂ = ang(P_R − P_L) − α0
+   T̂ = (P_1 + P_2)/2，  ψ̂ = ang(P_2 − P_1) − α0
+   （α0：穴位兩 Mark 連線的設計角度，兩 Mark 在長邊中心線且長邊沿 X 時 α0 = 0）
 
 3. Δθ = ψ̂ − φ̂
    S_p = T̂ − R̂ − Rot(Δθ)·ŵ
@@ -418,11 +425,13 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
 4. 平台移到 S_p，DD 轉 Δθ，Z 上升 h，破真空放料，Z 下降</pre>
       <h4>注意</h4><ul>
         <li>第 3 步的 Rot(Δθ)·ŵ：料不在旋轉中心上，轉 Δθ 時料中心會跟著移動，平台要一起補。</li>
-        <li>每個平台只有一台下相機，ψ̂ 由左右兩次拍照得到；兩次之間的 X 軸偏擺、直線度和光學尺誤差會直接變成角度誤差（60 mm 間距差 1 µm 約 3.4″）。</li>
-        <li><b>長方形料、斜對角 Mark</b>：Mark 連線本身有固定角度 α0（目前設定 ${(CAL.V.ang(M0.tray.markV) * R2D).toFixed(2)}°）。φ̂ 和 ψ̂ 都扣掉 α0 才是料真正的歪斜角；就算忘了扣，Δθ 相減也會抵消，只是 log 上的角度看起來很大。但「第 1 Mark／第 2 Mark」在上相機和下相機必須是同一顆（料上的第 1 Mark 要放到穴位的第 1 Mark）；順序對調時 Δθ 會差 180°，正方形或對稱的料尤其容易搞錯，建議兩顆 Mark 做成不同形狀。</li>
-        <li>長邊沿 Y 放時，下文的「左 Mark／右 Mark」就是「前 Mark／後 Mark」。斜對角 Mark 的距離比較長，角度量得更準。</li>
+        <li><b>上相機四角都是移動平台拍的</b>：q̂_i 一定要用「拍這一張時」的平台位置 S_i 去算，不能四張都用同一個 S_c。用錯的話四點會擠在同一點附近，φ̂ 和 ŵ 都是錯的。</li>
+        <li><b>四點擬合殘差</b>是很好用的健康指標：正常應 &lt; 5 µm。殘差大表示某顆角 Mark 辨識錯、料變形，或平台在四個點之間走得不準（XY 比例、直交度）。擬合出來的比例若和設計差超過 200 ppm，先查 XY 軸比例或料的實際尺寸。</li>
+        <li>每個平台只有一台下相機，ψ̂ 由穴位兩邊各拍一次得到；兩次之間的 X 軸偏擺、直線度和光學尺誤差會直接變成角度誤差（${(2 * M0.tray.markHalf).toFixed(0)} mm 間距差 1 µm 約 ${(0.001 / (2 * M0.tray.markHalf) * R2D * 3600).toFixed(1)}″）。</li>
+        <li><b>φ̂ 和 ψ̂ 必須同基準</b>：料的四角 c_i 與穴位兩 Mark 都要用同一個「料座標」定義（長邊方向為 0°）。穴位兩 Mark 的連線若不是沿長邊（α0 ≠ 0，目前設定 ${(CAL.V.ang(M0.tray.markV) * R2D).toFixed(2)}°），ψ̂ 要扣掉 α0。角 Mark 的編號順序在程式和料上要一致；順序錯開一格時 φ̂ 會差 90°，對稱的料尤其容易搞錯。</li>
+        <li>長邊沿 Y 放時，四角和穴位 Mark 的名稱跟著轉 90°。</li>
         <li>θ 轉完若能再用下相機確認料的位置（料 Mark 從下方看得到時），可再修一次 XY，旋轉中心誤差的影響就會消失。</li></ul>
-      <h4>模擬一片（含雜訊）</h4>${table(['平台', '穴位', 'ŵ', 'φ̂', 'ψ̂', 'Δθ', 'S_p', '放料偏移'], rows)}`;
+      <h4>模擬一片（含雜訊）</h4>${table(['平台', '穴位', 'ŵ', 'φ̂', 'ψ̂', 'Δθ', '四角殘差', 'S_p', '放料偏移'], rows)}`;
     }
   });
   // 8 實放驗證

@@ -89,12 +89,12 @@
   // ===================== 機台參數（可由 CSV 匯入） =====================
   // [代碼, 分組, 項目, 預設值, 單位, 說明]
   const PARAMS = [
-    ['top1_fov_x', '相機', '上相機1 視野 X', 83.2, 'mm', '影像寬方向實際看到的長度'],
-    ['top1_fov_y', '相機', '上相機1 視野 Y', 62.4, 'mm', '影像高方向實際看到的長度'],
+    ['top1_fov_x', '相機', '上相機1 視野 X', 19.2, 'mm', '影像寬方向實際看到的長度；一次只需拍到一顆 Mark'],
+    ['top1_fov_y', '相機', '上相機1 視野 Y', 14.4, 'mm', '影像高方向實際看到的長度'],
     ['top1_res_x', '相機', '上相機1 解析度 X', 1280, 'px', '影像寬（像素）'],
     ['top1_res_y', '相機', '上相機1 解析度 Y', 960, 'px', '影像高（像素）'],
-    ['top2_fov_x', '相機', '上相機2 視野 X', 83.2, 'mm', ''],
-    ['top2_fov_y', '相機', '上相機2 視野 Y', 62.4, 'mm', ''],
+    ['top2_fov_x', '相機', '上相機2 視野 X', 19.2, 'mm', ''],
+    ['top2_fov_y', '相機', '上相機2 視野 Y', 14.4, 'mm', ''],
     ['top2_res_x', '相機', '上相機2 解析度 X', 1280, 'px', ''],
     ['top2_res_y', '相機', '上相機2 解析度 Y', 960, 'px', ''],
     ['bot3_fov_x', '相機', '下相機3 視野 X', 12.8, 'mm', ''],
@@ -122,11 +122,13 @@
     ['jig_len', '校正片', '治具長（長邊）', 80, 'mm', '治具長邊沿 X 放'],
     ['jig_wid', '校正片', '治具寬（短邊）', 22, 'mm', ''],
     ['jig_thick', '校正片', '治具厚度', 2, 'mm', '建議與料厚相同'],
-    ['part_mark_dx', '產品', '料兩 Mark 間距（沿料長邊）', 60, 'mm', '左 Mark→右 Mark 的長邊分量（＝穴位 Mark）'],
-    ['part_mark_dy', '產品', '料兩 Mark 間距（沿料短邊）', 0, 'mm', 'Mark 在長邊中心線上填 0；斜對角 Mark 填短邊分量（可為負）'],
+    ['part_mark_dx', '產品', '料四角 Mark 間距（沿料長邊）', 60, 'mm', '左右兩排角 Mark 的中心距；上相機逐顆拍'],
+    ['part_mark_dy', '產品', '料四角 Mark 間距（沿料短邊）', 30, 'mm', '前後兩排角 Mark 的中心距'],
     ['part_len', '產品', '料長（長邊）', 70, 'mm', ''],
     ['part_wid', '產品', '料寬（短邊）', 40, 'mm', '正方形料填與料長相同'],
     ['part_orient', '產品', '料在料盤上的方向', 0, '°', '0 = 長邊沿 X（左右）；90 = 長邊沿 Y（前後）'],
+    ['pocket_mark_dx', '產品', '穴位兩邊 Mark 間距（沿料長邊）', 80, 'mm', '下相機拍的兩顆穴位 Mark；可在穴位外側'],
+    ['pocket_mark_dy', '產品', '穴位兩邊 Mark 間距（沿料短邊）', 0, 'mm', '兩顆 Mark 在長邊中心線上填 0；斜對角填短邊分量'],
     ['part_thick', '產品', '料厚', 2, 'mm', ''],
     ['tray_pitch_x', '產品', '料盤穴位間距 X', 120, 'mm', '6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄'],
     ['tray_pitch_y', '產品', '料盤穴位間距 Y', 110, 'mm', '2 列']
@@ -134,7 +136,7 @@
   const PKEY = 'cal-params-v1';
   function defaultParams() { const o = {}; PARAMS.forEach(p => { o[p[0]] = p[3]; }); return o; }
   // 舊版代碼（v1 只有單一 Mark 間距）→ 新代碼
-  const LEGACY = { part_pitch: 'part_mark_dx', jig_pitch: 'jig_mark_dx' };
+  const LEGACY = { part_pitch: 'pocket_mark_dx', jig_pitch: 'jig_mark_dx' };
   function loadParams() {
     const o = defaultParams();
     try { const s = G.localStorage && G.localStorage.getItem(PKEY); if (s) { const v = JSON.parse(s); Object.keys(LEGACY).forEach(a => { if (v[a] != null && v[LEGACY[a]] == null) v[LEGACY[a]] = v[a]; }); Object.keys(o).forEach(k => { if (isFinite(+v[k]) && v[k] !== '' && v[k] != null) o[k] = +v[k]; }); } } catch (e) { /* 無儲存空間時用預設值 */ }
@@ -190,7 +192,8 @@
     const px = P.tray_pitch_x, py = P.tray_pitch_y;
     // 長方形料：在料盤座標系的方向、半個 Mark 向量（左 Mark→右 Mark 的一半）、外形半寬
     const orient = (P.part_orient || 0) * D2R;
-    const partMv = V.rot([P.part_mark_dx / 2, P.part_mark_dy / 2], orient);
+    const partMv = V.rot([P.pocket_mark_dx / 2, P.pocket_mark_dy / 2], orient);   // 穴位兩邊 Mark（下相機拍）
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => V.rot([a * P.part_mark_dx / 2, b * P.part_mark_dy / 2], orient)); // 料四角 Mark（上相機逐顆拍）
     const ext = (l, w, a) => [Math.abs(Math.cos(a)) * l / 2 + Math.abs(Math.sin(a)) * w / 2, Math.abs(Math.sin(a)) * l / 2 + Math.abs(Math.cos(a)) * w / 2];
     const t0 = top(0), t1 = top(1);
     const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
@@ -209,7 +212,7 @@
       // 平台3 固定基準 Mark（料盤座標系）：左、中（兩平台共用）、右
       fidT: { L: [-(2.5 * px + 90), 0], C: [0, 0], R: [2.5 * px + 90, 0] },
       jig: { mv: [P.jig_mark_dx / 2, P.jig_mark_dy / 2], half: Math.hypot(P.jig_mark_dx, P.jig_mark_dy) / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick, ext: ext(P.jig_len, P.jig_wid, 0) },
-      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2] },
+      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2], corners, pocketLocal: [P.pocket_mark_dx / 2, P.pocket_mark_dy / 2] },
       markDia: P.mark_dia, rcR,
       hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
       hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
@@ -262,12 +265,28 @@
   // 長方形料或斜對角 Mark 時，Mark 連線本身有固定角度 atan2(mv)；Δθ = ψ̂ − φ̂ 兩邊相同會抵消
   function jigMarks(m, qc, ang, mv) { const h = mv || m.tray.markV; return [-1, 1].map(s => V.add(qc, V.rot(V.mul(h, s), ang))); }
   const trayMarkT = (m, pt, s) => V.add(pt, V.mul(m.tray.markV, s));
+  // 料的四角 Mark（中心 qc、角度 ang）
+  const partMarks = (m, qc, ang) => m.part.corners.map(c => V.add(qc, V.rot(c, ang)));
+  // 上相機逐顆拍：平台移到「這顆 Mark 的設計位置在相機下方」S = S_c − R̂ − q_nom，拍照後 q̂ = Â·u + Ĉ − S − R̂
+  function topShots(m, k, est, N, qTrue, qNom) {
+    const Sc = est.top[k].Sc, R = est.R[k];
+    return qTrue.map((q, i) => {
+      const S = V.sub(V.sub(Sc, R), qNom[i]), u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q)));
+      return { S, u, q: V.sub(V.sub(V.add(M.ap(est.top[k].G, u), est.top[k].c), S), R) };
+    });
+  }
+  // 四點擬合：設計角 Mark c_i → 量到的 q̂_i，求中心 ŵ、角度 φ̂、比例與殘差
+  function fitCorners(design, meas) {
+    const f = fitSimilarity(design, meas);
+    const res = design.map((c, i) => V.len(V.sub(f.apply(c), meas[i])));
+    return { w: f.t, phi: f.ang, scale: f.scale, res, rms: Math.sqrt(res.reduce((a, r) => a + r * r, 0) / res.length), max: Math.max(...res) };
+  }
 
   // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
   function calibTop(m, k, N, g) {
     const Sc = nomSc(m, k), q0 = [3, -2], step = g || m.top[k].grid, us = [], Ss = [];
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-      const S = V.add(Sc, [i * step, j * step]);
+      const S = V.add(V.sub(Sc, q0), [i * step, j * step]);   // 以「Mark 在畫面中心」的位置為中心走九點
       us.push(npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
     }
     const f = fitAffine(us, Ss);
@@ -301,7 +320,8 @@
     const p = m.plat[k], h = hCal == null ? m.hCal : hCal;
     const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.mv);
     const Sc = est.top[k].Sc, R = est.R[k];
-    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
+    // 上相機一次只拍一顆：平台移動逐顆拍治具兩個 Mark
+    const qh = topShots(m, k, est, N, qm, jigMarks(m, [0, 0], 0, m.jig.mv)).map(s => s.q);
     const tc = [m.tray.cols[k === 0 ? 1 : 4], m.tray.rows[0]];
     const Wp = trayW(m, tc);
     const Sp = nomSp(m, k, trayNom(m, tc));
@@ -364,13 +384,14 @@
   function placeOne(m, est, k, pocket, wp, o, N) {
     o = o || {};
     const p = m.plat[k], h = m.hPlace + (o.dh || 0);
-    const qm = jigMarks(m, wp.qc, wp.phi);
-    const Sc = est.top[k].Sc, R = est.R[k];
-    // a. 上相機量料
-    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
-    // α0：Mark 連線的設計角度（長邊沿 Y 或斜對角 Mark 時不是 0）；φ̂、ψ̂ 都扣掉，顯示的就是料真正的歪斜角度
+    const qm = partMarks(m, wp.qc, wp.phi);
+    const R = est.R[k];
+    // a. 上相機逐顆拍料的四角 Mark（平台移動），四點擬合求 ŵ、φ̂
+    const tops = topShots(m, k, est, N, qm, m.part.corners), qh = tops.map(s => s.q);
+    const fc = fitCorners(m.part.corners, qh);
+    // α0：穴位兩 Mark 連線的設計角度（長邊沿 Y 或斜對角時不是 0），ψ̂ 扣掉後與 φ̂ 同基準
     const a0 = V.ang(m.tray.markV);
-    const wHat = V.mid(qh[0], qh[1]), phiHat = V.ang(V.sub(qh[1], qh[0])) - a0;
+    const wHat = fc.w, phiHat = fc.phi;
     // b. 下相機量穴位（或用基準 Mark 推算）
     const pt = pocketT(m, pocket.ci, pocket.ri);
     const trueMarks = [-1, 1].map(s => trayW(m, trayMarkT(m, pt, s)));
@@ -398,12 +419,14 @@
     const Sp = V.sub(V.sub(That, R), V.rot(wHat, dth));
     // d. 實際放下
     const Spa = nS(N, Sp), tha = dth + N.g() * N.th;
-    const placed = qm.map(q => V.add(V.add(V.add(chuckPt(m, k, Spa, tha, h, q), p.transfer), [N.g() * N.slip, N.g() * N.slip]), [0, 0]));
-    const pc = V.mid(placed[0], placed[1]), tc = V.mid(trueMarks[0], trueMarks[1]);
-    const errW = V.sub(pc, tc);
-    const err = V.rot(errW, -m.tray.ang); // 以料盤座標表示
-    const angErr = V.ang(V.sub(placed[1], placed[0])) - V.ang(V.sub(trueMarks[1], trueMarks[0]));
-    return { k, pocket, pt, dth, Sp, err, angErr, wHat, phiHat, That, psiHat };
+    const slip = [N.g() * N.slip, N.g() * N.slip];
+    const placed = qm.map(q => V.add(V.add(chuckPt(m, k, Spa, tha, h, q), p.transfer), slip));
+    const pf = fitCorners(m.part.corners, placed);       // 料實際落在料盤上的中心與角度
+    const tc = V.mid(trueMarks[0], trueMarks[1]);
+    const err = V.rot(V.sub(pf.w, tc), -m.tray.ang);     // 以料盤座標表示
+    let angErr = pf.phi - (V.ang(V.sub(trueMarks[1], trueMarks[0])) - a0);
+    angErr = Math.atan2(Math.sin(angErr), Math.cos(angErr));
+    return { k, pocket, pt, dth, Sp, err, angErr, wHat, phiHat, That, psiHat, tops, cornerRms: fc.rms, cornerMax: fc.max, partScale: fc.scale };
   }
 
   // 套用「校正後機台變化」與「隨機誤差」，跑多片
@@ -523,5 +546,5 @@
     return out;
   }
 
-  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);
