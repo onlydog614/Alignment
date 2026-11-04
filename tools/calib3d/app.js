@@ -7,7 +7,7 @@
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   // ---------- 分頁 ----------
-  const TABS = ['steps', 'trouble', 'analysis', 'verify'];
+  const TABS = ['steps', 'trouble', 'analysis', 'params', 'verify'];
   function showTab(id) {
     if (!TABS.includes(id)) id = 'steps';
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false'));
@@ -16,6 +16,7 @@
     if (id === 'trouble') runSim();
     if (id === 'analysis') runAnalysis();
     if (id === 'verify') runVerify();
+    if (id === 'params') renderParams();
   }
   $$('.tab').forEach(b => b.addEventListener('click', () => { history.replaceState(null, '', '#' + b.dataset.tab); showTab(b.dataset.tab); }));
   G.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
@@ -224,18 +225,109 @@
   $('#datasample').addEventListener('click', () => { $('#datain').value = sampleData(); runAnalysis(); });
   $('#dataclear').addEventListener('click', () => { $('#datain').value = '# 平台  穴位X  穴位Y  Δθ(°)  dX  dY\n'; runAnalysis(); });
 
+  // ---------- 機台參數 ----------
+  const APPLIED = M0.P;
+  let draft = Object.assign({}, APPLIED);
+  function renderParamTable() {
+    let grp = '', html = '<div class="tbl"><table class="ptbl"><thead><tr><th>項目</th><th>數值</th><th>單位</th><th>代碼</th></tr></thead><tbody>';
+    CAL.PARAMS.forEach(([key, g, label, def, unit, desc]) => {
+      if (g !== grp) { grp = g; html += `<tr class="grp"><td colspan="4">${g}</td></tr>`; }
+      const changed = draft[key] !== APPLIED[key];
+      html += `<tr class="${changed ? 'changed' : ''}"><td><label for="pp-${key}">${label}</label>${desc ? `<div class="note">${desc}</div>` : ''}</td><td><input type="number" step="any" id="pp-${key}" data-k="${key}" value="${draft[key]}"></td><td>${unit}</td><td class="note"><code>${key}</code></td></tr>`;
+    });
+    $('#ptable').innerHTML = html + '</tbody></table></div>';
+    $$('#ptable input').forEach(el => el.addEventListener('input', () => { const v = parseFloat(el.value); if (isFinite(v)) draft[el.dataset.k] = v; el.closest('tr').classList.toggle('changed', draft[el.dataset.k] !== APPLIED[el.dataset.k]); updParamMsg(); }));
+  }
+  function updParamMsg(extra) {
+    const n = CAL.PARAMS.filter(p => draft[p[0]] !== APPLIED[p[0]]).length;
+    $('#pmsg').textContent = (extra ? extra + '　' : '') + (n ? `${n} 項尚未套用` : '目前顯示的就是套用中的數值');
+  }
+  function paramChecks() {
+    const out = [], add = (item, val, lvl, note) => out.push({ item, val, lvl, note });
+    const cams = [[1, M0.top[0], 'top'], [2, M0.top[1], 'top'], [3, M0.bcam[3], 'bot'], [4, M0.bcam[4], 'bot']];
+    cams.forEach(([id, c, kind]) => {
+      const nm = (kind === 'top' ? '上' : '下') + c.name;
+      const ar = c.mmpp / c.mmppY;
+      add(`${nm} 像素當量`, `X ${(c.mmpp * 1000).toFixed(2)}、Y ${(c.mmppY * 1000).toFixed(2)} µm/px`, Math.abs(ar - 1) > 0.02 ? 'warn' : 'ok', Math.abs(ar - 1) > 0.02 ? 'X、Y 差超過 2%：確認視野與解析度有沒有填反' : `單次辨識雜訊 0.1 px ≈ ${(0.1 * c.mmpp * 1000).toFixed(1)} µm`);
+      const dpx = M0.markDia / c.mmpp, lim = Math.min(c.w, c.h) / 4;
+      add(`${nm} Mark 在影像中的直徑`, `${dpx.toFixed(0)} px`, dpx < 6 || dpx > lim ? 'bad' : (dpx < 15 ? 'warn' : 'ok'), dpx < 15 ? 'Mark 太小，辨識會不穩（建議 ≥ 15 px）' : (dpx > lim ? 'Mark 太大，九點走動時容易出畫面' : '15 px 以上，辨識穩定'));
+      add(`${nm} 九點間距`, `${c.grid} mm`, 'ok', `視野 ${c.fov[0]}×${c.fov[1]} mm 的約 1/3`);
+      if (kind === 'top') {
+        const need = 2 * M0.tray.markHalf + M0.markDia + 2, needJ = 2 * M0.jig.half + M0.markDia + 2;
+        add(`${nm} 能否一次拍到料的兩個 Mark`, `需要 ${need.toFixed(1)} mm／視野 ${c.fov[0]} mm`, need <= c.fov[0] ? 'ok' : 'bad', need <= c.fov[0] ? '含料放偏 ±1 mm 的餘量' : '兩個 Mark 無法同時入鏡：要分兩次拍（平台移動會帶入軸誤差）或換大視野');
+        add(`${nm} 能否一次拍到治具的兩個 Mark`, `需要 ${needJ.toFixed(1)} mm`, needJ <= c.fov[0] ? 'ok' : 'bad', needJ <= c.fov[0] ? '' : '步驟 5 會做不起來：縮小治具 Mark 間距或換大視野');
+        const ang = Math.SQRT2 * 0.1 * c.mmpp / (2 * M0.tray.markHalf);
+        add(`${nm} 料角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊、Mark 間距 ${2 * M0.tray.markHalf} mm`);
+      } else {
+        const margin = Math.min(...c.fov) / 2 - M0.markDia / 2;
+        add(`${nm} 可容許的穴位位置誤差`, `±${margin.toFixed(2)} mm`, margin < 0.5 ? 'warn' : 'ok', margin < 0.5 ? '料盤位置稍微偏一點 Mark 就出畫面，需要先粗定位' : '料盤或穴位位置誤差小於這個值才拍得到');
+        const ang = Math.SQRT2 * Math.hypot(0.1 * c.mmpp, 0.001) / (2 * M0.tray.markHalf);
+        add(`${nm} 穴位角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', '左右兩次拍照，含 1 µm 平台重複性');
+        const dd = Math.hypot(...c.dNom), clear = Math.hypot(M0.part.len, M0.part.wid) / 2 + 10;
+        add(`${nm} 與吸盤上料的距離`, `${dd.toFixed(0)} mm`, dd < clear ? 'warn' : 'ok', dd < clear ? `小於料對角線一半＋10 mm（${clear.toFixed(0)} mm），DD 轉動時料可能撞到或擋住相機` : '');
+      }
+    });
+    const sR = 0.1 / Math.sqrt(3) * M0.top[0].mmpp * Math.sqrt(2 / 8);
+    add('DD 旋轉中心：校正片 Mark 半徑', `${M0.rcR} mm`, 'ok', `整圈在上相機視野內；預估圓心精度 1σ ≈ ${(sR * 1000).toFixed(1)} µm`);
+    // 行程：所有動畫用到的平台位置
+    [0, 1].forEach(k => {
+      const xs = [], ys = [], hs = [];
+      timelines.forEach(tl => tl.segs.forEach(sg => { [sg.from, sg.to].forEach(st => { xs.push(st.p[k].S[0]); ys.push(st.p[k].S[1]); hs.push(st.p[k].h); }); }));
+      const st = M0.plat[k].stroke, sx = Math.max(...xs) - Math.min(...xs), sy = Math.max(...ys) - Math.min(...ys), hz = Math.max(...hs);
+      add(`平台${k + 1} X 行程`, `需要 ${sx.toFixed(0)}／可動 ${st[0]} mm`, sx <= st[0] ? 'ok' : 'bad', sx <= st[0] ? '上相機站、基準 Mark、所有穴位都到得了' : '行程不夠：上相機站、基準 Mark 或最外側穴位到不了');
+      add(`平台${k + 1} Y 行程`, `需要 ${sy.toFixed(0)}／可動 ${st[1]} mm`, sy <= st[1] ? 'ok' : 'bad', sy <= st[1] ? '' : '行程不夠');
+      add(`平台${k + 1} Z 行程`, `需要 ${hz.toFixed(1)}／可動 ${st[2]} mm`, hz <= st[2] && hz > 0 ? 'ok' : 'bad', hz <= 0 ? '料或治具比吸盤到平台3 的距離還厚' : (hz <= st[2] ? '' : 'Z 升不到平台3'));
+    });
+    const dh = M0.hCal - M0.hPlace;
+    add('治具厚度 vs 料厚', `差 ${Math.abs(dh).toFixed(2)} mm`, Math.abs(dh) > 0.05 ? 'warn' : 'ok', Math.abs(dh) > 0.05 ? `步驟 5 的 Z 行程和生產差 ${Math.abs(dh).toFixed(2)} mm，Z 軸若傾斜 1 mrad 會多 ${(Math.abs(dh)).toFixed(1)} µm 固定偏移；建議治具與料同厚` : '步驟 5 與生產用同一個 Z 行程');
+    const px = M0.P.tray_pitch_x, py = M0.P.tray_pitch_y;
+    add('料與穴位間距', `料 ${M0.part.len}×${M0.part.wid}／間距 ${px}×${py} mm`, M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? 'ok' : 'bad', M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? '' : '料比穴位間距大，相鄰的料會互相干涉');
+    add('料的兩個 Mark 是否在料上', `間距 ${2 * M0.tray.markHalf}／料長 ${M0.part.len} mm`, 2 * M0.tray.markHalf + M0.markDia <= M0.part.len ? 'ok' : 'bad', '');
+    return out;
+  }
+  function renderParams() {
+    if (!$('#ptable').innerHTML) renderParamTable();
+    updParamMsg();
+    const ck = paramChecks(), lv = { ok: ['ok', '可以'], warn: ['warn', '注意'], bad: ['bad', '不行'] };
+    const nb = ck.filter(c => c.lvl === 'bad').length, nw = ck.filter(c => c.lvl === 'warn').length;
+    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])) + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
+  }
+  function importText(txt, src) {
+    const r = CAL.parseParamsCSV(txt, draft);
+    if (!r.applied.length) { $('#pmsg').textContent = `${src}沒有讀到任何參數。第一欄要是代碼（例如 top1_fov_x），第四欄是數值`; return; }
+    draft = r.params; renderParamTable();
+    updParamMsg(`${src}讀到 ${r.applied.length} 項` + (r.bad.length ? `，${r.bad.length} 項數值看不懂（第 ${r.bad.map(b => b.line).join('、')} 行）` : '') + (r.unknown.length ? `，${r.unknown.length} 行代碼不認得已略過` : '') + '，按「套用並重新計算」生效');
+  }
+  $('#pfile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const rd = new FileReader(); rd.onload = () => importText(String(rd.result), `「${f.name}」`); rd.readAsText(f, 'utf-8'); e.target.value = '';
+  });
+  $('#pparse').addEventListener('click', () => importText($('#pcsv').value, '貼上的內容'));
+  $('#ppaste').addEventListener('toggle', () => { if ($('#ppaste').open && !$('#pcsv').value.trim()) $('#pcsv').value = CAL.paramsToCSV(draft); });
+  $('#pcopy').addEventListener('click', () => {
+    const txt = CAL.paramsToCSV(draft);
+    const fallback = () => { $('#ppaste').open = true; $('#pcsv').value = txt; $('#pcsv').select(); updParamMsg('已把 CSV 放進下方文字框並選取，請按 Ctrl+C 複製'); };
+    try { navigator.clipboard.writeText(txt).then(() => updParamMsg('已複製 CSV，可以貼到 Excel 或記事本'), fallback); } catch (e) { fallback(); }
+  });
+  $('#preset').addEventListener('click', () => { draft = CAL.defaultParams(); renderParamTable(); updParamMsg('已填回預設值'); });
+  $('#papply').addEventListener('click', () => {
+    if (!CAL.saveParams(draft)) { updParamMsg('這個瀏覽器不允許儲存設定，無法套用'); return; }
+    try { history.replaceState(null, '', '#params'); } catch (e) { /* 略過 */ }
+    location.reload();
+  });
+
   // ---------- 驗證 ----------
   function animChecks() {
     const T = [];
     timelines.forEach((tl, i) => {
       let n = 0, miss = 0;
       tl.segs.forEach(sg => { if (!sg.shot) return; sg.shot.cams.forEach(id => { n++; const img = sg.shot.img[id]; const cam = id <= 2 ? M0.top[id - 1] : M0.bcam[id]; if (!img.marks.some(mk => CAL.inImage(cam, mk.u))) miss++; }); });
-      if (n) T.push({ name: `動畫「${STEPS[i].title}」：每次拍照目標都在相機視野內`, pass: miss === 0, detail: `${n} 次拍照，${miss} 次看不到目標` });
+      if (n) T.push({ name: `動畫「${STEPS[i].title}」：每次拍照目標都在相機視野內`, pass: miss === 0, detail: `${n} 次拍照，${miss} 次看不到目標` + (miss ? '（請看「機台參數」檢查表：視野可能裝不下兩個 Mark）' : '') });
       let maxH = 0; tl.segs.forEach(sg => sg.to.p.forEach(p => { maxH = Math.max(maxH, p.h); }));
-      if (maxH > M0.hPlace + 1e-9) T.push({ name: `動畫「${STEPS[i].title}」：Z 不超過放料行程`, pass: false, detail: maxH });
+      if (maxH > Math.max(M0.hPlace, M0.hCal) + 1e-9) T.push({ name: `動畫「${STEPS[i].title}」：Z 不超過放料行程`, pass: false, detail: maxH });
     });
     // 吸盤放料位置：Z 上升到 h 時，料上表面 = 平台3 下表面
-    T.push({ name: '幾何：吸盤面 100 mm + 行程 h + 料厚 2 mm = 平台3 下表面', pass: Math.abs(100 + M0.hPlace + 2 - M0.zPlate) < 1e-9, detail: `${100 + M0.hPlace + 2} vs ${M0.zPlate}` });
+    T.push({ name: '幾何：Z 上升行程 h 後，料的上表面剛好碰到平台3 下表面', pass: Math.abs(100 + M0.hPlace + M0.part.thick - M0.zPlate) < 1e-9 && Math.abs(100 + M0.hCal + M0.jig.thick - M0.zPlate) < 1e-9, detail: `料 h = ${M0.hPlace} mm、治具 h = ${M0.hCal} mm` });
     // 放料步驟：放下後料中心與穴位中心（設計）差 < 1 mm（動畫用的 S_p 來自真實計算）
     const tlc = timelines[STEPS.findIndex(s => s.id === 'cycle')];
     const last = tlc.segs[tlc.segs.length - 1].to.plate;
@@ -259,6 +351,7 @@
   G.runVerifyNow = () => { verified = null; runVerify(); return document.body.dataset.verify; };
 
   // ---------- 啟動 ----------
+  $('#pbadge').hidden = !CAL.PARAMS.some(p => APPLIED[p[0]] !== p[3]);
   buildSimForm();
   let saved = 0; try { saved = +(localStorage.getItem('cal-step') || 0) || 0; } catch (e) { saved = 0; }
   selectStep(saved, !reduce);

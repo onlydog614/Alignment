@@ -2,7 +2,8 @@
 (function (G) {
   'use strict';
   const CAL = G.CAL, { V, D2R, R2D } = CAL;
-  const M0 = CAL.defaultMachine();
+  const M0 = CAL.defaultMachine(CAL.loadParams());
+  const MR = M0.markDia / 2, f1 = v => +v.toFixed(2);
   const HOME = () => ({ S: [0, 0], th: 0, h: 0 });
 
   // ---------- 時間軸建構 ----------
@@ -28,9 +29,10 @@
     if (!it) return [];
     if (it.type === 'mark') return [[0, 0]];
     if (it.type === 'rcmark') return [[0, 0]];
-    return [[-M0.tray.markHalf, 0], [M0.tray.markHalf, 0]];
+    const hf = it.type === 'jig' ? M0.jig.half : M0.tray.markHalf;
+    return [[-hf, 0], [hf, 0]];
   }
-  function itemOutline(it) { return it && it.type === 'wp' ? [[-35, -20], [35, -20], [35, 20], [-35, 20]] : (it && it.type === 'jig' ? [[-40, -11], [40, -11], [40, 11], [-40, 11]] : null); }
+  function itemOutline(it) { const b = (l, w) => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]]; return it && it.type === 'wp' ? b(M0.part.len, M0.part.wid) : (it && it.type === 'jig' ? b(M0.jig.len, M0.jig.wid) : null); }
   function shotImages(cur, cams) {
     const out = {};
     cams.forEach(id => {
@@ -41,7 +43,7 @@
           itemMarks(it).forEach(q0 => {
             const q = V.add(it.q, V.rot(q0, it.ang || 0));
             const u = CAL.pixTop(M0, k, CAL.chuckPt(M0, k, P.S, P.th, 0, q));
-            if (CAL.inImage(M0.top[k], u, -40)) marks.push({ u, kind: 'chuck', r: 0.5 });
+            if (CAL.inImage(M0.top[k], u, -40)) marks.push({ u, kind: 'chuck', r: MR });
           });
           const ol = itemOutline(it);
           if (ol) polys.push(ol.map(q0 => CAL.pixTop(M0, k, CAL.chuckPt(M0, k, P.S, P.th, 0, V.add(it.q, V.rot(q0, it.ang || 0))))));
@@ -49,9 +51,9 @@
       } else {
         const b = M0.bcam[id], S = cur.p[b.plat].S;
         const add = (W, kind, r) => { const u = CAL.pixB(M0, id, S, W); if (CAL.inImage(b, u, -150)) marks.push({ u, kind, r }); };
-        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, [cx + s * M0.tray.markHalf, ry]), 'pocket', 0.5))));
-        Object.values(M0.fidT).forEach(f => add(CAL.trayW(M0, f), 'fid', 0.6));
-        cur.plate.forEach(it => itemMarks(it).forEach(q0 => add(V.add(it.W, V.rot(q0, it.ang || 0)), 'jig', 0.5)));
+        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, [cx + s * M0.tray.markHalf, ry]), 'pocket', MR))));
+        Object.values(M0.fidT).forEach(f => add(CAL.trayW(M0, f), 'fid', MR * 1.2));
+        cur.plate.forEach(it => itemMarks(it).forEach(q0 => add(V.add(it.W, V.rot(q0, it.ang || 0)), 'jig', MR)));
       }
       out[id] = { marks, polys };
     });
@@ -201,7 +203,7 @@
         tl.go(k, { S: Sc(k) }, 1.8, `平台${k + 1} 到上相機${k + 1} 下方 S_c`);
         let n = 0;
         for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-          n++; tl.go(k, { S: V.add(Sc(k), [i * 20, j * 20]) }, 0.45, `第 ${n}/9 點：S = S_c + (${i * 20}, ${j * 20}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
+          n++; const g = M0.top[k].grid; tl.go(k, { S: V.add(Sc(k), [i * g, j * g]) }, 0.45, `第 ${n}/9 點：S = S_c + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
         }
         tl.go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
@@ -214,7 +216,7 @@
       <h4>動作</h4><ol>
         <li>單點玻璃 Mark 吸在吸盤上，θ = 0、Z = Z_cam。</li>
         <li>平台1 移到上相機1 下方 S_c（平台2 對上相機2），Mark 在影像中心附近。</li>
-        <li>XY 走 3×3，間距 20 mm（約視野 83×62 mm 的 1/3）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
+        <li>XY 走 3×3，間距 ${M0.top[0].grid} mm（約視野 ${f1(M0.top[0].fov[0])}×${f1(M0.top[0].fov[1])} mm 的 1/3；相機2 為 ${M0.top[1].grid} mm）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
         <li>記錄 S_i（光學尺實際值）與 Mark 像素 u_i。平台2／上相機2 重做。</li></ol>
       <h4>公式</h4>
       <pre>S_i = G·u_i + c          （每平台 6 個未知數，最小平方）
@@ -222,7 +224,7 @@
 上相機看到的點 → 平台座標：P = Â_top·u + Ĉ_top
 mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
 往下看的相機：det G &lt; 0（因為影像 v 往下）</pre>
-      <h4>判定</h4><ul><li>九點殘差 &lt; 0.3 px（約 20 µm）。</li><li>X、Y 像素當量差 &lt; 0.5%，正交偏差 &lt; 0.1°。</li><li>兩台上相機若是同規格，mm/px 差應 &lt; 0.5%；差很多表示工作距離（Z）不同，或某一軸比例錯。</li></ul>
+      <h4>判定</h4><ul><li>九點殘差 &lt; 0.3 px（約 ${(0.3 * M0.top[0].mmpp * 1000).toFixed(0)} µm）。</li><li>X、Y 像素當量差 &lt; 0.5%，正交偏差 &lt; 0.1°。</li><li>兩台上相機若是同規格，mm/px 差應 &lt; 0.5%；差很多表示工作距離（Z）不同，或某一軸比例錯。</li></ul>
       <h4>模擬結果（含 0.1 px 雜訊、1 µm 重複性；真值 0.065 mm/px；相機角度 0.35°、−0.28°）</h4>
       ${table(['相機／平台', 'mm/px', '相機角度', '正交偏差', 'det G', '殘差 RMS'], rows)}
       <p class="note">求得的相機角度 = 相機本身角度 − 平台 XY 軸安裝角（模擬設定平台1 0.05°、平台2 −0.08°），所以 0.30° 與 −0.20° 才是對的。</p>`;
@@ -234,7 +236,7 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [20, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 20 mm`);
+        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 ${M0.rcR} mm`);
         tl.go(k, { S: Sc(k), th: 0 }, 1.8, `平台${k + 1} 到 S_c，XY 之後不動`);
         for (let a = 0; a < 360; a += 45) tl.go(k, { th: a * D2R }, 0.55, `θ = ${a}°（同一方向轉到位）`).shot([k + 1], `拍照：θ = ${a}°`, 0.45);
         tl.go(k, { th: 0 }, 1.2, '轉回 0°').go(k, { S: [0, 0] }, 1.4).set(c => { c.chuck[k] = null; });
@@ -247,7 +249,7 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
       <p class="lead">求 DD 旋轉中心 R̂（平台在 S = 0 時的位置，平台座標）。料轉 Δθ 時，平台要用 R̂ 才知道料會被轉到哪裡。</p>
       ${FIG.rc}
       <h4>動作</h4><ol>
-        <li>玻璃 Mark 放在離吸盤中心約 20 mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
+        <li>玻璃 Mark 放在離吸盤中心約 ${M0.rcR} mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
         <li>平台停在 S_c，XY 不動。θ = 0°、45° … 315° 共 8 點，每點都從同一方向轉到位（消背隙），拍照。</li>
         <li>重做 3 次，比較 R̂。</li></ol>
       <h4>公式（已知指令角度擬合，線性）</h4>
@@ -272,7 +274,7 @@ R̂ = c − S_c
         const S0 = SvT(j, F);
         tl.go(k, { S: S0 }, 1.8, `相機${j} 移到平台3 ${F === M0.fidT.L ? '左' : '右'}基準 Mark 下方`);
         let n = 0;
-        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; tl.go(k, { S: V.add(S0, [i * 3, jj * 3]) }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * 3}, ${jj * 3}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
+        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; const g = M0.bcam[j].grid; tl.go(k, { S: V.add(S0, [i * g, jj * g]) }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * g}, ${jj * g}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
         tl.go(k, { S: [0, 0] }, 1.4);
       });
       return tl;
@@ -284,7 +286,7 @@ R̂ = c − S_c
       ${FIG.sign}
       <h4>動作</h4><ol>
         <li>平台移到使相機 j 看到平台3 的固定基準 Mark（相機3 用左基準，相機4 用右基準）。</li>
-        <li>基準 Mark 不動，平台 XY 走 3×3，間距 3 mm（視野約 12.8×9.6 mm）。</li>
+        <li>基準 Mark 不動，平台 XY 走 3×3，間距 ${M0.bcam[3].grid} mm（相機3 視野約 ${f1(M0.bcam[3].fov[0])}×${f1(M0.bcam[3].fov[1])} mm；相機4 間距 ${M0.bcam[4].grid} mm）。</li>
         <li>記錄 S_i 與 u_i。兩台下相機各做一次。</li></ol>
       <h4>公式</h4>
       <pre>相機中心跟平台走：P_Mark = S_i + D_j + A_j·u_i   （P_Mark 固定）
@@ -302,14 +304,14 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        const t = [k === 0 ? -180 : 180, -55], Sp = SpT(k, t);
+        const t = [M0.tray.cols[k === 0 ? 1 : 4], M0.tray.rows[0]], Sp = SpT(k, t);
         tl.set(c => { c.chuck[k] = Object.assign({}, JIG); }, `平台${k + 1}：雙 Mark 玻璃治具放上吸盤`);
         tl.go(k, { S: Sc(k) }, 1.8, `到上相機${k + 1} 下方`).shot([k + 1], `① 上相機${k + 1} 量治具兩個 Mark → q̂_L、q̂_R`);
-        tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hPlace }, 1, 'Z 上升 h').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
+        tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hCal }, 1, 'Z 上升到治具行程').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
         const j = k + 3;
-        tl.go(k, { S: SvT(j, V.add(t, [-30, 0])) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
-        tl.go(k, { S: SvT(j, V.add(t, [30, 0])) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
-        tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hPlace }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
+        tl.go(k, { S: SvT(j, V.add(t, [-M0.jig.half, 0])) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
+        tl.go(k, { S: SvT(j, V.add(t, [M0.jig.half, 0])) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
+        tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hCal }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
       return tl;
     },
@@ -389,7 +391,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：料放上吸盤（位置、角度隨機）`);
         const j = k + 3;
         tl.go(k, { S: Sc(k) }, 1.8, `1. 到上相機${k + 1} 下方`).shot([k + 1], `上相機${k + 1} 量料：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`);
-        tl.go(k, { S: SvT(j, V.add(t, [-30, 0])) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, V.add(t, [30, 0])) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
+        tl.go(k, { S: SvT(j, V.add(t, [-M0.tray.markHalf, 0])) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, V.add(t, [M0.tray.markHalf, 0])) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
         tl.go(k, { h: M0.hPlace }, 0.9, '4. Z 上升放料').set(release(k, it), '破真空，料留在平台3').go(k, { h: 0 }, 0.7, 'Z 下降').go(k, { S: [0, 0], th: 0 }, 1.6, `完成：偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm`);
       });

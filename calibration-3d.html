@@ -39,6 +39,7 @@
   --ok:#6fd39a; --ok-bg:#163223; --warn:#e6bb55; --warn-bg:#352a10; --bad:#ff8c9c; --bad-bg:#3a1a20;
   color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;margin:0}
 .wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
 header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
@@ -137,11 +138,18 @@ legend{font-weight:600;font-size:.86rem;padding:0 4px}
 .lv-hi{border-left-color:var(--bad)!important}.lv-mid{border-left-color:var(--warn)!important}.lv-lo{border-left-color:var(--accent)!important}.lv-ok{border-left-color:var(--ok)!important}
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warnp{background:var(--warn-bg);color:var(--warn)}
+.pill+.pill{margin-left:6px}
 .muted{color:var(--muted);font-size:.86rem;margin-left:10px}
 textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertical}
 .sig td:first-child{font-weight:600;min-width:12em}
 .order li{margin:8px 0}
 .order b{display:block}
+.ptbl input{width:96px;text-align:right}
+.ptbl td{vertical-align:middle}
+.ptbl tr.changed td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.grp td{font-weight:600;color:var(--muted);background:var(--soft)}
+label.btn{display:inline-block}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 @media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
@@ -159,6 +167,7 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
     <button class="tab" role="tab" data-tab="steps" id="tab-steps">校正手順</button>
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
     <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
+    <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
 
@@ -256,6 +265,28 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       <div class="ctrl" style="margin:8px 0"><button class="btn" id="datasample">載入範例</button><button class="btn" id="dataclear">清空</button><label class="note" for="thr">推測門檻</label><span class="inp"><input type="number" id="thr" value="10" min="0" step="any"><i>µm</i></span><span class="note" id="datamsg"></span></div>
       <textarea id="datain" spellcheck="false" aria-label="實測資料"></textarea>
       <div id="dataout"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-params" hidden>
+    <div class="card">
+      <h3>機台參數</h3>
+      <p>相機視野、XY 可移動範圍、Mark 尺寸、校正片與產品尺寸都可以在這裡改，或匯入 CSV（Excel 存成「CSV UTF-8」即可）。按「套用並重新計算」後，整頁的 3D 動作、九點間距、旋轉中心半徑、相機畫面、模擬與驗證都會用新數值重算，下面的檢查表會告訴你哪些數值會讓校正做不起來。</p>
+      <div class="ctrl" style="margin:10px 0">
+        <label class="btn" for="pfile">匯入 CSV 檔</label><input type="file" id="pfile" accept=".csv,text/csv,.txt" hidden>
+        <button class="btn primary" id="papply">套用並重新計算</button>
+        <button class="btn" id="pcopy">複製 CSV</button>
+        <button class="btn" id="preset">還原預設</button>
+        <span class="note" id="pmsg" role="status"></span>
+      </div>
+      <details id="ppaste"><summary class="note">貼上 CSV 內容</summary>
+        <textarea id="pcsv" spellcheck="false" aria-label="CSV 內容" style="min-height:160px"></textarea>
+        <div class="ctrl" style="margin-top:6px"><button class="btn" id="pparse">讀入貼上的內容</button></div>
+      </details>
+      <div class="two" style="margin-top:12px">
+        <div><h4>參數</h4><div id="ptable"></div></div>
+        <div><h4>檢查結果（目前套用的參數）</h4><div id="pchecks"></div></div>
+      </div>
     </div>
   </section>
 
@@ -360,29 +391,125 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     return { a: x[0], b: x[1], t: [x[2], x[3]], scale: Math.hypot(x[0], x[1]), ang: Math.atan2(x[1], x[0]), apply: p => [x[0] * p[0] - x[1] * p[1] + x[2], x[1] * p[0] + x[0] * p[1] + x[3]] };
   }
 
+  // ===================== 機台參數（可由 CSV 匯入） =====================
+  // [代碼, 分組, 項目, 預設值, 單位, 說明]
+  const PARAMS = [
+    ['top1_fov_x', '相機', '上相機1 視野 X', 83.2, 'mm', '影像寬方向實際看到的長度'],
+    ['top1_fov_y', '相機', '上相機1 視野 Y', 62.4, 'mm', '影像高方向實際看到的長度'],
+    ['top1_res_x', '相機', '上相機1 解析度 X', 1280, 'px', '影像寬（像素）'],
+    ['top1_res_y', '相機', '上相機1 解析度 Y', 960, 'px', '影像高（像素）'],
+    ['top2_fov_x', '相機', '上相機2 視野 X', 83.2, 'mm', ''],
+    ['top2_fov_y', '相機', '上相機2 視野 Y', 62.4, 'mm', ''],
+    ['top2_res_x', '相機', '上相機2 解析度 X', 1280, 'px', ''],
+    ['top2_res_y', '相機', '上相機2 解析度 Y', 960, 'px', ''],
+    ['bot3_fov_x', '相機', '下相機3 視野 X', 12.8, 'mm', ''],
+    ['bot3_fov_y', '相機', '下相機3 視野 Y', 9.6, 'mm', ''],
+    ['bot3_res_x', '相機', '下相機3 解析度 X', 1280, 'px', ''],
+    ['bot3_res_y', '相機', '下相機3 解析度 Y', 960, 'px', ''],
+    ['bot3_off_x', '相機', '下相機3 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
+    ['bot3_off_y', '相機', '下相機3 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
+    ['bot4_fov_x', '相機', '下相機4 視野 X', 12.8, 'mm', ''],
+    ['bot4_fov_y', '相機', '下相機4 視野 Y', 9.6, 'mm', ''],
+    ['bot4_res_x', '相機', '下相機4 解析度 X', 1280, 'px', ''],
+    ['bot4_res_y', '相機', '下相機4 解析度 Y', 960, 'px', ''],
+    ['bot4_off_x', '相機', '下相機4 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
+    ['bot4_off_y', '相機', '下相機4 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
+    ['p1_x_stroke', '平台', '平台1 X 可移動範圍', 500, 'mm', '軟體極限之間的總行程'],
+    ['p1_y_stroke', '平台', '平台1 Y 可移動範圍', 600, 'mm', ''],
+    ['p1_z_stroke', '平台', '平台1 Z 可移動範圍', 50, 'mm', ''],
+    ['p2_x_stroke', '平台', '平台2 X 可移動範圍', 500, 'mm', ''],
+    ['p2_y_stroke', '平台', '平台2 Y 可移動範圍', 600, 'mm', ''],
+    ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
+    ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
+    ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
+    ['jig_pitch', '校正片', '雙 Mark 玻璃治具 Mark 間距', 60, 'mm', '建議與料的 Mark 間距相同'],
+    ['jig_len', '校正片', '治具長', 80, 'mm', ''],
+    ['jig_wid', '校正片', '治具寬', 22, 'mm', ''],
+    ['jig_thick', '校正片', '治具厚度', 2, 'mm', '建議與料厚相同'],
+    ['part_pitch', '產品', '料的 Mark 間距（＝穴位 Mark 間距）', 60, 'mm', ''],
+    ['part_len', '產品', '料長', 70, 'mm', ''],
+    ['part_wid', '產品', '料寬', 40, 'mm', ''],
+    ['part_thick', '產品', '料厚', 2, 'mm', ''],
+    ['tray_pitch_x', '產品', '料盤穴位間距 X', 120, 'mm', '6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄'],
+    ['tray_pitch_y', '產品', '料盤穴位間距 Y', 110, 'mm', '2 列']
+  ];
+  const PKEY = 'cal-params-v1';
+  function defaultParams() { const o = {}; PARAMS.forEach(p => { o[p[0]] = p[3]; }); return o; }
+  function loadParams() {
+    const o = defaultParams();
+    try { const s = G.localStorage && G.localStorage.getItem(PKEY); if (s) { const v = JSON.parse(s); Object.keys(o).forEach(k => { if (isFinite(+v[k]) && v[k] !== '' && v[k] != null) o[k] = +v[k]; }); } } catch (e) { /* 無儲存空間時用預設值 */ }
+    return o;
+  }
+  function saveParams(o) { try { G.localStorage.setItem(PKEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
+  function clearParams() { try { G.localStorage.removeItem(PKEY); return true; } catch (e) { return false; } }
+  // CSV（代碼,分組,項目,數值,單位,說明）。UTF-8，第一行是標題
+  function paramsToCSV(o) {
+    const q = v => (/[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v));
+    return ['代碼,分組,項目,數值,單位,說明'].concat(PARAMS.map(p => [p[0], p[1], p[2], o[p[0]], p[4], p[5]].map(q).join(','))).join('\n') + '\n';
+  }
+  function splitCSV(line) {
+    const out = []; let cur = '', inq = false;
+    const sep = line.includes('\t') && !line.includes(',') ? '\t' : ',';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inq) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inq = false; } else cur += ch; }
+      else if (ch === '"') inq = true; else if (ch === sep) { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur); return out.map(x => x.trim());
+  }
+  // 回傳 { params, applied:[代碼], unknown:[行], bad:[{行,代碼,值}] }；未出現的代碼沿用 base
+  function parseParamsCSV(text, base) {
+    const o = Object.assign(defaultParams(), base || {}), applied = [], unknown = [], bad = [];
+    const keys = new Set(PARAMS.map(p => p[0])), byLabel = {}; PARAMS.forEach(p => { byLabel[p[2]] = p[0]; });
+    text.replace(/^﻿/, '').split(/\r?\n/).forEach((ln, i) => {
+      if (!ln.trim() || ln.trim().startsWith('#')) return;
+      const c = splitCSV(ln); if (c[0] === '代碼') return;
+      let key = keys.has(c[0]) ? c[0] : (byLabel[c[0]] || byLabel[c[2]] || null);
+      if (!key) { unknown.push(i + 1); return; }
+      // 數值欄：標準格式在第 4 欄；只有兩欄（代碼,數值）也接受
+      const raw = c.length >= 4 ? c[3] : c[1];
+      const v = parseFloat(String(raw).replace(/[^\d.eE+-]/g, ''));
+      if (!isFinite(v)) { bad.push({ line: i + 1, key, raw }); return; }
+      o[key] = v; applied.push(key);
+    });
+    return { params: o, applied, unknown, bad };
+  }
+
   // ===================== 真實機台 =====================
-  function defaultMachine() {
+  function defaultMachine(P) {
+    P = Object.assign(defaultParams(), P || {});
+    const nice = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); return [1, 2, 5, 10].map(x => x * p).filter(x => x <= v).pop() || p; };
+    const top = k => {
+      const f = `top${k + 1}_`, w = P[f + 'res_x'], h = P[f + 'res_y'], mmpp = P[f + 'fov_x'] / w;
+      return { name: `相機${k + 1}`, plat: k, C: [k === 0 ? -250 : 250, -250], mmpp, mmppY: P[f + 'fov_y'] / h, ang: (k === 0 ? 0.35 : -0.28) * D2R, up: false, w, h, fov: [P[f + 'fov_x'], P[f + 'fov_y']], grid: nice(0.35 * Math.min(P[f + 'fov_x'], P[f + 'fov_y'])) };
+    };
+    const bot = (j, k, err, ang) => {
+      const f = `bot${j}_`, w = P[f + 'res_x'], h = P[f + 'res_y'], dNom = [P[f + 'off_x'], P[f + 'off_y']];
+      return { name: `相機${j}`, plat: k, d: V.add(dNom, err), dNom, mmpp: P[f + 'fov_x'] / w, mmppY: P[f + 'fov_y'] / h, ang: ang * D2R, up: true, w, h, fov: [P[f + 'fov_x'], P[f + 'fov_y']], grid: nice(0.35 * Math.min(P[f + 'fov_x'], P[f + 'fov_y'])) };
+    };
+    const px = P.tray_pitch_x, py = P.tray_pitch_y;
+    const t0 = top(0), t1 = top(1);
+    const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
     return {
+      P,
       // 上相機（固定、往下看）：相機1 拍平台1，相機2 拍平台2
-      top: [
-        { name: '相機1', plat: 0, C: [-250, -250], mmpp: 0.065, ang: 0.35 * D2R, up: false, w: 1280, h: 960 },
-        { name: '相機2', plat: 1, C: [250, -250], mmpp: 0.065, ang: -0.28 * D2R, up: false, w: 1280, h: 960 }
-      ],
+      top: [t0, t1],
       // 下相機（裝在 XY 載台上、往上看）：相機3 隨平台1，相機4 隨平台2
-      bcam: {
-        3: { name: '相機3', plat: 0, d: [-0.35, 110.20], dNom: [0, 110], mmpp: 0.010, ang: 0.25 * D2R, up: true, w: 1280, h: 960 },
-        4: { name: '相機4', plat: 1, d: [0.45, 110.35], dNom: [0, 110], mmpp: 0.010, ang: 0.60 * D2R, up: true, w: 1280, h: 960 }
-      },
+      bcam: { 3: bot(3, 0, [-0.35, 0.20], 0.25), 4: bot(4, 1, [0.45, 0.35], 0.60) },
       plat: [
-        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [3] },
-        { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4] }
+        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [3], stroke: [P.p1_x_stroke, P.p1_y_stroke, P.p1_z_stroke] },
+        { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4], stroke: [P.p2_x_stroke, P.p2_y_stroke, P.p2_z_stroke] }
       ],
       // 平台3 料盤：中心、角度、間距誤差（ppm）。穴位設計座標（料盤座標系）
-      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-300, -180, -60, 60, 180, 300], rows: [-55, 55], markHalf: 30, nomC: [0, 205] },
+      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map(i => i * px), rows: [-py / 2, py / 2], markHalf: P.part_pitch / 2, nomC: [0, 205] },
       // 平台3 固定基準 Mark（料盤座標系）：左、中（兩平台共用）、右
-      fidT: { L: [-390, 0], C: [0, 0], R: [390, 0] },
-      hPlace: 38,      // 放料 Z 行程（mm）
-      zPlate: 140      // 平台3 下表面高度（mm）
+      fidT: { L: [-(2.5 * px + 90), 0], C: [0, 0], R: [2.5 * px + 90, 0] },
+      jig: { half: P.jig_pitch / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick },
+      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick },
+      markDia: P.mark_dia, rcR,
+      hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
+      hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
+      zPlate: 100 + P.chuck_to_plate             // 平台3 下表面高度（吸盤面在 100）
     };
   }
   const trayW = (m, p) => V.add(m.tray.c, V.rot(V.mul(p, 1 + m.tray.scale * 1e-6), m.tray.ang));
@@ -407,7 +534,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const tt = th * (1 + p.thScale * 1e-6);
     return V.add(V.add(R, V.rot(q, c.ang + tt)), V.rot(V.mul(p.tilt, h * 1e-3), c.ang));
   }
-  function camLocalA(cam) { const D = cam.up ? [-1, 0, 0, -1] : [1, 0, 0, -1]; return M.mul(M.rot(cam.ang), D).map(x => x * cam.mmpp); }
+  function camLocalA(cam) { const my = cam.mmppY || cam.mmpp; const D = cam.up ? [-cam.mmpp, 0, 0, -my] : [cam.mmpp, 0, 0, -my]; return M.mul(M.rot(cam.ang), D); }
   function bcamPose(m, j, S) { const b = m.bcam[j], c = carriage(m, b.plat, S); return { o: V.add(c.K, V.rot(b.d, c.ang)), ang: c.ang }; }
   function pixTop(m, k, W) { const c = m.top[k]; return M.ap(M.inv(camLocalA(c)), V.sub(W, c.C)); }
   function pixB(m, j, S, W) { const cp = bcamPose(m, j, S); return M.ap(M.inv(M.mul(M.rot(cp.ang), camLocalA(m.bcam[j]))), V.sub(W, cp.o)); }
@@ -427,11 +554,11 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
 
   // ===================== 校正演算法 =====================
   const JIG = { qc: [0.8, -0.6], ang: 0.15 * D2R };
-  function jigMarks(m, qc, ang) { return [-1, 1].map(s => V.add(qc, V.rot([s * m.tray.markHalf, 0], ang))); }
+  function jigMarks(m, qc, ang, half) { const hf = half == null ? m.tray.markHalf : half; return [-1, 1].map(s => V.add(qc, V.rot([s * hf, 0], ang))); }
 
   // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
   function calibTop(m, k, N, g) {
-    const Sc = nomSc(m, k), q0 = [3, -2], step = g || 20, us = [], Ss = [];
+    const Sc = nomSc(m, k), q0 = [3, -2], step = g || m.top[k].grid, us = [], Ss = [];
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
       const S = V.add(Sc, [i * step, j * step]);
       us.push(npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
@@ -441,7 +568,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
   }
   // 步驟2：DD 旋轉中心（上相機看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
   function calibRC(m, k, est, N) {
-    const Sc = est.Sc, q = [20, 1.5], ths = [], Ps = [], us = [];
+    const Sc = est.Sc, q = [m.rcR, 1.5], ths = [], Ps = [], us = [];
     for (let a = 0; a < 360; a += 45) {
       const t = a * D2R + N.g() * N.th;
       const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), t, 0, q)));
@@ -453,7 +580,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
     const b = m.bcam[j], F = trayW(m, b.plat === 0 ? m.fidT.L : m.fidT.R);
-    const S0 = nomSv(m, j, F), step = g || 3, us = [], Ss = [];
+    const S0 = nomSv(m, j, F), step = g || m.bcam[j].grid, us = [], Ss = [];
     for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) {
       const S = V.add(S0, [i * step, jj * step]);
       us.push(npx(N, pixB(m, j, nS(N, S), F))); Ss.push(S);
@@ -464,12 +591,13 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
   }
   // 步驟4：上下相機連結（玻璃雙 Mark 治具轉移法）→ D_j（相機 j 影像中心 = S + D_j，平台座標）
   function calibLink(m, k, est, N, hCal) {
-    const p = m.plat[k], h = hCal == null ? m.hPlace : hCal;
-    const qm = jigMarks(m, JIG.qc, JIG.ang);
+    const p = m.plat[k], h = hCal == null ? m.hCal : hCal;
+    const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.half);
     const Sc = est.top[k].Sc, R = est.R[k];
     const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
-    const Wp = trayW(m, [k === 0 ? -180 : 180, -55]);
-    const Sp = nomSp(m, k, trayNom(m, [k === 0 ? -180 : 180, -55]));
+    const tc = [m.tray.cols[k === 0 ? 1 : 4], m.tray.rows[0]];
+    const Wp = trayW(m, tc);
+    const Sp = nomSp(m, k, trayNom(m, tc));
     const Spa = nS(N, Sp);
     const jw = qm.map(q => V.add(V.add(chuckPt(m, k, Spa, 0, h, q), p.transfer), [N.g() * N.slip, N.g() * N.slip]));
     const D = {}, shots = [];
@@ -514,7 +642,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const N = noiseCtx(Object.assign({}, o, { px: (o.px || 0) / Math.sqrt(3) }));
     const est = { top: [], R: [], rc: [], A: {}, b: {}, D: {}, link: [], tray: [], noFlip: !!o.noFlip };
     [0, 1].forEach(k => { est.top[k] = calibTop(mCal, k, N); const rc = calibRC(mCal, k, est.top[k], N); est.rc[k] = rc; est.R[k] = rc.R; });
-    [3, 4].forEach(j => { const b = calibBottom(mCal, j, N, 3, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
+    [3, 4].forEach(j => { const b = calibBottom(mCal, j, N, null, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
     [0, 1].forEach(k => {
       const reps = o.linkReps || 3, ls = [...Array(reps)].map(() => calibLink(mCal, k, est, N));
       est.link[k] = ls[0]; est.linkAll = est.linkAll || []; est.linkAll[k] = ls;
@@ -686,7 +814,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     return out;
   }
 
-  G.CAL = { D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -698,19 +826,21 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const { V, D2R, R2D } = CAL, T = [];
     const ok = (name, pass, detail) => T.push({ name, pass: !!pass, detail });
     const um = v => (v * 1000).toFixed(3) + ' µm';
-    const m = CAL.defaultMachine();
+    const m = CAL.defaultMachine(CAL.loadParams());
 
     // 1. 無雜訊校正：相機參數還原
     const est = CAL.calibrateAll(m, { px: 0 });
     [0, 1].forEach(k => {
       const i = est.top[k].info, c = m.top[k];
-      ok(`上${c.name} 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - c.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${c.mmpp}`);
+      const tv = Math.sqrt(c.mmpp * c.mmppY);
+      ok(`上${c.name} 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - tv) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${tv.toFixed(6)}`);
       ok(`上${c.name} 九點（平台${k + 1}）：相機角度還原（含平台軸安裝角）`, Math.abs(i.angDeg - (c.ang - m.plat[k].axisRot) * R2D) < 1e-6, `${i.angDeg.toFixed(4)}° vs ${((c.ang - m.plat[k].axisRot) * R2D).toFixed(4)}°`);
       ok(`上${c.name} 九點（平台${k + 1}）：殘差 ≈ 0`, est.top[k].maxRes < 1e-9, um(est.top[k].maxRes));
     });
     [3, 4].forEach(j => {
       const b = m.bcam[j], i = est.b[j].info;
-      ok(`相機${j} 九點：mm/px 還原`, Math.abs(i.mmpp - b.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs ${b.mmpp}`);
+      const tv = Math.sqrt(b.mmpp * b.mmppY);
+      ok(`相機${j} 九點：mm/px 還原`, Math.abs(i.mmpp - tv) < 1e-9, `${i.mmpp.toFixed(6)} vs ${tv.toFixed(6)}`);
       ok(`相機${j} 九點：G 行列式為正（往上看、相機隨平台動）`, est.b[j].Ginfo.det > 0, `det(G)=${est.b[j].Ginfo.det.toExponential(3)}；上相機 det=${est.top[b.plat].info.det.toExponential(3)}`);
     });
     // 2. 旋轉中心與相機偏移：D_j − R 應等於「相機中心 − 旋轉中心」的載台座標（真值）
@@ -721,12 +851,17 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       ok(`相機${j}：D − R 還原（相機到旋轉中心的向量）`, d < 1e-6, `(${got[0].toFixed(4)}, ${got[1].toFixed(4)}) vs 真值 (${truth[0].toFixed(4)}, ${truth[1].toFixed(4)})，差 ${um(d)}`);
     });
     // 3. 理想機台放料誤差 ≈ 0（含 Z 傾斜與放料轉移：在連結步驟被吸收）
-    const m2 = CAL.clone(m); m2.plat[0].tilt = [0.8, -0.5]; m2.plat[1].transfer = [0.012, -0.008]; m2.plat[0].yaw = 0;
+    const m2 = CAL.clone(m); m2.plat[0].tilt = [0.8, -0.5]; m2.plat[1].transfer = [0.012, -0.008]; m2.plat[0].yaw = 0; m2.hCal = m2.hPlace; // 治具與料同厚
     const est2 = CAL.calibrateAll(m2, { px: 0 });
     const pr = CAL.runProduction(m2, m2, est2, { px: 0, reps: 2 });
     const maxE = Math.max(...pr.map(r => V.len(r.err))), maxA = Math.max(...pr.map(r => Math.abs(r.angErr)));
     ok('無誤差機台：所有穴位放料偏移 ≈ 0（Z 傾斜、轉移量已被連結吸收）', maxE < 1e-6 && maxA < 1e-9, `最大 ${um(maxE)}、角度 ${(maxA * R2D * 3600).toExponential(2)}″`);
 
+    // 3b. 治具與料厚度不同：Z 傾斜 t 時，平台多一個固定偏移 t × Δh
+    const m3 = CAL.clone(m); m3.plat[0].tilt = [2, 0]; m3.hCal = m3.hPlace + 0.5;
+    const pr3 = CAL.runProduction(m3, m3, CAL.calibrateAll(m3, { px: 0 }), { px: 0, reps: 1 }).filter(r => r.k === 0);
+    const e3 = pr3.reduce((a, r) => a + r.err[0], 0) / pr3.length, exp3 = -2e-3 * 0.5 * Math.cos(m3.plat[0].axisRot - m3.tray.ang);
+    ok('治具比料薄 0.5 mm、Z 傾斜 2 mrad → 平台1 固定偏移 ≈ 傾斜 × 行程差 = −1 µm', Math.abs(e3 - exp3) < 2e-5, `模擬 ${um(e3)}，公式 ${um(exp3)}`);
     // 4. 旋轉中心誤差：e = R̂ − R，誤差 = (Rot(Δθ) − I)e ≈ Δθ·(−ey, ex)
     const shift = [0.05, -0.03];
     const mNow = CAL.applyDrift(m, { rc: [shift, null] });
@@ -879,7 +1014,8 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const trayZ = zP - 0.6;
     m.tray.cols.forEach(cx => m.tray.rows.forEach(ry => {
       const c = [cx + m.tray.nomC[0], ry + m.tray.nomC[1]];
-      const pts = [[-35, -20], [35, -20], [35, 20], [-35, 20], [-35, -20]].map(p => new THREE.Vector3(c[0] + p[0], c[1] + p[1], trayZ));
+      const pl = m.part.len / 2 + 2, pw = m.part.wid / 2 + 2;
+      const pts = [[-pl, -pw], [pl, -pw], [pl, pw], [-pl, pw], [-pl, -pw]].map(p => new THREE.Vector3(c[0] + p[0], c[1] + p[1], trayZ));
       p3.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mPocket));
       [-1, 1].forEach(s => p3.add(disc(2.4, mMark, c[0] + s * m.tray.markHalf, c[1], trayZ)));
     }));
@@ -932,8 +1068,8 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       const g = new THREE.Group();
       if (type === 'mark') { g.add(box(24, 24, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
       else if (type === 'rcmark') { g.add(box(16, 16, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
-      else if (type === 'jig') { g.add(box(80, 22, 2, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, 2.1)); const d = disc(2.6, mMark, s * m.tray.markHalf, 0, -0.1); d.rotation.x = Math.PI; g.add(d); }); }
-      else if (type === 'wp') { g.add(box(70, 40, 2, mWp, 0, 0, 0)); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, 2.1))); }
+      else if (type === 'jig') { g.add(box(m.jig.len, m.jig.wid, m.jig.thick, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.jig.half, 0, m.jig.thick + 0.1)); const d = disc(2.6, mMark, s * m.jig.half, 0, -0.1); d.rotation.x = Math.PI; g.add(d); }); }
+      else if (type === 'wp') { g.add(box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0)); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, m.part.thick + 0.1))); }
       g.userData.type = type; return g;
     }
     const chuckCache = [{}, {}];
@@ -947,7 +1083,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const plateItems = new THREE.Group(); scene.add(plateItems);
     function setPlateItems(list) {
       while (plateItems.children.length) plateItems.remove(plateItems.children[0]);
-      (list || []).forEach(it => { const g = makeItem(it.type); const th = it.type === 'jig' ? 2 : 2; g.position.set(it.W[0], it.W[1], zP - th - 0.2); g.rotation.z = it.ang || 0; plateItems.add(g); });
+      (list || []).forEach(it => { const g = makeItem(it.type); const th = it.type === 'jig' ? m.jig.thick : m.part.thick; g.position.set(it.W[0], it.W[1], zP - th - 0.2); g.rotation.z = it.ang || 0; plateItems.add(g); });
     }
     function setPose(k, pose) {
       const P = plats[k]; P.pose = pose;
@@ -991,7 +1127,8 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
 (function (G) {
   'use strict';
   const CAL = G.CAL, { V, D2R, R2D } = CAL;
-  const M0 = CAL.defaultMachine();
+  const M0 = CAL.defaultMachine(CAL.loadParams());
+  const MR = M0.markDia / 2, f1 = v => +v.toFixed(2);
   const HOME = () => ({ S: [0, 0], th: 0, h: 0 });
 
   // ---------- 時間軸建構 ----------
@@ -1017,9 +1154,10 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     if (!it) return [];
     if (it.type === 'mark') return [[0, 0]];
     if (it.type === 'rcmark') return [[0, 0]];
-    return [[-M0.tray.markHalf, 0], [M0.tray.markHalf, 0]];
+    const hf = it.type === 'jig' ? M0.jig.half : M0.tray.markHalf;
+    return [[-hf, 0], [hf, 0]];
   }
-  function itemOutline(it) { return it && it.type === 'wp' ? [[-35, -20], [35, -20], [35, 20], [-35, 20]] : (it && it.type === 'jig' ? [[-40, -11], [40, -11], [40, 11], [-40, 11]] : null); }
+  function itemOutline(it) { const b = (l, w) => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]]; return it && it.type === 'wp' ? b(M0.part.len, M0.part.wid) : (it && it.type === 'jig' ? b(M0.jig.len, M0.jig.wid) : null); }
   function shotImages(cur, cams) {
     const out = {};
     cams.forEach(id => {
@@ -1030,7 +1168,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
           itemMarks(it).forEach(q0 => {
             const q = V.add(it.q, V.rot(q0, it.ang || 0));
             const u = CAL.pixTop(M0, k, CAL.chuckPt(M0, k, P.S, P.th, 0, q));
-            if (CAL.inImage(M0.top[k], u, -40)) marks.push({ u, kind: 'chuck', r: 0.5 });
+            if (CAL.inImage(M0.top[k], u, -40)) marks.push({ u, kind: 'chuck', r: MR });
           });
           const ol = itemOutline(it);
           if (ol) polys.push(ol.map(q0 => CAL.pixTop(M0, k, CAL.chuckPt(M0, k, P.S, P.th, 0, V.add(it.q, V.rot(q0, it.ang || 0))))));
@@ -1038,9 +1176,9 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       } else {
         const b = M0.bcam[id], S = cur.p[b.plat].S;
         const add = (W, kind, r) => { const u = CAL.pixB(M0, id, S, W); if (CAL.inImage(b, u, -150)) marks.push({ u, kind, r }); };
-        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, [cx + s * M0.tray.markHalf, ry]), 'pocket', 0.5))));
-        Object.values(M0.fidT).forEach(f => add(CAL.trayW(M0, f), 'fid', 0.6));
-        cur.plate.forEach(it => itemMarks(it).forEach(q0 => add(V.add(it.W, V.rot(q0, it.ang || 0)), 'jig', 0.5)));
+        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, [cx + s * M0.tray.markHalf, ry]), 'pocket', MR))));
+        Object.values(M0.fidT).forEach(f => add(CAL.trayW(M0, f), 'fid', MR * 1.2));
+        cur.plate.forEach(it => itemMarks(it).forEach(q0 => add(V.add(it.W, V.rot(q0, it.ang || 0)), 'jig', MR)));
       }
       out[id] = { marks, polys };
     });
@@ -1190,7 +1328,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
         tl.go(k, { S: Sc(k) }, 1.8, `平台${k + 1} 到上相機${k + 1} 下方 S_c`);
         let n = 0;
         for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-          n++; tl.go(k, { S: V.add(Sc(k), [i * 20, j * 20]) }, 0.45, `第 ${n}/9 點：S = S_c + (${i * 20}, ${j * 20}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
+          n++; const g = M0.top[k].grid; tl.go(k, { S: V.add(Sc(k), [i * g, j * g]) }, 0.45, `第 ${n}/9 點：S = S_c + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
         }
         tl.go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
@@ -1203,7 +1341,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       <h4>動作</h4><ol>
         <li>單點玻璃 Mark 吸在吸盤上，θ = 0、Z = Z_cam。</li>
         <li>平台1 移到上相機1 下方 S_c（平台2 對上相機2），Mark 在影像中心附近。</li>
-        <li>XY 走 3×3，間距 20 mm（約視野 83×62 mm 的 1/3）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
+        <li>XY 走 3×3，間距 ${M0.top[0].grid} mm（約視野 ${f1(M0.top[0].fov[0])}×${f1(M0.top[0].fov[1])} mm 的 1/3；相機2 為 ${M0.top[1].grid} mm）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
         <li>記錄 S_i（光學尺實際值）與 Mark 像素 u_i。平台2／上相機2 重做。</li></ol>
       <h4>公式</h4>
       <pre>S_i = G·u_i + c          （每平台 6 個未知數，最小平方）
@@ -1211,7 +1349,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
 上相機看到的點 → 平台座標：P = Â_top·u + Ĉ_top
 mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
 往下看的相機：det G &lt; 0（因為影像 v 往下）</pre>
-      <h4>判定</h4><ul><li>九點殘差 &lt; 0.3 px（約 20 µm）。</li><li>X、Y 像素當量差 &lt; 0.5%，正交偏差 &lt; 0.1°。</li><li>兩台上相機若是同規格，mm/px 差應 &lt; 0.5%；差很多表示工作距離（Z）不同，或某一軸比例錯。</li></ul>
+      <h4>判定</h4><ul><li>九點殘差 &lt; 0.3 px（約 ${(0.3 * M0.top[0].mmpp * 1000).toFixed(0)} µm）。</li><li>X、Y 像素當量差 &lt; 0.5%，正交偏差 &lt; 0.1°。</li><li>兩台上相機若是同規格，mm/px 差應 &lt; 0.5%；差很多表示工作距離（Z）不同，或某一軸比例錯。</li></ul>
       <h4>模擬結果（含 0.1 px 雜訊、1 µm 重複性；真值 0.065 mm/px；相機角度 0.35°、−0.28°）</h4>
       ${table(['相機／平台', 'mm/px', '相機角度', '正交偏差', 'det G', '殘差 RMS'], rows)}
       <p class="note">求得的相機角度 = 相機本身角度 − 平台 XY 軸安裝角（模擬設定平台1 0.05°、平台2 −0.08°），所以 0.30° 與 −0.20° 才是對的。</p>`;
@@ -1223,7 +1361,7 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [20, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 20 mm`);
+        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 ${M0.rcR} mm`);
         tl.go(k, { S: Sc(k), th: 0 }, 1.8, `平台${k + 1} 到 S_c，XY 之後不動`);
         for (let a = 0; a < 360; a += 45) tl.go(k, { th: a * D2R }, 0.55, `θ = ${a}°（同一方向轉到位）`).shot([k + 1], `拍照：θ = ${a}°`, 0.45);
         tl.go(k, { th: 0 }, 1.2, '轉回 0°').go(k, { S: [0, 0] }, 1.4).set(c => { c.chuck[k] = null; });
@@ -1236,7 +1374,7 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
       <p class="lead">求 DD 旋轉中心 R̂（平台在 S = 0 時的位置，平台座標）。料轉 Δθ 時，平台要用 R̂ 才知道料會被轉到哪裡。</p>
       ${FIG.rc}
       <h4>動作</h4><ol>
-        <li>玻璃 Mark 放在離吸盤中心約 20 mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
+        <li>玻璃 Mark 放在離吸盤中心約 ${M0.rcR} mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
         <li>平台停在 S_c，XY 不動。θ = 0°、45° … 315° 共 8 點，每點都從同一方向轉到位（消背隙），拍照。</li>
         <li>重做 3 次，比較 R̂。</li></ol>
       <h4>公式（已知指令角度擬合，線性）</h4>
@@ -1261,7 +1399,7 @@ R̂ = c − S_c
         const S0 = SvT(j, F);
         tl.go(k, { S: S0 }, 1.8, `相機${j} 移到平台3 ${F === M0.fidT.L ? '左' : '右'}基準 Mark 下方`);
         let n = 0;
-        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; tl.go(k, { S: V.add(S0, [i * 3, jj * 3]) }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * 3}, ${jj * 3}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
+        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; const g = M0.bcam[j].grid; tl.go(k, { S: V.add(S0, [i * g, jj * g]) }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * g}, ${jj * g}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
         tl.go(k, { S: [0, 0] }, 1.4);
       });
       return tl;
@@ -1273,7 +1411,7 @@ R̂ = c − S_c
       ${FIG.sign}
       <h4>動作</h4><ol>
         <li>平台移到使相機 j 看到平台3 的固定基準 Mark（相機3 用左基準，相機4 用右基準）。</li>
-        <li>基準 Mark 不動，平台 XY 走 3×3，間距 3 mm（視野約 12.8×9.6 mm）。</li>
+        <li>基準 Mark 不動，平台 XY 走 3×3，間距 ${M0.bcam[3].grid} mm（相機3 視野約 ${f1(M0.bcam[3].fov[0])}×${f1(M0.bcam[3].fov[1])} mm；相機4 間距 ${M0.bcam[4].grid} mm）。</li>
         <li>記錄 S_i 與 u_i。兩台下相機各做一次。</li></ol>
       <h4>公式</h4>
       <pre>相機中心跟平台走：P_Mark = S_i + D_j + A_j·u_i   （P_Mark 固定）
@@ -1291,14 +1429,14 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        const t = [k === 0 ? -180 : 180, -55], Sp = SpT(k, t);
+        const t = [M0.tray.cols[k === 0 ? 1 : 4], M0.tray.rows[0]], Sp = SpT(k, t);
         tl.set(c => { c.chuck[k] = Object.assign({}, JIG); }, `平台${k + 1}：雙 Mark 玻璃治具放上吸盤`);
         tl.go(k, { S: Sc(k) }, 1.8, `到上相機${k + 1} 下方`).shot([k + 1], `① 上相機${k + 1} 量治具兩個 Mark → q̂_L、q̂_R`);
-        tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hPlace }, 1, 'Z 上升 h').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
+        tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hCal }, 1, 'Z 上升到治具行程').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
         const j = k + 3;
-        tl.go(k, { S: SvT(j, V.add(t, [-30, 0])) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
-        tl.go(k, { S: SvT(j, V.add(t, [30, 0])) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
-        tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hPlace }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
+        tl.go(k, { S: SvT(j, V.add(t, [-M0.jig.half, 0])) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
+        tl.go(k, { S: SvT(j, V.add(t, [M0.jig.half, 0])) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
+        tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hCal }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
       return tl;
     },
@@ -1378,7 +1516,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：料放上吸盤（位置、角度隨機）`);
         const j = k + 3;
         tl.go(k, { S: Sc(k) }, 1.8, `1. 到上相機${k + 1} 下方`).shot([k + 1], `上相機${k + 1} 量料：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`);
-        tl.go(k, { S: SvT(j, V.add(t, [-30, 0])) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, V.add(t, [30, 0])) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
+        tl.go(k, { S: SvT(j, V.add(t, [-M0.tray.markHalf, 0])) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, V.add(t, [M0.tray.markHalf, 0])) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
         tl.go(k, { h: M0.hPlace }, 0.9, '4. Z 上升放料').set(release(k, it), '破真空，料留在平台3').go(k, { h: 0 }, 0.7, 'Z 下降').go(k, { S: [0, 0], th: 0 }, 1.6, `完成：偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm`);
       });
@@ -1448,7 +1586,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   // ---------- 分頁 ----------
-  const TABS = ['steps', 'trouble', 'analysis', 'verify'];
+  const TABS = ['steps', 'trouble', 'analysis', 'params', 'verify'];
   function showTab(id) {
     if (!TABS.includes(id)) id = 'steps';
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false'));
@@ -1457,6 +1595,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     if (id === 'trouble') runSim();
     if (id === 'analysis') runAnalysis();
     if (id === 'verify') runVerify();
+    if (id === 'params') renderParams();
   }
   $$('.tab').forEach(b => b.addEventListener('click', () => { history.replaceState(null, '', '#' + b.dataset.tab); showTab(b.dataset.tab); }));
   G.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
@@ -1665,18 +1804,109 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
   $('#datasample').addEventListener('click', () => { $('#datain').value = sampleData(); runAnalysis(); });
   $('#dataclear').addEventListener('click', () => { $('#datain').value = '# 平台  穴位X  穴位Y  Δθ(°)  dX  dY\n'; runAnalysis(); });
 
+  // ---------- 機台參數 ----------
+  const APPLIED = M0.P;
+  let draft = Object.assign({}, APPLIED);
+  function renderParamTable() {
+    let grp = '', html = '<div class="tbl"><table class="ptbl"><thead><tr><th>項目</th><th>數值</th><th>單位</th><th>代碼</th></tr></thead><tbody>';
+    CAL.PARAMS.forEach(([key, g, label, def, unit, desc]) => {
+      if (g !== grp) { grp = g; html += `<tr class="grp"><td colspan="4">${g}</td></tr>`; }
+      const changed = draft[key] !== APPLIED[key];
+      html += `<tr class="${changed ? 'changed' : ''}"><td><label for="pp-${key}">${label}</label>${desc ? `<div class="note">${desc}</div>` : ''}</td><td><input type="number" step="any" id="pp-${key}" data-k="${key}" value="${draft[key]}"></td><td>${unit}</td><td class="note"><code>${key}</code></td></tr>`;
+    });
+    $('#ptable').innerHTML = html + '</tbody></table></div>';
+    $$('#ptable input').forEach(el => el.addEventListener('input', () => { const v = parseFloat(el.value); if (isFinite(v)) draft[el.dataset.k] = v; el.closest('tr').classList.toggle('changed', draft[el.dataset.k] !== APPLIED[el.dataset.k]); updParamMsg(); }));
+  }
+  function updParamMsg(extra) {
+    const n = CAL.PARAMS.filter(p => draft[p[0]] !== APPLIED[p[0]]).length;
+    $('#pmsg').textContent = (extra ? extra + '　' : '') + (n ? `${n} 項尚未套用` : '目前顯示的就是套用中的數值');
+  }
+  function paramChecks() {
+    const out = [], add = (item, val, lvl, note) => out.push({ item, val, lvl, note });
+    const cams = [[1, M0.top[0], 'top'], [2, M0.top[1], 'top'], [3, M0.bcam[3], 'bot'], [4, M0.bcam[4], 'bot']];
+    cams.forEach(([id, c, kind]) => {
+      const nm = (kind === 'top' ? '上' : '下') + c.name;
+      const ar = c.mmpp / c.mmppY;
+      add(`${nm} 像素當量`, `X ${(c.mmpp * 1000).toFixed(2)}、Y ${(c.mmppY * 1000).toFixed(2)} µm/px`, Math.abs(ar - 1) > 0.02 ? 'warn' : 'ok', Math.abs(ar - 1) > 0.02 ? 'X、Y 差超過 2%：確認視野與解析度有沒有填反' : `單次辨識雜訊 0.1 px ≈ ${(0.1 * c.mmpp * 1000).toFixed(1)} µm`);
+      const dpx = M0.markDia / c.mmpp, lim = Math.min(c.w, c.h) / 4;
+      add(`${nm} Mark 在影像中的直徑`, `${dpx.toFixed(0)} px`, dpx < 6 || dpx > lim ? 'bad' : (dpx < 15 ? 'warn' : 'ok'), dpx < 15 ? 'Mark 太小，辨識會不穩（建議 ≥ 15 px）' : (dpx > lim ? 'Mark 太大，九點走動時容易出畫面' : '15 px 以上，辨識穩定'));
+      add(`${nm} 九點間距`, `${c.grid} mm`, 'ok', `視野 ${c.fov[0]}×${c.fov[1]} mm 的約 1/3`);
+      if (kind === 'top') {
+        const need = 2 * M0.tray.markHalf + M0.markDia + 2, needJ = 2 * M0.jig.half + M0.markDia + 2;
+        add(`${nm} 能否一次拍到料的兩個 Mark`, `需要 ${need.toFixed(1)} mm／視野 ${c.fov[0]} mm`, need <= c.fov[0] ? 'ok' : 'bad', need <= c.fov[0] ? '含料放偏 ±1 mm 的餘量' : '兩個 Mark 無法同時入鏡：要分兩次拍（平台移動會帶入軸誤差）或換大視野');
+        add(`${nm} 能否一次拍到治具的兩個 Mark`, `需要 ${needJ.toFixed(1)} mm`, needJ <= c.fov[0] ? 'ok' : 'bad', needJ <= c.fov[0] ? '' : '步驟 5 會做不起來：縮小治具 Mark 間距或換大視野');
+        const ang = Math.SQRT2 * 0.1 * c.mmpp / (2 * M0.tray.markHalf);
+        add(`${nm} 料角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊、Mark 間距 ${2 * M0.tray.markHalf} mm`);
+      } else {
+        const margin = Math.min(...c.fov) / 2 - M0.markDia / 2;
+        add(`${nm} 可容許的穴位位置誤差`, `±${margin.toFixed(2)} mm`, margin < 0.5 ? 'warn' : 'ok', margin < 0.5 ? '料盤位置稍微偏一點 Mark 就出畫面，需要先粗定位' : '料盤或穴位位置誤差小於這個值才拍得到');
+        const ang = Math.SQRT2 * Math.hypot(0.1 * c.mmpp, 0.001) / (2 * M0.tray.markHalf);
+        add(`${nm} 穴位角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', '左右兩次拍照，含 1 µm 平台重複性');
+        const dd = Math.hypot(...c.dNom), clear = Math.hypot(M0.part.len, M0.part.wid) / 2 + 10;
+        add(`${nm} 與吸盤上料的距離`, `${dd.toFixed(0)} mm`, dd < clear ? 'warn' : 'ok', dd < clear ? `小於料對角線一半＋10 mm（${clear.toFixed(0)} mm），DD 轉動時料可能撞到或擋住相機` : '');
+      }
+    });
+    const sR = 0.1 / Math.sqrt(3) * M0.top[0].mmpp * Math.sqrt(2 / 8);
+    add('DD 旋轉中心：校正片 Mark 半徑', `${M0.rcR} mm`, 'ok', `整圈在上相機視野內；預估圓心精度 1σ ≈ ${(sR * 1000).toFixed(1)} µm`);
+    // 行程：所有動畫用到的平台位置
+    [0, 1].forEach(k => {
+      const xs = [], ys = [], hs = [];
+      timelines.forEach(tl => tl.segs.forEach(sg => { [sg.from, sg.to].forEach(st => { xs.push(st.p[k].S[0]); ys.push(st.p[k].S[1]); hs.push(st.p[k].h); }); }));
+      const st = M0.plat[k].stroke, sx = Math.max(...xs) - Math.min(...xs), sy = Math.max(...ys) - Math.min(...ys), hz = Math.max(...hs);
+      add(`平台${k + 1} X 行程`, `需要 ${sx.toFixed(0)}／可動 ${st[0]} mm`, sx <= st[0] ? 'ok' : 'bad', sx <= st[0] ? '上相機站、基準 Mark、所有穴位都到得了' : '行程不夠：上相機站、基準 Mark 或最外側穴位到不了');
+      add(`平台${k + 1} Y 行程`, `需要 ${sy.toFixed(0)}／可動 ${st[1]} mm`, sy <= st[1] ? 'ok' : 'bad', sy <= st[1] ? '' : '行程不夠');
+      add(`平台${k + 1} Z 行程`, `需要 ${hz.toFixed(1)}／可動 ${st[2]} mm`, hz <= st[2] && hz > 0 ? 'ok' : 'bad', hz <= 0 ? '料或治具比吸盤到平台3 的距離還厚' : (hz <= st[2] ? '' : 'Z 升不到平台3'));
+    });
+    const dh = M0.hCal - M0.hPlace;
+    add('治具厚度 vs 料厚', `差 ${Math.abs(dh).toFixed(2)} mm`, Math.abs(dh) > 0.05 ? 'warn' : 'ok', Math.abs(dh) > 0.05 ? `步驟 5 的 Z 行程和生產差 ${Math.abs(dh).toFixed(2)} mm，Z 軸若傾斜 1 mrad 會多 ${(Math.abs(dh)).toFixed(1)} µm 固定偏移；建議治具與料同厚` : '步驟 5 與生產用同一個 Z 行程');
+    const px = M0.P.tray_pitch_x, py = M0.P.tray_pitch_y;
+    add('料與穴位間距', `料 ${M0.part.len}×${M0.part.wid}／間距 ${px}×${py} mm`, M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? 'ok' : 'bad', M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? '' : '料比穴位間距大，相鄰的料會互相干涉');
+    add('料的兩個 Mark 是否在料上', `間距 ${2 * M0.tray.markHalf}／料長 ${M0.part.len} mm`, 2 * M0.tray.markHalf + M0.markDia <= M0.part.len ? 'ok' : 'bad', '');
+    return out;
+  }
+  function renderParams() {
+    if (!$('#ptable').innerHTML) renderParamTable();
+    updParamMsg();
+    const ck = paramChecks(), lv = { ok: ['ok', '可以'], warn: ['warn', '注意'], bad: ['bad', '不行'] };
+    const nb = ck.filter(c => c.lvl === 'bad').length, nw = ck.filter(c => c.lvl === 'warn').length;
+    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])) + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
+  }
+  function importText(txt, src) {
+    const r = CAL.parseParamsCSV(txt, draft);
+    if (!r.applied.length) { $('#pmsg').textContent = `${src}沒有讀到任何參數。第一欄要是代碼（例如 top1_fov_x），第四欄是數值`; return; }
+    draft = r.params; renderParamTable();
+    updParamMsg(`${src}讀到 ${r.applied.length} 項` + (r.bad.length ? `，${r.bad.length} 項數值看不懂（第 ${r.bad.map(b => b.line).join('、')} 行）` : '') + (r.unknown.length ? `，${r.unknown.length} 行代碼不認得已略過` : '') + '，按「套用並重新計算」生效');
+  }
+  $('#pfile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const rd = new FileReader(); rd.onload = () => importText(String(rd.result), `「${f.name}」`); rd.readAsText(f, 'utf-8'); e.target.value = '';
+  });
+  $('#pparse').addEventListener('click', () => importText($('#pcsv').value, '貼上的內容'));
+  $('#ppaste').addEventListener('toggle', () => { if ($('#ppaste').open && !$('#pcsv').value.trim()) $('#pcsv').value = CAL.paramsToCSV(draft); });
+  $('#pcopy').addEventListener('click', () => {
+    const txt = CAL.paramsToCSV(draft);
+    const fallback = () => { $('#ppaste').open = true; $('#pcsv').value = txt; $('#pcsv').select(); updParamMsg('已把 CSV 放進下方文字框並選取，請按 Ctrl+C 複製'); };
+    try { navigator.clipboard.writeText(txt).then(() => updParamMsg('已複製 CSV，可以貼到 Excel 或記事本'), fallback); } catch (e) { fallback(); }
+  });
+  $('#preset').addEventListener('click', () => { draft = CAL.defaultParams(); renderParamTable(); updParamMsg('已填回預設值'); });
+  $('#papply').addEventListener('click', () => {
+    if (!CAL.saveParams(draft)) { updParamMsg('這個瀏覽器不允許儲存設定，無法套用'); return; }
+    try { history.replaceState(null, '', '#params'); } catch (e) { /* 略過 */ }
+    location.reload();
+  });
+
   // ---------- 驗證 ----------
   function animChecks() {
     const T = [];
     timelines.forEach((tl, i) => {
       let n = 0, miss = 0;
       tl.segs.forEach(sg => { if (!sg.shot) return; sg.shot.cams.forEach(id => { n++; const img = sg.shot.img[id]; const cam = id <= 2 ? M0.top[id - 1] : M0.bcam[id]; if (!img.marks.some(mk => CAL.inImage(cam, mk.u))) miss++; }); });
-      if (n) T.push({ name: `動畫「${STEPS[i].title}」：每次拍照目標都在相機視野內`, pass: miss === 0, detail: `${n} 次拍照，${miss} 次看不到目標` });
+      if (n) T.push({ name: `動畫「${STEPS[i].title}」：每次拍照目標都在相機視野內`, pass: miss === 0, detail: `${n} 次拍照，${miss} 次看不到目標` + (miss ? '（請看「機台參數」檢查表：視野可能裝不下兩個 Mark）' : '') });
       let maxH = 0; tl.segs.forEach(sg => sg.to.p.forEach(p => { maxH = Math.max(maxH, p.h); }));
-      if (maxH > M0.hPlace + 1e-9) T.push({ name: `動畫「${STEPS[i].title}」：Z 不超過放料行程`, pass: false, detail: maxH });
+      if (maxH > Math.max(M0.hPlace, M0.hCal) + 1e-9) T.push({ name: `動畫「${STEPS[i].title}」：Z 不超過放料行程`, pass: false, detail: maxH });
     });
     // 吸盤放料位置：Z 上升到 h 時，料上表面 = 平台3 下表面
-    T.push({ name: '幾何：吸盤面 100 mm + 行程 h + 料厚 2 mm = 平台3 下表面', pass: Math.abs(100 + M0.hPlace + 2 - M0.zPlate) < 1e-9, detail: `${100 + M0.hPlace + 2} vs ${M0.zPlate}` });
+    T.push({ name: '幾何：Z 上升行程 h 後，料的上表面剛好碰到平台3 下表面', pass: Math.abs(100 + M0.hPlace + M0.part.thick - M0.zPlate) < 1e-9 && Math.abs(100 + M0.hCal + M0.jig.thick - M0.zPlate) < 1e-9, detail: `料 h = ${M0.hPlace} mm、治具 h = ${M0.hCal} mm` });
     // 放料步驟：放下後料中心與穴位中心（設計）差 < 1 mm（動畫用的 S_p 來自真實計算）
     const tlc = timelines[STEPS.findIndex(s => s.id === 'cycle')];
     const last = tlc.segs[tlc.segs.length - 1].to.plate;
@@ -1700,6 +1930,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
   G.runVerifyNow = () => { verified = null; runVerify(); return document.body.dataset.verify; };
 
   // ---------- 啟動 ----------
+  $('#pbadge').hidden = !CAL.PARAMS.some(p => APPLIED[p[0]] !== p[3]);
   buildSimForm();
   let saved = 0; try { saved = +(localStorage.getItem('cal-step') || 0) || 0; } catch (e) { saved = 0; }
   selectStep(saved, !reduce);

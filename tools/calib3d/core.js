@@ -86,29 +86,125 @@
     return { a: x[0], b: x[1], t: [x[2], x[3]], scale: Math.hypot(x[0], x[1]), ang: Math.atan2(x[1], x[0]), apply: p => [x[0] * p[0] - x[1] * p[1] + x[2], x[1] * p[0] + x[0] * p[1] + x[3]] };
   }
 
+  // ===================== 機台參數（可由 CSV 匯入） =====================
+  // [代碼, 分組, 項目, 預設值, 單位, 說明]
+  const PARAMS = [
+    ['top1_fov_x', '相機', '上相機1 視野 X', 83.2, 'mm', '影像寬方向實際看到的長度'],
+    ['top1_fov_y', '相機', '上相機1 視野 Y', 62.4, 'mm', '影像高方向實際看到的長度'],
+    ['top1_res_x', '相機', '上相機1 解析度 X', 1280, 'px', '影像寬（像素）'],
+    ['top1_res_y', '相機', '上相機1 解析度 Y', 960, 'px', '影像高（像素）'],
+    ['top2_fov_x', '相機', '上相機2 視野 X', 83.2, 'mm', ''],
+    ['top2_fov_y', '相機', '上相機2 視野 Y', 62.4, 'mm', ''],
+    ['top2_res_x', '相機', '上相機2 解析度 X', 1280, 'px', ''],
+    ['top2_res_y', '相機', '上相機2 解析度 Y', 960, 'px', ''],
+    ['bot3_fov_x', '相機', '下相機3 視野 X', 12.8, 'mm', ''],
+    ['bot3_fov_y', '相機', '下相機3 視野 Y', 9.6, 'mm', ''],
+    ['bot3_res_x', '相機', '下相機3 解析度 X', 1280, 'px', ''],
+    ['bot3_res_y', '相機', '下相機3 解析度 Y', 960, 'px', ''],
+    ['bot3_off_x', '相機', '下相機3 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
+    ['bot3_off_y', '相機', '下相機3 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
+    ['bot4_fov_x', '相機', '下相機4 視野 X', 12.8, 'mm', ''],
+    ['bot4_fov_y', '相機', '下相機4 視野 Y', 9.6, 'mm', ''],
+    ['bot4_res_x', '相機', '下相機4 解析度 X', 1280, 'px', ''],
+    ['bot4_res_y', '相機', '下相機4 解析度 Y', 960, 'px', ''],
+    ['bot4_off_x', '相機', '下相機4 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
+    ['bot4_off_y', '相機', '下相機4 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
+    ['p1_x_stroke', '平台', '平台1 X 可移動範圍', 500, 'mm', '軟體極限之間的總行程'],
+    ['p1_y_stroke', '平台', '平台1 Y 可移動範圍', 600, 'mm', ''],
+    ['p1_z_stroke', '平台', '平台1 Z 可移動範圍', 50, 'mm', ''],
+    ['p2_x_stroke', '平台', '平台2 X 可移動範圍', 500, 'mm', ''],
+    ['p2_y_stroke', '平台', '平台2 Y 可移動範圍', 600, 'mm', ''],
+    ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
+    ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
+    ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
+    ['jig_pitch', '校正片', '雙 Mark 玻璃治具 Mark 間距', 60, 'mm', '建議與料的 Mark 間距相同'],
+    ['jig_len', '校正片', '治具長', 80, 'mm', ''],
+    ['jig_wid', '校正片', '治具寬', 22, 'mm', ''],
+    ['jig_thick', '校正片', '治具厚度', 2, 'mm', '建議與料厚相同'],
+    ['part_pitch', '產品', '料的 Mark 間距（＝穴位 Mark 間距）', 60, 'mm', ''],
+    ['part_len', '產品', '料長', 70, 'mm', ''],
+    ['part_wid', '產品', '料寬', 40, 'mm', ''],
+    ['part_thick', '產品', '料厚', 2, 'mm', ''],
+    ['tray_pitch_x', '產品', '料盤穴位間距 X', 120, 'mm', '6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄'],
+    ['tray_pitch_y', '產品', '料盤穴位間距 Y', 110, 'mm', '2 列']
+  ];
+  const PKEY = 'cal-params-v1';
+  function defaultParams() { const o = {}; PARAMS.forEach(p => { o[p[0]] = p[3]; }); return o; }
+  function loadParams() {
+    const o = defaultParams();
+    try { const s = G.localStorage && G.localStorage.getItem(PKEY); if (s) { const v = JSON.parse(s); Object.keys(o).forEach(k => { if (isFinite(+v[k]) && v[k] !== '' && v[k] != null) o[k] = +v[k]; }); } } catch (e) { /* 無儲存空間時用預設值 */ }
+    return o;
+  }
+  function saveParams(o) { try { G.localStorage.setItem(PKEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
+  function clearParams() { try { G.localStorage.removeItem(PKEY); return true; } catch (e) { return false; } }
+  // CSV（代碼,分組,項目,數值,單位,說明）。UTF-8，第一行是標題
+  function paramsToCSV(o) {
+    const q = v => (/[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v));
+    return ['代碼,分組,項目,數值,單位,說明'].concat(PARAMS.map(p => [p[0], p[1], p[2], o[p[0]], p[4], p[5]].map(q).join(','))).join('\n') + '\n';
+  }
+  function splitCSV(line) {
+    const out = []; let cur = '', inq = false;
+    const sep = line.includes('\t') && !line.includes(',') ? '\t' : ',';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inq) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inq = false; } else cur += ch; }
+      else if (ch === '"') inq = true; else if (ch === sep) { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur); return out.map(x => x.trim());
+  }
+  // 回傳 { params, applied:[代碼], unknown:[行], bad:[{行,代碼,值}] }；未出現的代碼沿用 base
+  function parseParamsCSV(text, base) {
+    const o = Object.assign(defaultParams(), base || {}), applied = [], unknown = [], bad = [];
+    const keys = new Set(PARAMS.map(p => p[0])), byLabel = {}; PARAMS.forEach(p => { byLabel[p[2]] = p[0]; });
+    text.replace(/^﻿/, '').split(/\r?\n/).forEach((ln, i) => {
+      if (!ln.trim() || ln.trim().startsWith('#')) return;
+      const c = splitCSV(ln); if (c[0] === '代碼') return;
+      let key = keys.has(c[0]) ? c[0] : (byLabel[c[0]] || byLabel[c[2]] || null);
+      if (!key) { unknown.push(i + 1); return; }
+      // 數值欄：標準格式在第 4 欄；只有兩欄（代碼,數值）也接受
+      const raw = c.length >= 4 ? c[3] : c[1];
+      const v = parseFloat(String(raw).replace(/[^\d.eE+-]/g, ''));
+      if (!isFinite(v)) { bad.push({ line: i + 1, key, raw }); return; }
+      o[key] = v; applied.push(key);
+    });
+    return { params: o, applied, unknown, bad };
+  }
+
   // ===================== 真實機台 =====================
-  function defaultMachine() {
+  function defaultMachine(P) {
+    P = Object.assign(defaultParams(), P || {});
+    const nice = v => { if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); return [1, 2, 5, 10].map(x => x * p).filter(x => x <= v).pop() || p; };
+    const top = k => {
+      const f = `top${k + 1}_`, w = P[f + 'res_x'], h = P[f + 'res_y'], mmpp = P[f + 'fov_x'] / w;
+      return { name: `相機${k + 1}`, plat: k, C: [k === 0 ? -250 : 250, -250], mmpp, mmppY: P[f + 'fov_y'] / h, ang: (k === 0 ? 0.35 : -0.28) * D2R, up: false, w, h, fov: [P[f + 'fov_x'], P[f + 'fov_y']], grid: nice(0.35 * Math.min(P[f + 'fov_x'], P[f + 'fov_y'])) };
+    };
+    const bot = (j, k, err, ang) => {
+      const f = `bot${j}_`, w = P[f + 'res_x'], h = P[f + 'res_y'], dNom = [P[f + 'off_x'], P[f + 'off_y']];
+      return { name: `相機${j}`, plat: k, d: V.add(dNom, err), dNom, mmpp: P[f + 'fov_x'] / w, mmppY: P[f + 'fov_y'] / h, ang: ang * D2R, up: true, w, h, fov: [P[f + 'fov_x'], P[f + 'fov_y']], grid: nice(0.35 * Math.min(P[f + 'fov_x'], P[f + 'fov_y'])) };
+    };
+    const px = P.tray_pitch_x, py = P.tray_pitch_y;
+    const t0 = top(0), t1 = top(1);
+    const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
     return {
+      P,
       // 上相機（固定、往下看）：相機1 拍平台1，相機2 拍平台2
-      top: [
-        { name: '相機1', plat: 0, C: [-250, -250], mmpp: 0.065, ang: 0.35 * D2R, up: false, w: 1280, h: 960 },
-        { name: '相機2', plat: 1, C: [250, -250], mmpp: 0.065, ang: -0.28 * D2R, up: false, w: 1280, h: 960 }
-      ],
+      top: [t0, t1],
       // 下相機（裝在 XY 載台上、往上看）：相機3 隨平台1，相機4 隨平台2
-      bcam: {
-        3: { name: '相機3', plat: 0, d: [-0.35, 110.20], dNom: [0, 110], mmpp: 0.010, ang: 0.25 * D2R, up: true, w: 1280, h: 960 },
-        4: { name: '相機4', plat: 1, d: [0.45, 110.35], dNom: [0, 110], mmpp: 0.010, ang: 0.60 * D2R, up: true, w: 1280, h: 960 }
-      },
+      bcam: { 3: bot(3, 0, [-0.35, 0.20], 0.25), 4: bot(4, 1, [0.45, 0.35], 0.60) },
       plat: [
-        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [3] },
-        { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4] }
+        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [3], stroke: [P.p1_x_stroke, P.p1_y_stroke, P.p1_z_stroke] },
+        { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4], stroke: [P.p2_x_stroke, P.p2_y_stroke, P.p2_z_stroke] }
       ],
       // 平台3 料盤：中心、角度、間距誤差（ppm）。穴位設計座標（料盤座標系）
-      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-300, -180, -60, 60, 180, 300], rows: [-55, 55], markHalf: 30, nomC: [0, 205] },
+      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map(i => i * px), rows: [-py / 2, py / 2], markHalf: P.part_pitch / 2, nomC: [0, 205] },
       // 平台3 固定基準 Mark（料盤座標系）：左、中（兩平台共用）、右
-      fidT: { L: [-390, 0], C: [0, 0], R: [390, 0] },
-      hPlace: 38,      // 放料 Z 行程（mm）
-      zPlate: 140      // 平台3 下表面高度（mm）
+      fidT: { L: [-(2.5 * px + 90), 0], C: [0, 0], R: [2.5 * px + 90, 0] },
+      jig: { half: P.jig_pitch / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick },
+      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick },
+      markDia: P.mark_dia, rcR,
+      hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
+      hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
+      zPlate: 100 + P.chuck_to_plate             // 平台3 下表面高度（吸盤面在 100）
     };
   }
   const trayW = (m, p) => V.add(m.tray.c, V.rot(V.mul(p, 1 + m.tray.scale * 1e-6), m.tray.ang));
@@ -133,7 +229,7 @@
     const tt = th * (1 + p.thScale * 1e-6);
     return V.add(V.add(R, V.rot(q, c.ang + tt)), V.rot(V.mul(p.tilt, h * 1e-3), c.ang));
   }
-  function camLocalA(cam) { const D = cam.up ? [-1, 0, 0, -1] : [1, 0, 0, -1]; return M.mul(M.rot(cam.ang), D).map(x => x * cam.mmpp); }
+  function camLocalA(cam) { const my = cam.mmppY || cam.mmpp; const D = cam.up ? [-cam.mmpp, 0, 0, -my] : [cam.mmpp, 0, 0, -my]; return M.mul(M.rot(cam.ang), D); }
   function bcamPose(m, j, S) { const b = m.bcam[j], c = carriage(m, b.plat, S); return { o: V.add(c.K, V.rot(b.d, c.ang)), ang: c.ang }; }
   function pixTop(m, k, W) { const c = m.top[k]; return M.ap(M.inv(camLocalA(c)), V.sub(W, c.C)); }
   function pixB(m, j, S, W) { const cp = bcamPose(m, j, S); return M.ap(M.inv(M.mul(M.rot(cp.ang), camLocalA(m.bcam[j]))), V.sub(W, cp.o)); }
@@ -153,11 +249,11 @@
 
   // ===================== 校正演算法 =====================
   const JIG = { qc: [0.8, -0.6], ang: 0.15 * D2R };
-  function jigMarks(m, qc, ang) { return [-1, 1].map(s => V.add(qc, V.rot([s * m.tray.markHalf, 0], ang))); }
+  function jigMarks(m, qc, ang, half) { const hf = half == null ? m.tray.markHalf : half; return [-1, 1].map(s => V.add(qc, V.rot([s * hf, 0], ang))); }
 
   // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
   function calibTop(m, k, N, g) {
-    const Sc = nomSc(m, k), q0 = [3, -2], step = g || 20, us = [], Ss = [];
+    const Sc = nomSc(m, k), q0 = [3, -2], step = g || m.top[k].grid, us = [], Ss = [];
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
       const S = V.add(Sc, [i * step, j * step]);
       us.push(npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
@@ -167,7 +263,7 @@
   }
   // 步驟2：DD 旋轉中心（上相機看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
   function calibRC(m, k, est, N) {
-    const Sc = est.Sc, q = [20, 1.5], ths = [], Ps = [], us = [];
+    const Sc = est.Sc, q = [m.rcR, 1.5], ths = [], Ps = [], us = [];
     for (let a = 0; a < 360; a += 45) {
       const t = a * D2R + N.g() * N.th;
       const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), t, 0, q)));
@@ -179,7 +275,7 @@
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
     const b = m.bcam[j], F = trayW(m, b.plat === 0 ? m.fidT.L : m.fidT.R);
-    const S0 = nomSv(m, j, F), step = g || 3, us = [], Ss = [];
+    const S0 = nomSv(m, j, F), step = g || m.bcam[j].grid, us = [], Ss = [];
     for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) {
       const S = V.add(S0, [i * step, jj * step]);
       us.push(npx(N, pixB(m, j, nS(N, S), F))); Ss.push(S);
@@ -190,12 +286,13 @@
   }
   // 步驟4：上下相機連結（玻璃雙 Mark 治具轉移法）→ D_j（相機 j 影像中心 = S + D_j，平台座標）
   function calibLink(m, k, est, N, hCal) {
-    const p = m.plat[k], h = hCal == null ? m.hPlace : hCal;
-    const qm = jigMarks(m, JIG.qc, JIG.ang);
+    const p = m.plat[k], h = hCal == null ? m.hCal : hCal;
+    const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.half);
     const Sc = est.top[k].Sc, R = est.R[k];
     const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
-    const Wp = trayW(m, [k === 0 ? -180 : 180, -55]);
-    const Sp = nomSp(m, k, trayNom(m, [k === 0 ? -180 : 180, -55]));
+    const tc = [m.tray.cols[k === 0 ? 1 : 4], m.tray.rows[0]];
+    const Wp = trayW(m, tc);
+    const Sp = nomSp(m, k, trayNom(m, tc));
     const Spa = nS(N, Sp);
     const jw = qm.map(q => V.add(V.add(chuckPt(m, k, Spa, 0, h, q), p.transfer), [N.g() * N.slip, N.g() * N.slip]));
     const D = {}, shots = [];
@@ -240,7 +337,7 @@
     const N = noiseCtx(Object.assign({}, o, { px: (o.px || 0) / Math.sqrt(3) }));
     const est = { top: [], R: [], rc: [], A: {}, b: {}, D: {}, link: [], tray: [], noFlip: !!o.noFlip };
     [0, 1].forEach(k => { est.top[k] = calibTop(mCal, k, N); const rc = calibRC(mCal, k, est.top[k], N); est.rc[k] = rc; est.R[k] = rc.R; });
-    [3, 4].forEach(j => { const b = calibBottom(mCal, j, N, 3, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
+    [3, 4].forEach(j => { const b = calibBottom(mCal, j, N, null, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
     [0, 1].forEach(k => {
       const reps = o.linkReps || 3, ls = [...Array(reps)].map(() => calibLink(mCal, k, est, N));
       est.link[k] = ls[0]; est.linkAll = est.linkAll || []; est.linkAll[k] = ls;
@@ -412,5 +509,5 @@
     return out;
   }
 
-  G.CAL = { D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);

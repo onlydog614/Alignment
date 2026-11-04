@@ -36,6 +36,7 @@
   --ok:#6fd39a; --ok-bg:#163223; --warn:#e6bb55; --warn-bg:#352a10; --bad:#ff8c9c; --bad-bg:#3a1a20;
   color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;margin:0}
 .wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
 header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
@@ -134,11 +135,18 @@ legend{font-weight:600;font-size:.86rem;padding:0 4px}
 .lv-hi{border-left-color:var(--bad)!important}.lv-mid{border-left-color:var(--warn)!important}.lv-lo{border-left-color:var(--accent)!important}.lv-ok{border-left-color:var(--ok)!important}
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warnp{background:var(--warn-bg);color:var(--warn)}
+.pill+.pill{margin-left:6px}
 .muted{color:var(--muted);font-size:.86rem;margin-left:10px}
 textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertical}
 .sig td:first-child{font-weight:600;min-width:12em}
 .order li{margin:8px 0}
 .order b{display:block}
+.ptbl input{width:96px;text-align:right}
+.ptbl td{vertical-align:middle}
+.ptbl tr.changed td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.grp td{font-weight:600;color:var(--muted);background:var(--soft)}
+label.btn{display:inline-block}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 @media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
@@ -156,6 +164,7 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
     <button class="tab" role="tab" data-tab="steps" id="tab-steps">校正手順</button>
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
     <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
+    <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
 
@@ -253,6 +262,28 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       <div class="ctrl" style="margin:8px 0"><button class="btn" id="datasample">載入範例</button><button class="btn" id="dataclear">清空</button><label class="note" for="thr">推測門檻</label><span class="inp"><input type="number" id="thr" value="10" min="0" step="any"><i>µm</i></span><span class="note" id="datamsg"></span></div>
       <textarea id="datain" spellcheck="false" aria-label="實測資料"></textarea>
       <div id="dataout"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-params" hidden>
+    <div class="card">
+      <h3>機台參數</h3>
+      <p>相機視野、XY 可移動範圍、Mark 尺寸、校正片與產品尺寸都可以在這裡改，或匯入 CSV（Excel 存成「CSV UTF-8」即可）。按「套用並重新計算」後，整頁的 3D 動作、九點間距、旋轉中心半徑、相機畫面、模擬與驗證都會用新數值重算，下面的檢查表會告訴你哪些數值會讓校正做不起來。</p>
+      <div class="ctrl" style="margin:10px 0">
+        <label class="btn" for="pfile">匯入 CSV 檔</label><input type="file" id="pfile" accept=".csv,text/csv,.txt" hidden>
+        <button class="btn primary" id="papply">套用並重新計算</button>
+        <button class="btn" id="pcopy">複製 CSV</button>
+        <button class="btn" id="preset">還原預設</button>
+        <span class="note" id="pmsg" role="status"></span>
+      </div>
+      <details id="ppaste"><summary class="note">貼上 CSV 內容</summary>
+        <textarea id="pcsv" spellcheck="false" aria-label="CSV 內容" style="min-height:160px"></textarea>
+        <div class="ctrl" style="margin-top:6px"><button class="btn" id="pparse">讀入貼上的內容</button></div>
+      </details>
+      <div class="two" style="margin-top:12px">
+        <div><h4>參數</h4><div id="ptable"></div></div>
+        <div><h4>檢查結果（目前套用的參數）</h4><div id="pchecks"></div></div>
+      </div>
     </div>
   </section>
 

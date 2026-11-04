@@ -5,19 +5,21 @@
     const { V, D2R, R2D } = CAL, T = [];
     const ok = (name, pass, detail) => T.push({ name, pass: !!pass, detail });
     const um = v => (v * 1000).toFixed(3) + ' µm';
-    const m = CAL.defaultMachine();
+    const m = CAL.defaultMachine(CAL.loadParams());
 
     // 1. 無雜訊校正：相機參數還原
     const est = CAL.calibrateAll(m, { px: 0 });
     [0, 1].forEach(k => {
       const i = est.top[k].info, c = m.top[k];
-      ok(`上${c.name} 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - c.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${c.mmpp}`);
+      const tv = Math.sqrt(c.mmpp * c.mmppY);
+      ok(`上${c.name} 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - tv) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${tv.toFixed(6)}`);
       ok(`上${c.name} 九點（平台${k + 1}）：相機角度還原（含平台軸安裝角）`, Math.abs(i.angDeg - (c.ang - m.plat[k].axisRot) * R2D) < 1e-6, `${i.angDeg.toFixed(4)}° vs ${((c.ang - m.plat[k].axisRot) * R2D).toFixed(4)}°`);
       ok(`上${c.name} 九點（平台${k + 1}）：殘差 ≈ 0`, est.top[k].maxRes < 1e-9, um(est.top[k].maxRes));
     });
     [3, 4].forEach(j => {
       const b = m.bcam[j], i = est.b[j].info;
-      ok(`相機${j} 九點：mm/px 還原`, Math.abs(i.mmpp - b.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs ${b.mmpp}`);
+      const tv = Math.sqrt(b.mmpp * b.mmppY);
+      ok(`相機${j} 九點：mm/px 還原`, Math.abs(i.mmpp - tv) < 1e-9, `${i.mmpp.toFixed(6)} vs ${tv.toFixed(6)}`);
       ok(`相機${j} 九點：G 行列式為正（往上看、相機隨平台動）`, est.b[j].Ginfo.det > 0, `det(G)=${est.b[j].Ginfo.det.toExponential(3)}；上相機 det=${est.top[b.plat].info.det.toExponential(3)}`);
     });
     // 2. 旋轉中心與相機偏移：D_j − R 應等於「相機中心 − 旋轉中心」的載台座標（真值）
@@ -28,12 +30,17 @@
       ok(`相機${j}：D − R 還原（相機到旋轉中心的向量）`, d < 1e-6, `(${got[0].toFixed(4)}, ${got[1].toFixed(4)}) vs 真值 (${truth[0].toFixed(4)}, ${truth[1].toFixed(4)})，差 ${um(d)}`);
     });
     // 3. 理想機台放料誤差 ≈ 0（含 Z 傾斜與放料轉移：在連結步驟被吸收）
-    const m2 = CAL.clone(m); m2.plat[0].tilt = [0.8, -0.5]; m2.plat[1].transfer = [0.012, -0.008]; m2.plat[0].yaw = 0;
+    const m2 = CAL.clone(m); m2.plat[0].tilt = [0.8, -0.5]; m2.plat[1].transfer = [0.012, -0.008]; m2.plat[0].yaw = 0; m2.hCal = m2.hPlace; // 治具與料同厚
     const est2 = CAL.calibrateAll(m2, { px: 0 });
     const pr = CAL.runProduction(m2, m2, est2, { px: 0, reps: 2 });
     const maxE = Math.max(...pr.map(r => V.len(r.err))), maxA = Math.max(...pr.map(r => Math.abs(r.angErr)));
     ok('無誤差機台：所有穴位放料偏移 ≈ 0（Z 傾斜、轉移量已被連結吸收）', maxE < 1e-6 && maxA < 1e-9, `最大 ${um(maxE)}、角度 ${(maxA * R2D * 3600).toExponential(2)}″`);
 
+    // 3b. 治具與料厚度不同：Z 傾斜 t 時，平台多一個固定偏移 t × Δh
+    const m3 = CAL.clone(m); m3.plat[0].tilt = [2, 0]; m3.hCal = m3.hPlace + 0.5;
+    const pr3 = CAL.runProduction(m3, m3, CAL.calibrateAll(m3, { px: 0 }), { px: 0, reps: 1 }).filter(r => r.k === 0);
+    const e3 = pr3.reduce((a, r) => a + r.err[0], 0) / pr3.length, exp3 = -2e-3 * 0.5 * Math.cos(m3.plat[0].axisRot - m3.tray.ang);
+    ok('治具比料薄 0.5 mm、Z 傾斜 2 mrad → 平台1 固定偏移 ≈ 傾斜 × 行程差 = −1 µm', Math.abs(e3 - exp3) < 2e-5, `模擬 ${um(e3)}，公式 ${um(exp3)}`);
     // 4. 旋轉中心誤差：e = R̂ − R，誤差 = (Rot(Δθ) − I)e ≈ Δθ·(−ey, ex)
     const shift = [0.05, -0.03];
     const mNow = CAL.applyDrift(m, { rc: [shift, null] });

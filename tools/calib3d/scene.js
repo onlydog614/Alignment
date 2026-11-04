@@ -75,7 +75,8 @@
     const trayZ = zP - 0.6;
     m.tray.cols.forEach(cx => m.tray.rows.forEach(ry => {
       const c = [cx + m.tray.nomC[0], ry + m.tray.nomC[1]];
-      const pts = [[-35, -20], [35, -20], [35, 20], [-35, 20], [-35, -20]].map(p => new THREE.Vector3(c[0] + p[0], c[1] + p[1], trayZ));
+      const pl = m.part.len / 2 + 2, pw = m.part.wid / 2 + 2;
+      const pts = [[-pl, -pw], [pl, -pw], [pl, pw], [-pl, pw], [-pl, -pw]].map(p => new THREE.Vector3(c[0] + p[0], c[1] + p[1], trayZ));
       p3.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mPocket));
       [-1, 1].forEach(s => p3.add(disc(2.4, mMark, c[0] + s * m.tray.markHalf, c[1], trayZ)));
     }));
@@ -128,8 +129,8 @@
       const g = new THREE.Group();
       if (type === 'mark') { g.add(box(24, 24, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
       else if (type === 'rcmark') { g.add(box(16, 16, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
-      else if (type === 'jig') { g.add(box(80, 22, 2, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, 2.1)); const d = disc(2.6, mMark, s * m.tray.markHalf, 0, -0.1); d.rotation.x = Math.PI; g.add(d); }); }
-      else if (type === 'wp') { g.add(box(70, 40, 2, mWp, 0, 0, 0)); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, 2.1))); }
+      else if (type === 'jig') { g.add(box(m.jig.len, m.jig.wid, m.jig.thick, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.jig.half, 0, m.jig.thick + 0.1)); const d = disc(2.6, mMark, s * m.jig.half, 0, -0.1); d.rotation.x = Math.PI; g.add(d); }); }
+      else if (type === 'wp') { g.add(box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0)); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, m.part.thick + 0.1))); }
       g.userData.type = type; return g;
     }
     const chuckCache = [{}, {}];
@@ -143,7 +144,7 @@
     const plateItems = new THREE.Group(); scene.add(plateItems);
     function setPlateItems(list) {
       while (plateItems.children.length) plateItems.remove(plateItems.children[0]);
-      (list || []).forEach(it => { const g = makeItem(it.type); const th = it.type === 'jig' ? 2 : 2; g.position.set(it.W[0], it.W[1], zP - th - 0.2); g.rotation.z = it.ang || 0; plateItems.add(g); });
+      (list || []).forEach(it => { const g = makeItem(it.type); const th = it.type === 'jig' ? m.jig.thick : m.part.thick; g.position.set(it.W[0], it.W[1], zP - th - 0.2); g.rotation.z = it.ang || 0; plateItems.add(g); });
     }
     function setPose(k, pose) {
       const P = plats[k]; P.pose = pose;
