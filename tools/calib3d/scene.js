@@ -75,10 +75,10 @@
     const trayZ = zP - 0.6;
     m.tray.cols.forEach(cx => m.tray.rows.forEach(ry => {
       const c = [cx + m.tray.nomC[0], ry + m.tray.nomC[1]];
-      const pl = m.part.len / 2 + 2, pw = m.part.wid / 2 + 2;
-      const pts = [[-pl, -pw], [pl, -pw], [pl, pw], [-pl, pw], [-pl, -pw]].map(p => new THREE.Vector3(c[0] + p[0], c[1] + p[1], trayZ));
+      const pl = m.part.len / 2 + 2, pw = m.part.wid / 2 + 2, ca = Math.cos(m.part.orient), sa = Math.sin(m.part.orient);
+      const pts = [[-pl, -pw], [pl, -pw], [pl, pw], [-pl, pw], [-pl, -pw]].map(p => new THREE.Vector3(c[0] + ca * p[0] - sa * p[1], c[1] + sa * p[0] + ca * p[1], trayZ));
       p3.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mPocket));
-      [-1, 1].forEach(s => p3.add(disc(2.4, mMark, c[0] + s * m.tray.markHalf, c[1], trayZ)));
+      [-1, 1].forEach(s => p3.add(disc(2.4, mMark, c[0] + s * m.tray.markV[0], c[1] + s * m.tray.markV[1], trayZ)));
     }));
     Object.values(m.fidT).forEach(f => { const c = [f[0] + m.tray.nomC[0], f[1] + m.tray.nomC[1]]; const d = disc(4, mHot, c[0], c[1], trayZ); d.material = mMark; p3.add(d); const ring = new THREE.Mesh(new THREE.RingGeometry(6, 7.5, 32), mMark); ring.position.set(c[0], c[1], trayZ); p3.add(ring); });
     const lb3 = label('平台3（固定，料盤在下表面）', '--p3-line'); lb3.position.set(0, 320, zP + 70); scene.add(lb3);
@@ -129,8 +129,8 @@
       const g = new THREE.Group();
       if (type === 'mark') { g.add(box(24, 24, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
       else if (type === 'rcmark') { g.add(box(16, 16, 1.2, mGlass, 0, 0, 0)); g.add(disc(2.6, mMark, 0, 0, 1.3)); }
-      else if (type === 'jig') { g.add(box(m.jig.len, m.jig.wid, m.jig.thick, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.jig.half, 0, m.jig.thick + 0.1)); const d = disc(2.6, mMark, s * m.jig.half, 0, -0.1); d.rotation.x = Math.PI; g.add(d); }); }
-      else if (type === 'wp') { g.add(box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0)); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markHalf, 0, m.part.thick + 0.1))); }
+      else if (type === 'jig') { g.add(box(m.jig.len, m.jig.wid, m.jig.thick, mGlass, 0, 0, 0)); [-1, 1].forEach(s => { g.add(disc(2.6, mMark, s * m.jig.mv[0], s * m.jig.mv[1], m.jig.thick + 0.1)); const d = disc(2.6, mMark, s * m.jig.mv[0], s * m.jig.mv[1], -0.1); d.rotation.x = Math.PI; g.add(d); }); }
+      else if (type === 'wp') { const b = box(m.part.len, m.part.wid, m.part.thick, mWp, 0, 0, 0); b.rotation.z = m.part.orient; g.add(b); [-1, 1].forEach(s => g.add(disc(2.6, mMark, s * m.tray.markV[0], s * m.tray.markV[1], m.part.thick + 0.1))); }
       g.userData.type = type; return g;
     }
     const chuckCache = [{}, {}];

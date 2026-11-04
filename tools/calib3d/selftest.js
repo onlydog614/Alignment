@@ -109,6 +109,29 @@
     // 10. 料盤座標：兩平台量同一個中間基準 Mark，換到世界座標應一致
     const P1 = est.tray[0].pts.find(p => p.key === 'C').P, P2 = est.tray[1].pts.find(p => p.key === 'C').P;
     ok('料盤中間共用 Mark：兩平台各自量到（各自座標系）', isFinite(P1[0]) && isFinite(P2[0]), `平台1 (${P1[0].toFixed(3)}, ${P1[1].toFixed(3)})；平台2 (${P2[0].toFixed(3)}, ${P2[1].toFixed(3)})`);
+    // 12. 長方形料：長邊沿 Y（轉 90°）、斜對角 Mark；治具 Mark 也斜放
+    const base = CAL.loadParams();
+    const PR = Object.assign({}, base, { part_len: 90, part_wid: 30, part_mark_dx: 80, part_mark_dy: 20, part_orient: 90, jig_mark_dx: 60, jig_mark_dy: 12, jig_wid: 22 });
+    const mRc = CAL.defaultMachine(PR);
+    ok('長方形料（長邊沿 Y）：Mark 向量轉到料盤座標', V.len(V.sub(mRc.tray.markV, [-10, 40])) < 1e-9 && V.len(V.sub(mRc.part.ext, [15, 45])) < 1e-9, `半 Mark 向量 (${mRc.tray.markV.map(v => v.toFixed(2)).join(', ')})、料盤上半外形 (${mRc.part.ext.map(v => v.toFixed(1)).join(', ')})`);
+    const mRi = CAL.clone(mRc); mRi.hCal = mRi.hPlace; mRi.plat[0].tilt = [0.8, -0.5];
+    const estRc = CAL.calibrateAll(mRi, { px: 0 });
+    const prRc = CAL.runProduction(mRi, mRi, estRc, { px: 0, reps: 2, phiDeg: 2 });
+    const mxR = Math.max(...prRc.map(r => V.len(r.err))), mxRa = Math.max(...prRc.map(r => Math.abs(r.angErr)));
+    ok('長方形料＋斜對角 Mark：無誤差機台放料偏移 ≈ 0（Mark 連線的固定角度在 Δθ 中抵消）', mxR < 1e-6 && mxRa < 1e-9, `最大 ${um(mxR)}、角度 ${(mxRa * R2D * 3600).toExponential(2)}″`);
+    const mRd = CAL.applyDrift(mRi, { rc: [shift, null] });
+    const rR = CAL.placeOne(mRd, estRc, 0, { ci: 1, ri: 1 }, { qc: [0.3, 0.2], phi: 1.2 * D2R }, {}, N0);
+    const exR = V.rot(V.sub(V.rot(e, rR.dth), e), -mRc.tray.ang);
+    ok('長方形料：旋轉中心誤差公式一樣成立', V.len(V.sub(exR, rR.err)) < 2e-6, `模擬 (${um(rR.err[0])}, ${um(rR.err[1])})；公式 (${um(exR[0])}, ${um(exR[1])})`);
+    const mRt = CAL.applyDrift(mRi, { trayScale: 200 });
+    const pRB = CAL.runProduction(mRi, mRt, estRc, { px: 0, reps: 1, modeB: true }).filter(r => r.k === 0);
+    const aRB = CAL.analyze(pRB.map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1] })));
+    ok('長方形料＋模式 B：料盤 +200 ppm → 回歸 X 比例 ≈ −200 ppm', aRB && Math.abs(aRB.scaleX * 1e6 + 200) < 5, aRB ? `X ${(aRB.scaleX * 1e6).toFixed(1)} ppm` : '無');
+    const jl = estRc.link[0].check.diff;
+    ok('斜放治具 Mark：上下連結第二點檢查 ≈ 0', V.len(jl) < 1e-6, `差 ${um(V.len(jl))}`);
+    // 13. 舊版 CSV（只有 part_pitch、jig_pitch）仍可匯入
+    const old = CAL.parseParamsCSV('part_pitch,產品,舊,55,mm,\njig_pitch,校正片,舊,50,mm,\n', base);
+    ok('舊版 CSV 代碼 part_pitch／jig_pitch 自動對應到新的 Mark 間距', old.params.part_mark_dx === 55 && old.params.jig_mark_dx === 50 && old.params.part_mark_dy === base.part_mark_dy, `part_mark_dx=${old.params.part_mark_dx}、jig_mark_dx=${old.params.jig_mark_dx}`);
     return T;
   }
   G.selfTest = selfTest;

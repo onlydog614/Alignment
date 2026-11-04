@@ -27,13 +27,16 @@ p2_y_stroke,平台,平台2 Y 可移動範圍,600,mm,
 p2_z_stroke,平台,平台2 Z 可移動範圍,50,mm,
 chuck_to_plate,平台,吸盤面到平台3 下表面距離,40,mm,Z 在取像高度時量
 mark_dia,Mark,Mark 直徑,1,mm,料、治具、穴位、基準 Mark 共用
-jig_pitch,校正片,雙 Mark 玻璃治具 Mark 間距,60,mm,建議與料的 Mark 間距相同
-jig_len,校正片,治具長,80,mm,
-jig_wid,校正片,治具寬,22,mm,
+jig_mark_dx,校正片,治具兩 Mark 間距（沿治具長邊）,60,mm,左 Mark→右 Mark 的長邊分量；建議與料相同
+jig_mark_dy,校正片,治具兩 Mark 間距（沿治具短邊）,0,mm,Mark 在同一條長邊中心線上填 0；斜對角填短邊分量
+jig_len,校正片,治具長（長邊）,80,mm,治具長邊沿 X 放
+jig_wid,校正片,治具寬（短邊）,22,mm,
 jig_thick,校正片,治具厚度,2,mm,建議與料厚相同
-part_pitch,產品,料的 Mark 間距（＝穴位 Mark 間距）,60,mm,
-part_len,產品,料長,70,mm,
-part_wid,產品,料寬,40,mm,
+part_mark_dx,產品,料兩 Mark 間距（沿料長邊）,60,mm,左 Mark→右 Mark 的長邊分量（＝穴位 Mark）
+part_mark_dy,產品,料兩 Mark 間距（沿料短邊）,0,mm,Mark 在長邊中心線上填 0；斜對角 Mark 填短邊分量（可為負）
+part_len,產品,料長（長邊）,70,mm,
+part_wid,產品,料寬（短邊）,40,mm,正方形料填與料長相同
+part_orient,產品,料在料盤上的方向,0,°,0 = 長邊沿 X（左右）；90 = 長邊沿 Y（前後）
 part_thick,產品,料厚,2,mm,
 tray_pitch_x,產品,料盤穴位間距 X,120,mm,6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄
 tray_pitch_y,產品,料盤穴位間距 Y,110,mm,2 列

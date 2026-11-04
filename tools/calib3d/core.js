@@ -117,22 +117,27 @@
     ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
     ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
     ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
-    ['jig_pitch', '校正片', '雙 Mark 玻璃治具 Mark 間距', 60, 'mm', '建議與料的 Mark 間距相同'],
-    ['jig_len', '校正片', '治具長', 80, 'mm', ''],
-    ['jig_wid', '校正片', '治具寬', 22, 'mm', ''],
+    ['jig_mark_dx', '校正片', '治具兩 Mark 間距（沿治具長邊）', 60, 'mm', '左 Mark→右 Mark 的長邊分量；建議與料相同'],
+    ['jig_mark_dy', '校正片', '治具兩 Mark 間距（沿治具短邊）', 0, 'mm', 'Mark 在同一條長邊中心線上填 0；斜對角填短邊分量'],
+    ['jig_len', '校正片', '治具長（長邊）', 80, 'mm', '治具長邊沿 X 放'],
+    ['jig_wid', '校正片', '治具寬（短邊）', 22, 'mm', ''],
     ['jig_thick', '校正片', '治具厚度', 2, 'mm', '建議與料厚相同'],
-    ['part_pitch', '產品', '料的 Mark 間距（＝穴位 Mark 間距）', 60, 'mm', ''],
-    ['part_len', '產品', '料長', 70, 'mm', ''],
-    ['part_wid', '產品', '料寬', 40, 'mm', ''],
+    ['part_mark_dx', '產品', '料兩 Mark 間距（沿料長邊）', 60, 'mm', '左 Mark→右 Mark 的長邊分量（＝穴位 Mark）'],
+    ['part_mark_dy', '產品', '料兩 Mark 間距（沿料短邊）', 0, 'mm', 'Mark 在長邊中心線上填 0；斜對角 Mark 填短邊分量（可為負）'],
+    ['part_len', '產品', '料長（長邊）', 70, 'mm', ''],
+    ['part_wid', '產品', '料寬（短邊）', 40, 'mm', '正方形料填與料長相同'],
+    ['part_orient', '產品', '料在料盤上的方向', 0, '°', '0 = 長邊沿 X（左右）；90 = 長邊沿 Y（前後）'],
     ['part_thick', '產品', '料厚', 2, 'mm', ''],
     ['tray_pitch_x', '產品', '料盤穴位間距 X', 120, 'mm', '6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄'],
     ['tray_pitch_y', '產品', '料盤穴位間距 Y', 110, 'mm', '2 列']
   ];
   const PKEY = 'cal-params-v1';
   function defaultParams() { const o = {}; PARAMS.forEach(p => { o[p[0]] = p[3]; }); return o; }
+  // 舊版代碼（v1 只有單一 Mark 間距）→ 新代碼
+  const LEGACY = { part_pitch: 'part_mark_dx', jig_pitch: 'jig_mark_dx' };
   function loadParams() {
     const o = defaultParams();
-    try { const s = G.localStorage && G.localStorage.getItem(PKEY); if (s) { const v = JSON.parse(s); Object.keys(o).forEach(k => { if (isFinite(+v[k]) && v[k] !== '' && v[k] != null) o[k] = +v[k]; }); } } catch (e) { /* 無儲存空間時用預設值 */ }
+    try { const s = G.localStorage && G.localStorage.getItem(PKEY); if (s) { const v = JSON.parse(s); Object.keys(LEGACY).forEach(a => { if (v[a] != null && v[LEGACY[a]] == null) v[LEGACY[a]] = v[a]; }); Object.keys(o).forEach(k => { if (isFinite(+v[k]) && v[k] !== '' && v[k] != null) o[k] = +v[k]; }); } } catch (e) { /* 無儲存空間時用預設值 */ }
     return o;
   }
   function saveParams(o) { try { G.localStorage.setItem(PKEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
@@ -159,7 +164,7 @@
     text.replace(/^﻿/, '').split(/\r?\n/).forEach((ln, i) => {
       if (!ln.trim() || ln.trim().startsWith('#')) return;
       const c = splitCSV(ln); if (c[0] === '代碼') return;
-      let key = keys.has(c[0]) ? c[0] : (byLabel[c[0]] || byLabel[c[2]] || null);
+      let key = keys.has(c[0]) ? c[0] : (LEGACY[c[0]] || byLabel[c[0]] || byLabel[c[2]] || null);
       if (!key) { unknown.push(i + 1); return; }
       // 數值欄：標準格式在第 4 欄；只有兩欄（代碼,數值）也接受
       const raw = c.length >= 4 ? c[3] : c[1];
@@ -183,6 +188,10 @@
       return { name: `相機${j}`, plat: k, d: V.add(dNom, err), dNom, mmpp: P[f + 'fov_x'] / w, mmppY: P[f + 'fov_y'] / h, ang: ang * D2R, up: true, w, h, fov: [P[f + 'fov_x'], P[f + 'fov_y']], grid: nice(0.35 * Math.min(P[f + 'fov_x'], P[f + 'fov_y'])) };
     };
     const px = P.tray_pitch_x, py = P.tray_pitch_y;
+    // 長方形料：在料盤座標系的方向、半個 Mark 向量（左 Mark→右 Mark 的一半）、外形半寬
+    const orient = (P.part_orient || 0) * D2R;
+    const partMv = V.rot([P.part_mark_dx / 2, P.part_mark_dy / 2], orient);
+    const ext = (l, w, a) => [Math.abs(Math.cos(a)) * l / 2 + Math.abs(Math.sin(a)) * w / 2, Math.abs(Math.sin(a)) * l / 2 + Math.abs(Math.cos(a)) * w / 2];
     const t0 = top(0), t1 = top(1);
     const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
     return {
@@ -196,11 +205,11 @@
         { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4], stroke: [P.p2_x_stroke, P.p2_y_stroke, P.p2_z_stroke] }
       ],
       // 平台3 料盤：中心、角度、間距誤差（ppm）。穴位設計座標（料盤座標系）
-      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map(i => i * px), rows: [-py / 2, py / 2], markHalf: P.part_pitch / 2, nomC: [0, 205] },
+      tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols: [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].map(i => i * px), rows: [-py / 2, py / 2], markV: partMv, markHalf: V.len(partMv), nomC: [0, 205] },
       // 平台3 固定基準 Mark（料盤座標系）：左、中（兩平台共用）、右
       fidT: { L: [-(2.5 * px + 90), 0], C: [0, 0], R: [2.5 * px + 90, 0] },
-      jig: { half: P.jig_pitch / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick },
-      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick },
+      jig: { mv: [P.jig_mark_dx / 2, P.jig_mark_dy / 2], half: Math.hypot(P.jig_mark_dx, P.jig_mark_dy) / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick, ext: ext(P.jig_len, P.jig_wid, 0) },
+      part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2] },
       markDia: P.mark_dia, rcR,
       hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
       hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
@@ -249,7 +258,10 @@
 
   // ===================== 校正演算法 =====================
   const JIG = { qc: [0.8, -0.6], ang: 0.15 * D2R };
-  function jigMarks(m, qc, ang, half) { const hf = half == null ? m.tray.markHalf : half; return [-1, 1].map(s => V.add(qc, V.rot([s * hf, 0], ang))); }
+  // 兩個 Mark 位置：中心 qc、角度 ang、半個 Mark 向量 mv（預設＝料的 Mark，料盤座標系）
+  // 長方形料或斜對角 Mark 時，Mark 連線本身有固定角度 atan2(mv)；Δθ = ψ̂ − φ̂ 兩邊相同會抵消
+  function jigMarks(m, qc, ang, mv) { const h = mv || m.tray.markV; return [-1, 1].map(s => V.add(qc, V.rot(V.mul(h, s), ang))); }
+  const trayMarkT = (m, pt, s) => V.add(pt, V.mul(m.tray.markV, s));
 
   // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
   function calibTop(m, k, N, g) {
@@ -287,7 +299,7 @@
   // 步驟4：上下相機連結（玻璃雙 Mark 治具轉移法）→ D_j（相機 j 影像中心 = S + D_j，平台座標）
   function calibLink(m, k, est, N, hCal) {
     const p = m.plat[k], h = hCal == null ? m.hCal : hCal;
-    const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.half);
+    const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.mv);
     const Sc = est.top[k].Sc, R = est.R[k];
     const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
     const tc = [m.tray.cols[k === 0 ? 1 : 4], m.tray.rows[0]];
@@ -356,15 +368,17 @@
     const Sc = est.top[k].Sc, R = est.R[k];
     // a. 上相機量料
     const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
-    const wHat = V.mid(qh[0], qh[1]), phiHat = V.ang(V.sub(qh[1], qh[0]));
+    // α0：Mark 連線的設計角度（長邊沿 Y 或斜對角 Mark 時不是 0）；φ̂、ψ̂ 都扣掉，顯示的就是料真正的歪斜角度
+    const a0 = V.ang(m.tray.markV);
+    const wHat = V.mid(qh[0], qh[1]), phiHat = V.ang(V.sub(qh[1], qh[0])) - a0;
     // b. 下相機量穴位（或用基準 Mark 推算）
     const pt = pocketT(m, pocket.ci, pocket.ri);
-    const trueMarks = [-1, 1].map(s => trayW(m, V.add(pt, [s * m.tray.markHalf, 0])));
-    const nomMarks = [-1, 1].map(s => trayNom(m, V.add(pt, [s * m.tray.markHalf, 0])));
+    const trueMarks = [-1, 1].map(s => trayW(m, trayMarkT(m, pt, s)));
+    const nomMarks = [-1, 1].map(s => trayNom(m, trayMarkT(m, pt, s)));
     let PL, PR;
     if (o.modeB) {
       const tr = est.tray[k];
-      PL = tr.toPlat(V.add(pt, [-m.tray.markHalf, 0])); PR = tr.toPlat(V.add(pt, [m.tray.markHalf, 0]));
+      PL = tr.toPlat(trayMarkT(m, pt, -1)); PR = tr.toPlat(trayMarkT(m, pt, 1));
     } else if (p.cams.length === 2) {
       const [j2, j3] = p.cams, ap = [N.r() - 0.5, N.r() - 0.5].map(x => x * 0.4);
       const Sv = V.add(nomSv(m, j2, nomMarks[0]), ap), Sva = nS(N, Sv);
@@ -378,7 +392,7 @@
       });
       PL = P2[0]; PR = P2[1];
     }
-    const That = V.mid(PL, PR), psiHat = V.ang(V.sub(PR, PL));
+    const That = V.mid(PL, PR), psiHat = V.ang(V.sub(PR, PL)) - a0;
     // c. 計算
     let dth = psiHat - phiHat; if (o.thetaSign) dth = -dth;
     const Sp = V.sub(V.sub(That, R), V.rot(wHat, dth));
@@ -509,5 +523,5 @@
     return out;
   }
 
-  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);

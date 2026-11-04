@@ -29,10 +29,10 @@
     if (!it) return [];
     if (it.type === 'mark') return [[0, 0]];
     if (it.type === 'rcmark') return [[0, 0]];
-    const hf = it.type === 'jig' ? M0.jig.half : M0.tray.markHalf;
-    return [[-hf, 0], [hf, 0]];
+    const mv = it.type === 'jig' ? M0.jig.mv : M0.tray.markV;
+    return [V.mul(mv, -1), mv];
   }
-  function itemOutline(it) { const b = (l, w) => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]]; return it && it.type === 'wp' ? b(M0.part.len, M0.part.wid) : (it && it.type === 'jig' ? b(M0.jig.len, M0.jig.wid) : null); }
+  function itemOutline(it) { const b = (l, w, a) => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]].map(p => V.rot(p, a)); return it && it.type === 'wp' ? b(M0.part.len, M0.part.wid, M0.part.orient) : (it && it.type === 'jig' ? b(M0.jig.len, M0.jig.wid, 0) : null); }
   function shotImages(cur, cams) {
     const out = {};
     cams.forEach(id => {
@@ -51,7 +51,7 @@
       } else {
         const b = M0.bcam[id], S = cur.p[b.plat].S;
         const add = (W, kind, r) => { const u = CAL.pixB(M0, id, S, W); if (CAL.inImage(b, u, -150)) marks.push({ u, kind, r }); };
-        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, [cx + s * M0.tray.markHalf, ry]), 'pocket', MR))));
+        M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => [-1, 1].forEach(s => add(CAL.trayW(M0, CAL.trayMarkT(M0, [cx, ry], s)), 'pocket', MR))));
         Object.values(M0.fidT).forEach(f => add(CAL.trayW(M0, f), 'fid', MR * 1.2));
         cur.plate.forEach(it => itemMarks(it).forEach(q0 => add(V.add(it.W, V.rot(q0, it.ang || 0)), 'jig', MR)));
       }
@@ -151,7 +151,7 @@
         <li>下相機跟著 XY 移動，<b>不隨 DD 旋轉、不隨 Z 升降</b>。如果實際上裝在 DD 或 Z 上，步驟 4、5 要改寫。</li>
         <li>上相機1、2 各在平台3 前方的取像站往下看（不被平台3 擋住）。</li>
         <li>平台3 固定在上方，料盤的放料面朝下；下相機往上看料盤的穴位 Mark 與平台3 上的固定基準 Mark（左、中、右）。</li>
-        <li>料與穴位各有兩個 Mark（示意間距 60 mm）。平台1 放左半盤（第 1–3 欄），平台2 放右半盤（第 4–6 欄）；中間基準 Mark 兩個平台都量得到。</li>
+        <li>料與穴位各有兩個 Mark。目前設定：料 ${M0.part.len}×${M0.part.wid} mm（${M0.part.len === M0.part.wid ? '正方形' : '長方形'}，${M0.P.part_orient % 180 ? '長邊沿 Y 放' : '長邊沿 X 放'}），兩 Mark 間距長邊 ${M0.P.part_mark_dx} mm、短邊 ${M0.P.part_mark_dy} mm${M0.P.part_mark_dy ? '（斜對角）' : ''}。平台1 放左半盤（第 1–3 欄），平台2 放右半盤（第 4–6 欄）；中間基準 Mark 兩個平台都量得到。</li>
         <li>座標：X 往右、Y 往後、Z 往上，θ 由上往下看逆時針為正。尺寸與誤差數值是模擬用的示意值，請換成機台實際值。</li>
       </ul>
       <h4>參數總表</h4>
@@ -309,8 +309,8 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         tl.go(k, { S: Sc(k) }, 1.8, `到上相機${k + 1} 下方`).shot([k + 1], `① 上相機${k + 1} 量治具兩個 Mark → q̂_L、q̂_R`);
         tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hCal }, 1, 'Z 上升到治具行程').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
         const j = k + 3;
-        tl.go(k, { S: SvT(j, V.add(t, [-M0.jig.half, 0])) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
-        tl.go(k, { S: SvT(j, V.add(t, [M0.jig.half, 0])) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
+        tl.go(k, { S: SvT(j, V.sub(t, M0.jig.mv)) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
+        tl.go(k, { S: SvT(j, V.add(t, M0.jig.mv)) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
         tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hCal }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
       return tl;
@@ -391,7 +391,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：料放上吸盤（位置、角度隨機）`);
         const j = k + 3;
         tl.go(k, { S: Sc(k) }, 1.8, `1. 到上相機${k + 1} 下方`).shot([k + 1], `上相機${k + 1} 量料：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`);
-        tl.go(k, { S: SvT(j, V.add(t, [-M0.tray.markHalf, 0])) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, V.add(t, [M0.tray.markHalf, 0])) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
+        tl.go(k, { S: SvT(j, CAL.trayMarkT(M0, t, -1)) }, 2, `2. 下相機${j} 拍穴位左 Mark`).shot([j], '左 Mark').go(k, { S: SvT(j, CAL.trayMarkT(M0, t, 1)) }, 0.9, `下相機${j} 拍右 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
         tl.go(k, { h: M0.hPlace }, 0.9, '4. Z 上升放料').set(release(k, it), '破真空，料留在平台3').go(k, { h: 0 }, 0.7, 'Z 下降').go(k, { S: [0, 0], th: 0 }, 1.6, `完成：偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm`);
       });
@@ -405,11 +405,12 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       <h4>流程與公式</h4>
       <pre>1. 料放上吸盤，平台到 S_c（θ = 0），上相機（平台1→相機1、平台2→相機2）拍兩個 Mark
    q̂_m = Â_top·u_m + Ĉ_top − S_c − R̂
-   ŵ = (q̂_L + q̂_R)/2，  φ̂ = ang(q̂_R − q̂_L)
+   ŵ = (q̂_L + q̂_R)/2，  φ̂ = ang(q̂_R − q̂_L) − α0
+   （α0：兩 Mark 連線的設計角度，Mark 在長邊中心線且長邊沿 X 時 α0 = 0）
 
 2. 平台移到穴位下方，下相機（平台1→相機3、平台2→相機4）先拍左 Mark、再拍右 Mark
    P_m = S_v,m + D_j + A_j·u_m        （S_v,m：拍該 Mark 時的平台位置）
-   T̂ = (P_L + P_R)/2，  ψ̂ = ang(P_R − P_L)
+   T̂ = (P_L + P_R)/2，  ψ̂ = ang(P_R − P_L) − α0
 
 3. Δθ = ψ̂ − φ̂
    S_p = T̂ − R̂ − Rot(Δθ)·ŵ
@@ -418,6 +419,8 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       <h4>注意</h4><ul>
         <li>第 3 步的 Rot(Δθ)·ŵ：料不在旋轉中心上，轉 Δθ 時料中心會跟著移動，平台要一起補。</li>
         <li>每個平台只有一台下相機，ψ̂ 由左右兩次拍照得到；兩次之間的 X 軸偏擺、直線度和光學尺誤差會直接變成角度誤差（60 mm 間距差 1 µm 約 3.4″）。</li>
+        <li><b>長方形料、斜對角 Mark</b>：Mark 連線本身有固定角度 α0（目前設定 ${(CAL.V.ang(M0.tray.markV) * R2D).toFixed(2)}°）。φ̂ 和 ψ̂ 都扣掉 α0 才是料真正的歪斜角；就算忘了扣，Δθ 相減也會抵消，只是 log 上的角度看起來很大。但「第 1 Mark／第 2 Mark」在上相機和下相機必須是同一顆（料上的第 1 Mark 要放到穴位的第 1 Mark）；順序對調時 Δθ 會差 180°，正方形或對稱的料尤其容易搞錯，建議兩顆 Mark 做成不同形狀。</li>
+        <li>長邊沿 Y 放時，下文的「左 Mark／右 Mark」就是「前 Mark／後 Mark」。斜對角 Mark 的距離比較長，角度量得更準。</li>
         <li>θ 轉完若能再用下相機確認料的位置（料 Mark 從下方看得到時），可再修一次 XY，旋轉中心誤差的影響就會消失。</li></ul>
       <h4>模擬一片（含雜訊）</h4>${table(['平台', '穴位', 'ŵ', 'φ̂', 'ψ̂', 'Δθ', 'S_p', '放料偏移'], rows)}`;
     }

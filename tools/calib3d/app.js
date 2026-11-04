@@ -253,11 +253,14 @@
       add(`${nm} Mark 在影像中的直徑`, `${dpx.toFixed(0)} px`, dpx < 6 || dpx > lim ? 'bad' : (dpx < 15 ? 'warn' : 'ok'), dpx < 15 ? 'Mark 太小，辨識會不穩（建議 ≥ 15 px）' : (dpx > lim ? 'Mark 太大，九點走動時容易出畫面' : '15 px 以上，辨識穩定'));
       add(`${nm} 九點間距`, `${c.grid} mm`, 'ok', `視野 ${c.fov[0]}×${c.fov[1]} mm 的約 1/3`);
       if (kind === 'top') {
-        const need = 2 * M0.tray.markHalf + M0.markDia + 2, needJ = 2 * M0.jig.half + M0.markDia + 2;
-        add(`${nm} 能否一次拍到料的兩個 Mark`, `需要 ${need.toFixed(1)} mm／視野 ${c.fov[0]} mm`, need <= c.fov[0] ? 'ok' : 'bad', need <= c.fov[0] ? '含料放偏 ±1 mm 的餘量' : '兩個 Mark 無法同時入鏡：要分兩次拍（平台移動會帶入軸誤差）或換大視野');
-        add(`${nm} 能否一次拍到治具的兩個 Mark`, `需要 ${needJ.toFixed(1)} mm`, needJ <= c.fov[0] ? 'ok' : 'bad', needJ <= c.fov[0] ? '' : '步驟 5 會做不起來：縮小治具 Mark 間距或換大視野');
+        // 兩個 Mark 在影像 X、Y 各自要佔的寬度（長方形料、斜對角 Mark、長邊沿 Y 都算進去）＋料放偏 ±1 mm
+        const span = mv => [2 * Math.abs(mv[0]) + M0.markDia + 2, 2 * Math.abs(mv[1]) + M0.markDia + 2];
+        const need = span(M0.tray.markV), needJ = span(M0.jig.mv), fits = n => n[0] <= c.fov[0] && n[1] <= c.fov[1];
+        const sp = n => `需要 ${n[0].toFixed(1)}×${n[1].toFixed(1)}／視野 ${c.fov[0]}×${c.fov[1]} mm`;
+        add(`${nm} 能否一次拍到料的兩個 Mark`, sp(need), fits(need) ? 'ok' : 'bad', fits(need) ? '含料放偏 ±1 mm 的餘量' : `兩個 Mark 無法同時入鏡（${need[0] > c.fov[0] ? 'X' : 'Y'} 方向不夠）：要分兩次拍（平台移動會帶入軸誤差）或換大視野`);
+        add(`${nm} 能否一次拍到治具的兩個 Mark`, sp(needJ), fits(needJ) ? 'ok' : 'bad', fits(needJ) ? '' : '步驟 5 會做不起來：縮小治具 Mark 間距或換大視野');
         const ang = Math.SQRT2 * 0.1 * c.mmpp / (2 * M0.tray.markHalf);
-        add(`${nm} 料角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊、Mark 間距 ${2 * M0.tray.markHalf} mm`);
+        add(`${nm} 料角度量測解析`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊、Mark 距離 ${(2 * M0.tray.markHalf).toFixed(1)} mm`);
       } else {
         const margin = Math.min(...c.fov) / 2 - M0.markDia / 2;
         add(`${nm} 可容許的穴位位置誤差`, `±${margin.toFixed(2)} mm`, margin < 0.5 ? 'warn' : 'ok', margin < 0.5 ? '料盤位置稍微偏一點 Mark 就出畫面，需要先粗定位' : '料盤或穴位位置誤差小於這個值才拍得到');
@@ -281,8 +284,16 @@
     const dh = M0.hCal - M0.hPlace;
     add('治具厚度 vs 料厚', `差 ${Math.abs(dh).toFixed(2)} mm`, Math.abs(dh) > 0.05 ? 'warn' : 'ok', Math.abs(dh) > 0.05 ? `步驟 5 的 Z 行程和生產差 ${Math.abs(dh).toFixed(2)} mm，Z 軸若傾斜 1 mrad 會多 ${(Math.abs(dh)).toFixed(1)} µm 固定偏移；建議治具與料同厚` : '步驟 5 與生產用同一個 Z 行程');
     const px = M0.P.tray_pitch_x, py = M0.P.tray_pitch_y;
-    add('料與穴位間距', `料 ${M0.part.len}×${M0.part.wid}／間距 ${px}×${py} mm`, M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? 'ok' : 'bad', M0.part.len + 2 <= px && M0.part.wid + 2 <= py ? '' : '料比穴位間距大，相鄰的料會互相干涉');
-    add('料的兩個 Mark 是否在料上', `間距 ${2 * M0.tray.markHalf}／料長 ${M0.part.len} mm`, 2 * M0.tray.markHalf + M0.markDia <= M0.part.len ? 'ok' : 'bad', '');
+    const pe = M0.part.ext, okP = 2 * pe[0] + 2 <= px && 2 * pe[1] + 2 <= py, od = M0.P.part_orient;
+    const orTxt = Math.abs(od) < 1e-9 ? '長邊沿 X' : (Math.abs(Math.abs(od) - 90) < 1e-9 ? '長邊沿 Y' : `轉 ${od}°`);
+    add('料的形狀與方向', `${M0.part.len}×${M0.part.wid} mm，${orTxt}`, M0.part.wid > M0.part.len ? 'warn' : (od % 90 ? 'warn' : 'ok'), M0.part.wid > M0.part.len ? '料寬比料長大：長邊請填在「料長」，方向用「料在料盤上的方向」設定' : (od % 90 ? '不是 0° 或 90°：穴位 Mark 方向請確認與圖面一致' : (M0.part.len === M0.part.wid ? '正方形料' : '長方形料')));
+    add('料與穴位間距', `料在料盤上佔 ${(2 * pe[0]).toFixed(1)}×${(2 * pe[1]).toFixed(1)}／間距 ${px}×${py} mm`, okP ? 'ok' : 'bad', okP ? '相鄰穴位之間至少留 2 mm' : `${2 * pe[0] + 2 > px ? 'X' : 'Y'} 方向料比穴位間距大，相鄰的料會互相干涉${od % 180 === 0 && 2 * pe[1] + 2 > py && M0.part.len + 2 <= py ? '（料轉 90° 放就放得下，確認方向有沒有設錯）' : ''}`);
+    const onPart = (ml, l, w) => Math.abs(ml[0]) + M0.markDia / 2 <= l / 2 && Math.abs(ml[1]) + M0.markDia / 2 <= w / 2;
+    const ml = M0.part.markLocal, mj = M0.jig.mv;
+    add('料的兩個 Mark 是否在料上', `Mark 間距 ${(2 * ml[0]).toFixed(1)}（長邊）×${(2 * ml[1]).toFixed(1)}（短邊）／料 ${M0.part.len}×${M0.part.wid} mm`, onPart(ml, M0.part.len, M0.part.wid) ? 'ok' : 'bad', onPart(ml, M0.part.len, M0.part.wid) ? (ml[1] ? '斜對角 Mark' : '') : 'Mark 超出料的範圍：確認長邊、短邊分量有沒有填反');
+    add('治具的兩個 Mark 是否在治具上', `Mark 間距 ${(2 * mj[0]).toFixed(1)}×${(2 * mj[1]).toFixed(1)}／治具 ${M0.jig.len}×${M0.jig.wid} mm`, onPart(mj, M0.jig.len, M0.jig.wid) ? 'ok' : 'bad', onPart(mj, M0.jig.len, M0.jig.wid) ? '' : 'Mark 超出治具範圍');
+    const dmp = 2 * M0.tray.markHalf;
+    add('料的 Mark 距離（量角度用）', `${dmp.toFixed(1)} mm`, dmp < 10 ? 'warn' : 'ok', dmp < 10 ? '兩 Mark 太近，角度誤差會放大到料邊緣；可改用斜對角 Mark 拉長距離' : '');
     return out;
   }
   function renderParams() {
