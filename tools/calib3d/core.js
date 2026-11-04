@@ -135,11 +135,13 @@
     ['tray_pitch_x', '料盤', '穴位欄距 X', 135, 'mm', '配置圖：Mark 到最遠穴位 742.5 mm ＝ 5.5 欄距'],
     ['tray_pitch_y', '料盤', '穴位列距 Y', 143, 'mm', '由配置圖比例量得的估計值，請填實際值'],
     ['fidA_x', '料盤', 'SPB Mark A X（左上，左平台用）', -810, 'mm', '相對料盤中心（6/7 欄交界、兩列中間）；圖面估計值'],
-    ['fidA_y', '料盤', 'SPB Mark A Y', 168, 'mm', 'Y 往後為正'],
-    ['fidB_x', '料盤', 'SPB Mark B X（右上，右平台用）', 810, 'mm', ''],
-    ['fidB_y', '料盤', 'SPB Mark B Y', 168, 'mm', ''],
-    ['fidC_x', '料盤', 'SPB Mark C X（右下，右平台用）', 810, 'mm', ''],
-    ['fidC_y', '料盤', 'SPB Mark C Y', -143, 'mm', '']
+    ['fidA_y', '料盤', 'SPB Mark A Y', 139, 'mm', 'Y 往後為正'],
+    ['fidB_x', '料盤', 'SPB Mark B X（中上 6 欄側，左平台用）', -30, 'mm', ''],
+    ['fidB_y', '料盤', 'SPB Mark B Y', 139, 'mm', ''],
+    ['fidC_x', '料盤', 'SPB Mark C X（中上 7 欄側，右平台用）', 30, 'mm', ''],
+    ['fidC_y', '料盤', 'SPB Mark C Y', 139, 'mm', ''],
+    ['fidD_x', '料盤', 'SPB Mark D X（右上，右平台用）', 810, 'mm', ''],
+    ['fidD_y', '料盤', 'SPB Mark D Y', 139, 'mm', '']
   ];
   const PKEY = 'cal-params-v1';
   function defaultParams() { const o = {}; PARAMS.forEach(p => { o[p[0]] = p[3]; }); return o; }
@@ -220,9 +222,9 @@
       ],
       // 平台3 料盤：中心、角度、間距誤差（ppm）。穴位設計座標（料盤座標系）
       tray: { c: [0.12, 205.08], ang: 0.03 * D2R, scale: 0, cols, rows, nC, nR, markV: partMv, markHalf: V.len(partMv), nomC: [0, 205] },
-      // SPB Mark：左平台只看得到 A，右平台看得到 B、C
-      fidT: { A: [P.fidA_x, P.fidA_y], B: [P.fidB_x, P.fidB_y], C: [P.fidC_x, P.fidC_y] },
-      fidOf: [['A'], ['B', 'C']],
+      // SPB Mark：左平台看 A（左上）、B（中上 6 欄側）；右平台看 C（中上 7 欄側）、D（右上）
+      fidT: { A: [P.fidA_x, P.fidA_y], B: [P.fidB_x, P.fidB_y], C: [P.fidC_x, P.fidC_y], D: [P.fidD_x, P.fidD_y] },
+      fidOf: [['A', 'B'], ['C', 'D']],
       jig: { mv: [P.jig_mark_dx / 2, P.jig_mark_dy / 2], half: Math.hypot(P.jig_mark_dx, P.jig_mark_dy) / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick, ext: ext(P.jig_len, P.jig_wid, 0) },
       part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2], corners, pocketLocal: [P.pocket_mark_dx / 2, P.pocket_mark_dy / 2] },
       markDia: P.mark_dia, rcR,
@@ -319,7 +321,7 @@
   }
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
-    const b = m.bcam[j], F = trayW(m, m.fidT[b.plat === 0 ? 'A' : 'C']);
+    const b = m.bcam[j], F = trayW(m, m.fidT[b.plat === 0 ? 'A' : 'D']);
     const S0 = nomSv(m, j, F), step = g || m.bcam[j].grid, us = [], Ss = [];
     for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) {
       const S = V.add(S0, [i * step, jj * step]);
@@ -365,7 +367,7 @@
   }
   // 上下連結用的穴位：自己半盤中間那一欄、前排
   const linkPocket = (m, k) => { const h = m.tray.nC / 2; return [m.tray.cols[k * h + Math.floor((h - 1) / 2)], m.tray.rows[0]]; };
-  // 料盤座標對應：平台 k 用下相機量自己看得到的 SPB Mark（左平台只有 A：角度量不到，只能用設計角度）
+  // 料盤座標對應：平台 k 用下相機量自己看得到的兩顆 SPB Mark（只有一顆時量不到角度，只能用設計角度）
   function measureTray(m, k, est, N) {
     const j = m.plat[k].cams[0], keys = m.fidOf[k];
     const pts = keys.map(key => {
@@ -376,7 +378,9 @@
     if (pts.length < 2) return { pts, single: true, ang: 0, scalePpm: NaN, toPlat: t => V.add(pts[0].P, V.sub(t, pts[0].design)) };
     const dd = V.sub(pts[1].design, pts[0].design), dp = V.sub(pts[1].P, pts[0].P);
     const ang = V.ang(dp) - V.ang(dd);
-    return { pts, single: false, ang, scalePpm: (V.len(dp) / V.len(dd) - 1) * 1e6, toPlat: t => V.add(pts[0].P, V.rot(V.sub(t, pts[0].design), ang)) };
+    // 以兩顆 Mark 的中點當基準：角度誤差、比例誤差的力臂最多只有兩 Mark 距離的一半
+    const Pm = V.mid(pts[0].P, pts[1].P), Dm = V.mid(pts[0].design, pts[1].design);
+    return { pts, single: false, ang, base: V.len(dd), scalePpm: (V.len(dp) / V.len(dd) - 1) * 1e6, toPlat: t => V.add(Pm, V.rot(V.sub(t, Dm), ang)) };
   }
 
   // 完整校正（在 mCal 機台上執行）
@@ -557,7 +561,7 @@
       [['X', a.scaleX, a.scaleXSE, a.spanX], ['Y', a.scaleY, a.scaleYSE, a.spanY]].forEach(([ax, v, se, span]) => {
         if (v != null && Math.abs(v) > 3 * se && Math.abs(v) * span / 2 > o.minEffect) out.push({ lvl: 'mid', t: `${P} 偏移隨 ${ax} 位置線性變化（${(v * 1e6).toFixed(0)} ppm，兩端差 ${um(Math.abs(v) * span)}）`, s: '穴位若是用基準 Mark＋設計間距推算：軸比例（光學尺、溫度）或料盤實際間距與設計不同。改成每個穴位都拍，或用玻璃尺校軸比例。' });
       });
-      if (a.rotXY != null && Math.abs(a.rotXY) > 3 * a.rotSE && Math.abs(a.rotXY) * Math.max(a.spanX, a.spanY) / 2 > o.minEffect) out.push({ lvl: 'mid', t: `${P} 偏移隨位置旋轉（約 ${sec(a.rotXY)}）`, s: '料盤角度量錯（方式 B：左平台只有 Mark A 量不到角度；右平台 B、C 辨識誤差），或 X 軸行進偏擺。' });
+      if (a.rotXY != null && Math.abs(a.rotXY) > 3 * a.rotSE && Math.abs(a.rotXY) * Math.max(a.spanX, a.spanY) / 2 > o.minEffect) out.push({ lvl: 'mid', t: `${P} 偏移隨位置旋轉（約 ${sec(a.rotXY)}）`, s: '料盤角度量錯（方式 B：SPB Mark 辨識誤差或 Mark 位置設計值不對），或 X 軸行進偏擺。' });
       if (a.ang) {
         const g = a.ang;
         if (g.c1 != null && Math.abs(g.c1 - 2) < 0.3 && Math.abs(g.c1) > 3 * g.c1SE) out.push({ lvl: 'hi', t: `${P} 放料角度誤差約等於 2 × Δθ（DD 實際轉的角度）`, s: 'DD 轉的方向和程式算的相反：檢查 Δθ = ψ̂ − φ̂ 的正負號，以及 DD 的正方向設定。' });
