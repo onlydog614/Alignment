@@ -121,20 +121,22 @@
       ['rcSel', '旋轉中心改變：哪個平台', 'sel', '0', [['0', '平台1'], ['1', '平台2']]], ['rcx', '　改變 X', 'µm', 0], ['rcy', '　改變 Y', 'µm', 0],
       ['dh', 'Z 行程改變（換料厚）', 'mm', 0], ['tilt', '　平台1 Z 軸傾斜', 'mrad', 0],
       ['trx', '放料轉移量改變（平台1）X', 'µm', 0], ['try', '放料轉移量改變（平台1）Y', 'µm', 0],
-      ['trayppm', '料盤實際間距 − 設計', 'ppm', 0], ['axisppm', 'X 軸比例變化（兩平台，溫度）', 'ppm', 0]] },
+      ['trayppm', '料盤實際間距 − 設計（或量完 A–D 後熱漲）', 'ppm', 0], ['trayang', '量完 A–D 後料盤轉了', '″', 0], ['axisppm', 'X 軸比例變化（兩平台，溫度）', 'ppm', 0]] },
     { g: '程式或流程錯誤', items: [
-      ['noFlip', '下相機九點沒取負號（A = +G）', 'chk', false], ['thetaSign', 'Δθ 正負相反', 'chk', false], ['modeB', '穴位用基準 Mark＋設計間距推算（方式 B）', 'chk', false]] },
+      ['noFlip', '下相機九點沒取負號（A = +G）', 'chk', false], ['thetaSign', 'Δθ 正負相反', 'chk', false], ['modeB', '穴位用第一次量的 A–D＋設計間距推算（目前機台做法）；取消勾選＝每穴位都用下相機拍', 'chk', true], ['remeas', '機台變化後重量 A–D（換料盤時）', 'chk', false]] },
     { g: '隨機與料', items: [
-      ['px', '影像雜訊', 'px', 0.1], ['rep', '平台重複性', 'µm', 1], ['slip', '放料滑移（隨機）', 'µm', 1], ['phi', '料放上吸盤的角度範圍 ±', '°', 1], ['thr', '推測門檻（影響小於此值不列出）', 'µm', 10]] }
+      ['px', '影像雜訊', 'px', 0.1], ['rep', '平台重複性', 'µm', 1], ['slip', '放料滑移（隨機）', 'µm', 1], ['qtol', '手動放料位置範圍 ±', 'mm', M0.P.place_tol_xy], ['phi', '手動放料角度範圍 ±', '°', M0.P.place_tol_deg], ['thr', '推測門檻（影響小於此值不列出）', 'µm', 10]] }
   ];
   const PRESETS = [
     ['理想（只有雜訊）', {}],
-    ['相機4 鬆動 20 µm', { camSel: '4', camx: 20, camy: -12 }],
+    ['相機4 鬆動 20 µm（之後換盤重量 A–D）', { camSel: '4', camx: 20, camy: -12, remeas: true }],
     ['上相機1 被碰動', { topSel: '0', topx: 25, topy: 15 }],
     ['平台1 旋轉中心錯 0.8 mm', { rcSel: '0', rcx: 800, rcy: -400, phi: 2 }],
     ['下相機符號錯', { noFlip: true }],
     ['Δθ 正負相反', { thetaSign: true, phi: 0.5 }],
-    ['方式 B＋料盤 +300 ppm', { modeB: true, trayppm: 300 }],
+    ['料盤間距 +300 ppm（只量第一次 A–D）', { modeB: true, trayppm: 300 }],
+    ['量完 A–D 後料盤轉了 20″', { modeB: true, trayang: 20 }],
+    ['每穴位都拍（方式 A）＋料盤 +300 ppm', { modeB: false, trayppm: 300 }],
     ['換料厚 +2 mm、平台1 Z 傾斜 10 mrad', { dh: 2, tilt: 10 }]
   ];
   function buildSimForm() {
@@ -160,13 +162,15 @@
   }
   function simulate(o, seed) {
     const mCal = CAL.clone(M0); mCal.plat[0].tilt = [o.tilt, 0];
-    const drift = { top: [null, null], cam: { [o.camSel]: [o.camx / 1000, o.camy / 1000] }, rc: [null, null], transfer: [[o.trx / 1000, o.try / 1000], null], trayScale: o.trayppm, scale: [[o.axisppm, 0], [o.axisppm, 0]] };
+    const drift = { top: [null, null], cam: { [o.camSel]: [o.camx / 1000, o.camy / 1000] }, rc: [null, null], transfer: [[o.trx / 1000, o.try / 1000], null], trayScale: o.trayppm, trayAng: (o.trayang || 0) / 3600, scale: [[o.axisppm, 0], [o.axisppm, 0]] };
     drift.rc[+o.rcSel] = [o.rcx / 1000, o.rcy / 1000];
     drift.top[+o.topSel] = [o.topx / 1000, o.topy / 1000];
     const mNow = CAL.applyDrift(mCal, drift);
     const noise = { px: o.px, rep: o.rep, thRep: 2, slip: 0, seed: seed || 11, noFlip: o.noFlip };
     const est = CAL.calibrateAll(mCal, noise);
-    const prod = CAL.runProduction(mCal, mNow, est, { px: o.px, rep: o.rep, thRep: 2, slip: o.slip, seed: (seed || 11) + 3, reps: 3, phiDeg: o.phi, dh: o.dh, thetaSign: o.thetaSign, modeB: o.modeB });
+    // 換料盤時重量 A–D：用「已經變化的機台」量，下相機或 D_j 的變化會跟著進到穴位推算
+    if (o.remeas) est.tray = [0, 1].map(k => CAL.measureTray(mNow, k, est, CAL.noiseCtx({ px: o.px / Math.sqrt(3), rep: o.rep, seed: (seed || 11) + 7 })));
+    const prod = CAL.runProduction(mCal, mNow, est, { px: o.px, rep: o.rep, thRep: 2, slip: o.slip, seed: (seed || 11) + 3, reps: 3, phiDeg: o.phi, qTol: o.qtol, dh: o.dh, thetaSign: o.thetaSign, modeB: o.modeB });
     return prod;
   }
   function rowsOf(prod, k) { return prod.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr })); }
@@ -270,8 +274,10 @@
         // 上相機一次只拍一顆 Mark（平台移動逐顆拍）：Mark 半徑以外的半視野，就是料在吸盤上可以放偏的量
         const mg = Math.min(...c.fov) / 2 - M0.markDia / 2;
         add(`${nm} 單顆 Mark 入鏡餘量`, `±${mg.toFixed(2)} mm`, mg < 0.5 ? 'bad' : (mg < 1.5 ? 'warn' : 'ok'), mg < 0.5 ? '料在吸盤上稍微放偏，Mark 就出畫面' : (mg < 1.5 ? '料在吸盤上的放偏量要小於這個值（含 φ 轉角造成角 Mark 的位移）' : '料放偏、轉一點角度，四角 Mark 都還在畫面裡'));
-        const rC = Math.hypot(M0.P.part_mark_dx, M0.P.part_mark_dy) / 2, phiMax = Math.max(0, mg - 1) / rC;
-        add(`${nm} 料可容許的轉角`, `約 ±${(phiMax * R2D).toFixed(2)}°`, phiMax * R2D < 0.3 ? 'warn' : 'ok', `角 Mark 離料中心 ${rC.toFixed(1)} mm，扣掉 1 mm 放偏量後還能入鏡的轉角`);
+        // 手動放料：角 Mark 偏離設計位置 ≈ 放料位置誤差 + 角 Mark 半徑 × 角度誤差
+        const rC = Math.hypot(M0.P.part_mark_dx, M0.P.part_mark_dy) / 2, tolXY = M0.P.place_tol_xy, tolA = M0.P.place_tol_deg * D2R;
+        const need = Math.SQRT2 * tolXY + rC * tolA, phiMax = Math.max(0, mg - Math.SQRT2 * tolXY) / rC;
+        add(`${nm} 手動放料後四角 Mark 是否都入鏡`, `角 Mark 最多偏 ${need.toFixed(2)}／餘量 ${mg.toFixed(2)} mm`, need <= mg ? (need > 0.8 * mg ? 'warn' : 'ok') : 'bad', need <= mg ? `放料 ±${tolXY} mm、±${M0.P.place_tol_deg}° 時還拍得到；角度最多可到約 ±${(phiMax * R2D).toFixed(2)}°` : `手動放料誤差太大，角 Mark 會出畫面：放料要更準（加定位靠塊），或先拍一顆角 Mark 粗定位再拍其他三顆`);
         const ang = Math.hypot(0.1 * c.mmpp, 0.001) / (2 * rC);
         add(`${nm} 料角度量測解析（四角擬合）`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊＋1 µm 平台重複性，四角對角距 ${(2 * rC).toFixed(1)} mm`);
       } else {

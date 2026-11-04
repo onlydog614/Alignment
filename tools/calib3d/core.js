@@ -130,6 +130,8 @@
     ['pocket_mark_dx', '產品', '穴位兩邊 Mark 間距（沿料長邊）', 120, 'mm', '下相機拍的兩顆穴位 Mark；可在穴位外側'],
     ['pocket_mark_dy', '產品', '穴位兩邊 Mark 間距（沿料短邊）', 0, 'mm', '兩顆 Mark 在長邊中心線上填 0；斜對角填短邊分量'],
     ['part_thick', '產品', '料厚', 2, 'mm', ''],
+    ['place_tol_xy', '產品', '手動放料到吸盤的位置誤差 ±', 1.0, 'mm', '人工放料，每片都要重拍上相機四角'],
+    ['place_tol_deg', '產品', '手動放料到吸盤的角度誤差 ±', 1.0, '°', ''],
     ['tray_cols', '料盤', '料盤欄數（全部）', 12, '欄', '左平台放前一半（1–6 欄），右平台放後一半（7–12 欄）；需為偶數'],
     ['tray_rows', '料盤', '料盤列數', 2, '列', '1-x 為前排（靠上相機），2-x 為後排'],
     ['tray_pitch_x', '料盤', '穴位欄距 X', 135, 'mm', '配置圖：Mark 到最遠穴位 742.5 mm ＝ 5.5 欄距'],
@@ -476,10 +478,11 @@
   }
   function runProduction(mCal, mNow, est, o) {
     o = o || {}; const N = noiseCtx(Object.assign({}, o, { seed: (o.seed || 7) + 101 }));
-    const out = [], reps = o.reps || 3, phiRange = (o.phiDeg == null ? 1 : o.phiDeg) * D2R;
+    // 手動放料：每片料在吸盤上的位置、角度都不同（範圍取機台參數），每片都重拍上相機四角
+    const out = [], reps = o.reps || 3, phiRange = (o.phiDeg == null ? mNow.P.place_tol_deg : o.phiDeg) * D2R, qTol = o.qTol == null ? mNow.P.place_tol_xy : o.qTol;
     for (let r = 0; r < reps; r++) for (let ci = 0; ci < mNow.tray.nC; ci++) for (let ri = 0; ri < mNow.tray.nR; ri++) {
       const k = pocketPlat(mNow, ci);
-      const wp = { qc: [(N.r() - 0.5) * 1.0, (N.r() - 0.5) * 1.0], phi: (N.r() * 2 - 1) * phiRange };
+      const wp = { qc: [(N.r() * 2 - 1) * qTol, (N.r() * 2 - 1) * qTol], phi: (N.r() * 2 - 1) * phiRange };
       out.push(placeOne(mNow, est, k, { ci, ri }, wp, o, N));
     }
     return out;

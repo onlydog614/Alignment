@@ -397,7 +397,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         <li>B 和 C 只相距 ${dBC.toFixed(1)} mm、都在交界旁：交界兩側（${h}、${h + 1} 欄）離各自的 Mark B、C 最近，用推算時誤差最小；但這裡也是兩個平台各自誤差碰頭的地方，兩邊的固定偏移方向不同就會看到落差。</li>
         <li>兩個平台同時在交界附近（左平台拍 B 或放 ${h} 欄、右平台拍 C 或放 ${h + 1} 欄）時距離最近，要有防撞互鎖。</li></ul>
       <h4>動作</h4><ol>
-        <li>左平台用下相機3 量 Mark A、B；右平台用下相機4 量 Mark C、D。每顆拍 3 次取平均。</li>
+        <li>左平台用下相機3 量 Mark A、B；右平台用下相機4 量 Mark C、D。每顆拍 3 次取平均。<b>這是整盤唯一一次量料盤</b>，之後放料都用這次的結果。</li>
         <li>各自算出料盤在自己平台座標中的角度 ψ_k、比例誤差（實測距離 ÷ 設計距離 − 1）。</li>
         <li>兩平台量到的料盤角度差 = 兩平台 XY 軸的安裝角度差。記下來當基準，之後每次量都應該一樣；變了表示有一個平台的軸或下相機動過。</li></ol>
       <h4>公式</h4>
@@ -407,12 +407,13 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
 （用兩 Mark 中點當基準，角度與比例誤差的力臂最多約 ${arm.toFixed(0)} mm）</pre>
       <h4>兩種生產方式</h4>
       ${table(['方式', '穴位位置怎麼來', '受哪些誤差影響'], [
-        ['A（建議，也是目前機台的做法）', '每個穴位都用下相機拍穴位兩邊的 Mark；SPB 推算值只用來決定拍照位置', '只有 D_j、A_j、R̂；軸比例、料盤角度、料盤間距都不影響。交界兩側仍可能因兩平台各自的 D_j 誤差出現落差'],
-        ['B', '只拍 SPB Mark，穴位用設計間距推算', `另外加上：比例 × 距離（${arm.toFixed(0)} mm × 100 ppm = ${um1(arm * 1e-4)} µm）、角度誤差 × 距離（每 1″ = ${um1(arm / 3600 * D2R)} µm）、料盤穴位本身的加工誤差`]
+        ['A（可選：精度最高）', '每個穴位都用下相機拍穴位兩邊的 Mark；SPB 推算值只用來決定拍照位置', '只有 D_j、A_j、R̂；軸比例、料盤角度、料盤間距都不影響。代價是每片多拍兩張'],
+        ['B（目前機台的做法）', 'SPB Mark A–D 只在第一次量，穴位用設計間距推算', `另外加上：比例 × 距離（${arm.toFixed(0)} mm × 100 ppm = ${um1(arm * 1e-4)} µm）、角度誤差 × 距離（每 1″ = ${um1(arm / 3600 * D2R)} µm）、料盤穴位本身的加工誤差、量完 A–D 之後料盤的移動與熱漲縮`]
       ])}
       <h4>判定</h4><ul>
         <li>方式 A：穴位 Mark 實拍位置與 SPB 推算位置差 &lt; 下相機半視野的一半；超過時先修正 Mark A–D 位置或料盤設計座標。</li>
         <li>A–B、C–D 比例 |ppm| &lt; 20；重量 3 次料盤角度變異 &lt; 5″；兩平台料盤角度差和上次比 &lt; 10″。</li>
+        <li>整盤放完再量一次 A–D：和第一次比，位置差 &lt; 5 µm、角度差 &lt; 3″。超過表示放料過程中料盤移動或熱漲縮，偏移會隨放料順序變大。</li>
         <li>交界落差（1-${h}／2-${h} 與 1-${h + 1}／2-${h + 1} 的平均偏移差）&lt; 10 µm，超過時看「實放驗證」的拆解。</li></ul>
       <h4>模擬結果</h4>${table(['平台', '量到的 SPB Mark', '料盤角度（平台座標）', '比例'], rows)}
       <p class="note">兩平台量到的料盤角度不同是正常的，差值是兩平台 XY 軸的安裝角度差（模擬設定 ${((M0.plat[0].axisRot - M0.plat[1].axisRot) * R2D).toFixed(2)}°）。Mark A–D、欄距與列距目前是依配置圖比例換算的估計值（欄距 135 mm 由「742.5 mm ＝ 5.5 欄距」算出），請在「機台參數」改成圖面實際值。</p>`;
@@ -423,7 +424,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
   function demoPlace() {
     if (demo) return demo;
     const N = CAL.noiseCtx({ px: 0.1, rep: 1, thRep: 2, seed: 5 });
-    demo = [CAL.placeOne(M0, EST, 0, { ci: M0.tray.nC / 2 - 1, ri: 0 }, { qc: [0.35, -0.22], phi: 0.8 * D2R }, {}, N), CAL.placeOne(M0, EST, 1, { ci: M0.tray.nC / 2, ri: M0.tray.nR - 1 }, { qc: [-0.4, 0.3], phi: -1.1 * D2R }, {}, N)];
+    demo = [CAL.placeOne(M0, EST, 0, { ci: M0.tray.nC / 2 - 1, ri: 0 }, { qc: [0.35, -0.22], phi: 0.8 * D2R }, { modeB: true }, N), CAL.placeOne(M0, EST, 1, { ci: M0.tray.nC / 2, ri: M0.tray.nR - 1 }, { qc: [-0.4, 0.3], phi: -1.1 * D2R }, { modeB: true }, N)];
     return demo;
   }
   const CORNER_NAMES = M0.P.part_orient % 180 ? ['右前', '右後', '左後', '左前'] : ['左前', '右前', '右後', '左後'];
@@ -433,12 +434,12 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       const tl = TL(), d = demoPlace();
       [[0, d[0].pocket, { qc: [0.35, -0.22], phi: 0.8 * D2R }, d[0]], [1, d[1].pocket, { qc: [-0.4, 0.3], phi: -1.1 * D2R }, d[1]]].forEach(([k, pk, wp, res]) => {
         const it = { type: 'wp', q: wp.qc, ang: wp.phi }, t = CAL.pocketT(M0, pk.ci, pk.ri);
-        tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：料放上吸盤（位置、角度隨機）`);
+        tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：人工把料放上吸盤（每片位置、角度都不同）`);
         const j = k + 3;
         M0.part.corners.forEach((cq, i) => {
           tl.go(k, { S: V.sub(Sc(k), cq) }, i ? 0.8 : 1.8, `1. 平台移動，料的第 ${i + 1} 顆角 Mark（${CORNER_NAMES[i]}）到上相機${k + 1} 下方`).shot([k + 1], i < 3 ? `拍角 Mark ${i + 1} → q̂_${i + 1}` : `四點擬合：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°，殘差 ${um(res.cornerMax)} µm`, 0.55);
         });
-        tl.go(k, { S: SvT(j, CAL.trayMarkT(M0, t, -1)) }, 2, `2. 下相機${j} 拍穴位第 1 顆 Mark`).shot([j], '穴位 Mark 1').go(k, { S: SvT(j, CAL.trayMarkT(M0, t, 1)) }, 0.9, `下相機${j} 拍穴位另一邊的 Mark`).shot([j], `ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
+        tl.wait(0.9, `2. 穴位 ${res.pocket.ri + 1}-${res.pocket.ci + 1} 的位置：用第一次量的 SPB Mark ${k ? 'C、D' : 'A、B'}＋設計間距推算（下相機不再拍）ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
         tl.go(k, { h: M0.hPlace }, 0.9, '4. Z 上升放料').set(release(k, it), '破真空，料留在平台3').go(k, { h: 0 }, 0.7, 'Z 下降').go(k, { S: [0, 0], th: 0 }, 1.6, `完成：偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm`);
       });
@@ -448,7 +449,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       const d = demoPlace();
       const rows = d.map((r, i) => [`平台${r.k + 1}`, `${r.pocket.ri + 1}-${r.pocket.ci + 1}`, pt(r.wHat), (r.phiHat * R2D).toFixed(4) + '°', (r.psiHat * R2D).toFixed(4) + '°', (r.dth * R2D).toFixed(4) + '°', um(r.cornerMax) + ' µm', pt(r.Sp), `(${um(r.err[0])}, ${um(r.err[1])}) µm`]);
       return `
-      <p class="lead">把前面所有參數串起來，就是生產時每一片料的計算。偏移排查時，請拿機台的 log 逐項對照這幾個中間值。</p>
+      <p class="lead">把前面所有參數串起來，就是生產時每一片料的計算。平台1、2 都是<b>人工放料</b>到吸盤上，每片的位置和角度都不同，所以每一片都要重新用上相機拍四角；穴位位置則用<b>第一次量的 SPB Mark A–D</b>（步驟 6）加設計間距推算，之後不再拍。偏移排查時，請拿機台的 log 逐項對照這幾個中間值。</p>
       <h4>流程與公式</h4>
       <pre>1. 料放上吸盤（θ = 0），上相機（平台1→相機1、平台2→相機2）一次拍一顆：
    平台依序移到 S_i = S_c − R̂ − c_i，讓第 i 顆角 Mark 到相機下方（i = 1…4）
@@ -456,10 +457,11 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
    q̂_i = Â_top·u_i + Ĉ_top − S_i − R̂
    四點擬合 q̂_i ≈ ŵ + Rot(φ̂)·c_i  →  料中心 ŵ、料角度 φ̂、殘差
 
-2. 平台移到穴位下方，下相機（平台1→相機3、平台2→相機4）拍穴位兩邊的 Mark
-   P_m = S_v,m + D_j + A_j·u_m        （S_v,m：拍該 Mark 時的平台位置）
-   T̂ = (P_1 + P_2)/2，  ψ̂ = ang(P_2 − P_1) − α0
-   （α0：穴位兩 Mark 連線的設計角度，兩 Mark 在長邊中心線且長邊沿 X 時 α0 = 0）
+2. 穴位位置（不拍照）：用第一次量的 SPB Mark 換算
+   左平台：T̂ = (P_A + P_B)/2 + Rot(ψ₁)·(t − (A + B)/2)，ψ̂ = ψ₁
+   右平台：T̂ = (P_C + P_D)/2 + Rot(ψ₂)·(t − (C + D)/2)，ψ̂ = ψ₂
+   （t：穴位設計座標。若改成每穴位都用下相機拍兩邊 Mark：
+     T̂ = (P_1 + P_2)/2，ψ̂ = ang(P_2 − P_1) − α0）
 
 3. Δθ = ψ̂ − φ̂
    S_p = T̂ − R̂ − Rot(Δθ)·ŵ
@@ -469,7 +471,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         <li>第 3 步的 Rot(Δθ)·ŵ：料不在旋轉中心上，轉 Δθ 時料中心會跟著移動，平台要一起補。</li>
         <li><b>上相機四角都是移動平台拍的</b>：q̂_i 一定要用「拍這一張時」的平台位置 S_i 去算，不能四張都用同一個 S_c。用錯的話四點會擠在同一點附近，φ̂ 和 ŵ 都是錯的。</li>
         <li><b>四點擬合殘差</b>是很好用的健康指標：正常應 &lt; 5 µm。殘差大表示某顆角 Mark 辨識錯、料變形，或平台在四個點之間走得不準（XY 比例、直交度）。擬合出來的比例若和設計差超過 200 ppm，先查 XY 軸比例或料的實際尺寸。</li>
-        <li>每個平台只有一台下相機，ψ̂ 由穴位兩邊各拍一次得到；兩次之間的 X 軸偏擺、直線度和光學尺誤差會直接變成角度誤差（${(2 * M0.tray.markHalf).toFixed(0)} mm 間距差 1 µm 約 ${(0.001 / (2 * M0.tray.markHalf) * R2D * 3600).toFixed(1)}″）。</li>
+        <li><b>SPB Mark 只在第一次量</b>：之後每一片的穴位位置都靠那一次的 P_A–P_D。量完以後料盤若被碰到、換盤、或溫度變化（鋁料盤 1 °C ≈ 23 ppm，離中點 390 mm 就是 9 µm），所有穴位會一起偏，而且機台自己看不出來。建議換料盤、開機熱機後、每隔固定時間重量一次 A–D，並把前後兩次的差記下來。</li>
         <li><b>φ̂ 和 ψ̂ 必須同基準</b>：料的四角 c_i 與穴位兩 Mark 都要用同一個「料座標」定義（長邊方向為 0°）。穴位兩 Mark 的連線若不是沿長邊（α0 ≠ 0，目前設定 ${(CAL.V.ang(M0.tray.markV) * R2D).toFixed(2)}°），ψ̂ 要扣掉 α0。角 Mark 的編號順序在程式和料上要一致；順序錯開一格時 φ̂ 會差 90°，對稱的料尤其容易搞錯。</li>
         <li>長邊沿 Y 放時，四角和穴位 Mark 的名稱跟著轉 90°。</li>
         <li>θ 轉完若能再用下相機確認料的位置（料 Mark 從下方看得到時），可再修一次 XY，旋轉中心誤差的影響就會消失。</li></ul>

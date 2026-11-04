@@ -121,6 +121,19 @@
     const angs2 = []; for (let i = 0; i < 100; i++) { const Ni = CAL.noiseCtx({ px: 0.1 / Math.sqrt(3), rep: 1, seed: 300 + i }); angs2.push(CAL.measureTray(m, 0, est, Ni).ang - t0.ang); }
     const sd2 = Math.sqrt(angs2.reduce((a, x) => a + x * x, 0) / angs2.length), th2 = Math.SQRT2 * Math.hypot(0.1 / Math.sqrt(3) * m.bcam[3].mmpp, 0.001) / V.len(V.sub(m.fidT.A, m.fidT.B));
     ok('料盤角度精度：A–B 基線、0.1 px（3 次平均）＋1 µm 重複性，Monte-Carlo 接近理論', sd2 < th2 * 1.6 && sd2 > th2 * 0.5, `模擬 ${(sd2 * R2D * 3600).toFixed(2)}″；理論 ${(th2 * R2D * 3600).toFixed(2)}″`);
+    // 10b. 目前機台流程：人工放料（每片重拍上相機四角）＋ A–D 只量第一次
+    const pMan = CAL.runProduction(m, m, est, { px: 0, reps: 1, modeB: true, qTol: 1, phiDeg: 1 });
+    ok('人工放料 ±1 mm、±1°，每片重拍四角＋A–D 推算穴位：無誤差機台偏移 ≈ 0', Math.max(...pMan.map(r => V.len(r.err))) < 1e-4, `最大 ${um(Math.max(...pMan.map(r => V.len(r.err))))}`);
+    const pC4 = CAL.runProduction(m, mC, est, { px: 0, reps: 1, modeB: true }).filter(r => r.k === 1);
+    ok('A–D 只量第一次：之後相機4 鬆動，生產不用下相機 → 放料不受影響（要等重量 A–D 才會進來）', Math.max(...pC4.map(r => V.len(r.err))) < 1e-4, `最大 ${um(Math.max(...pC4.map(r => V.len(r.err))))}`);
+    const estRe = Object.assign({}, est, { tray: [0, 1].map(k => CAL.measureTray(mC, k, est, N0)) });
+    const pC4r = CAL.runProduction(m, mC, estRe, { px: 0, reps: 1, modeB: true }).filter(r => r.k === 1);
+    const mC4r = pC4r.reduce((a, r) => V.add(a, V.mul(r.err, 1 / pC4r.length)), [0, 0]);
+    ok('相機4 鬆動後換盤重量 A–D → 平台2 固定偏移 ≈ −δ', V.len(V.add(mC4r, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4, `平均 (${um(mC4r[0])}, ${um(mC4r[1])})`);
+    const mTr = CAL.applyDrift(m, { trayAng: 20 / 3600 });
+    const pTr = CAL.runProduction(m, mTr, est, { px: 0, reps: 1, modeB: true });
+    const aTr = [0, 1].map(k => CAL.analyze(pTr.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr }))));
+    ok('量完 A–D 後料盤轉 20″ → 兩平台偏移都隨位置旋轉約 −20″', aTr.every(a => a && Math.abs(a.rotXY * R2D * 3600 + 20) < 1.5), aTr.map(a => (a.rotXY * R2D * 3600).toFixed(1) + '″').join('、'));
     // 交界落差：相機4 鬆動只影響 7–12 欄，交界 6/7 欄出現落差 ≈ −δ
     const bs = CAL.boundaryStep(m, CAL.runProduction(m, mC, est, { px: 0, reps: 1 }));
     ok('交界落差：相機4 移動 → 1-6／2-6 與 1-7／2-7 之間出現落差 ≈ 相機移動量', bs && V.len(V.add(bs.step, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4 && V.len(bs.left) < 2e-4, bs ? `落差 (${um(bs.step[0])}, ${um(bs.step[1])})，左側 ${um(V.len(bs.left))}` : '無');
