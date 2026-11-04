@@ -16,6 +16,10 @@
 | 情境模擬 | Monte-Carlo：隨機擺放、量測雜訊、旋轉中心／比例／重複定位／Z／伸縮／校正誤差 → 成功率、最終真實誤差、收斂圖、散佈圖、參數掃描 |
 | 說明 | 快速上手與座標慣例 |
 
+## 雙平台放料校正手順（3D）
+
+`calibration-3d.html`（線上：<https://onlydog614.github.io/Alignment/calibration-3d.html>）：上相機1 固定、下相機2/3 隨平台1、下相機4 隨平台2，平台1/2（XY＋DD＋Z）放料到上方固定平台3 料盤的完整校正手順。每一步有 three.js 3D 動作、四台相機畫面、公式、判定標準；另有放料偏移排查、誤差注入模擬、實測資料回歸分析與自我驗證。原始碼在 `tools/calib3d/`，改完執行 `python3 tools/calib3d/build.py` 重新產生，`node tests/calib3d.js` 跑驗證。
+
 ## 快速開始
 
 1. 右上「載入範例」→「FPC 四 mark：XYθ＋線馬＋粗/精相機」，在「圖形設定」點選或拖曳各元件。
