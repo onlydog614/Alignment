@@ -19,11 +19,11 @@ bot4_res_x,相機,下相機4 解析度 X,1280,px,
 bot4_res_y,相機,下相機4 解析度 Y,960,px,
 bot4_off_x,相機,下相機4 中心相對 DD 中心 X,0,mm,設計值（從機構圖）
 bot4_off_y,相機,下相機4 中心相對 DD 中心 Y,110,mm,設計值（從機構圖）
-p1_x_stroke,平台,平台1 X 可移動範圍,500,mm,軟體極限之間的總行程
-p1_y_stroke,平台,平台1 Y 可移動範圍,600,mm,
+p1_x_stroke,平台,平台1 X 可移動範圍,900,mm,軟體極限之間的總行程
+p1_y_stroke,平台,平台1 Y 可移動範圍,650,mm,
 p1_z_stroke,平台,平台1 Z 可移動範圍,50,mm,
-p2_x_stroke,平台,平台2 X 可移動範圍,500,mm,
-p2_y_stroke,平台,平台2 Y 可移動範圍,600,mm,
+p2_x_stroke,平台,平台2 X 可移動範圍,900,mm,
+p2_y_stroke,平台,平台2 Y 可移動範圍,650,mm,
 p2_z_stroke,平台,平台2 Z 可移動範圍,50,mm,
 chuck_to_plate,平台,吸盤面到平台3 下表面距離,40,mm,Z 在取像高度時量
 mark_dia,Mark,Mark 直徑,1,mm,料、治具、穴位、基準 Mark 共用
@@ -32,13 +32,21 @@ jig_mark_dy,校正片,治具兩 Mark 間距（沿治具短邊）,0,mm,Mark 在�
 jig_len,校正片,治具長（長邊）,80,mm,治具長邊沿 X 放
 jig_wid,校正片,治具寬（短邊）,22,mm,
 jig_thick,校正片,治具厚度,2,mm,建議與料厚相同
-part_mark_dx,產品,料四角 Mark 間距（沿料長邊）,60,mm,左右兩排角 Mark 的中心距；上相機逐顆拍
-part_mark_dy,產品,料四角 Mark 間距（沿料短邊）,30,mm,前後兩排角 Mark 的中心距
-part_len,產品,料長（長邊）,70,mm,
-part_wid,產品,料寬（短邊）,40,mm,正方形料填與料長相同
-part_orient,產品,料在料盤上的方向,0,°,0 = 長邊沿 X（左右）；90 = 長邊沿 Y（前後）
-pocket_mark_dx,產品,穴位兩邊 Mark 間距（沿料長邊）,80,mm,下相機拍的兩顆穴位 Mark；可在穴位外側
+part_mark_dx,產品,料四角 Mark 間距（沿料長邊）,110,mm,左右兩排角 Mark 的中心距；上相機逐顆拍
+part_mark_dy,產品,料四角 Mark 間距（沿料短邊）,90,mm,前後兩排角 Mark 的中心距
+part_len,產品,料長（長邊）,130,mm,
+part_wid,產品,料寬（短邊）,110,mm,正方形料填與料長相同
+part_orient,產品,料在料盤上的方向,90,°,0 = 長邊沿 X（左右）；90 = 長邊沿 Y（前後）
+pocket_mark_dx,產品,穴位兩邊 Mark 間距（沿料長邊）,120,mm,下相機拍的兩顆穴位 Mark；可在穴位外側
 pocket_mark_dy,產品,穴位兩邊 Mark 間距（沿料短邊）,0,mm,兩顆 Mark 在長邊中心線上填 0；斜對角填短邊分量
 part_thick,產品,料厚,2,mm,
-tray_pitch_x,產品,料盤穴位間距 X,120,mm,6 欄：平台1 放 1–3 欄，平台2 放 4–6 欄
-tray_pitch_y,產品,料盤穴位間距 Y,110,mm,2 列
+tray_cols,料盤,料盤欄數（全部）,12,欄,左平台放前一半（1–6 欄），右平台放後一半（7–12 欄）；需為偶數
+tray_rows,料盤,料盤列數,2,列,1-x 為前排（靠上相機），2-x 為後排
+tray_pitch_x,料盤,穴位欄距 X,135,mm,配置圖：Mark 到最遠穴位 742.5 mm ＝ 5.5 欄距
+tray_pitch_y,料盤,穴位列距 Y,143,mm,由配置圖比例量得的估計值，請填實際值
+fidA_x,料盤,SPB Mark A X（左上，左平台用）,-810,mm,相對料盤中心（6/7 欄交界、兩列中間）；圖面估計值
+fidA_y,料盤,SPB Mark A Y,168,mm,Y 往後為正
+fidB_x,料盤,SPB Mark B X（右上，右平台用）,810,mm,
+fidB_y,料盤,SPB Mark B Y,168,mm,
+fidC_x,料盤,SPB Mark C X（右下，右平台用）,810,mm,
+fidC_y,料盤,SPB Mark C Y,-143,mm,

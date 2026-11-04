@@ -106,9 +106,21 @@
     ok('推測規則：平台1 旋轉中心偏 0.8 mm 被抓到、平台2 沒被誤判', dR.some(d => d.t.startsWith('平台1 偏移隨 Δθ')) && !dR.some(d => d.t.startsWith('平台2 偏移隨 Δθ')), dR.map(d => d.t).join('；'));
     const dC4 = CAL.diagnose([0, 1].map(k => CAL.analyze(rowsK(CAL.runProduction(m, CAL.applyDrift(m, { cam: { 4: [0.02, -0.012] } }), estN, { px: 0.1, rep: 1, thRep: 2, slip: 1, seed: 14, reps: 3 }), k))));
     ok('推測規則：相機4 鬆動 → 只有平台2 固定偏移', dC4.some(d => d.t.startsWith('平台2 有固定偏移')), dC4.map(d => d.t).join('；'));
-    // 10. 料盤座標：兩平台量同一個中間基準 Mark，換到世界座標應一致
-    const P1 = est.tray[0].pts.find(p => p.key === 'C').P, P2 = est.tray[1].pts.find(p => p.key === 'C').P;
-    ok('料盤中間共用 Mark：兩平台各自量到（各自座標系）', isFinite(P1[0]) && isFinite(P2[0]), `平台1 (${P1[0].toFixed(3)}, ${P1[1].toFixed(3)})；平台2 (${P2[0].toFixed(3)}, ${P2[1].toFixed(3)})`);
+    // 10. 料盤配置：2×12 穴，左平台 1–6 欄、右平台 7–12 欄；Mark A／B／C
+    const h = m.tray.nC / 2, cntL = pr.filter(r => r.k === 0).length, cntR = pr.filter(r => r.k === 1).length;
+    ok('料盤配置：左平台負責 1–6 欄、右平台 7–12 欄，各 12 穴', m.tray.nC === 12 && m.tray.nR === 2 && cntL === cntR && pr.filter(r => r.k === 0).every(r => r.pocket.ci < h), `欄 ${m.tray.nC}、列 ${m.tray.nR}；每輪左 ${cntL / 2}、右 ${cntR / 2} 穴`);
+    const dA = Math.abs(m.tray.cols[h - 1] - m.fidT.A[0]), dC = Math.abs(m.fidT.C[0] - m.tray.cols[h]);
+    const dflt = ['tray_pitch_x', 'tray_cols', 'fidA_x', 'fidC_x'].every(k => m.P[k] === CAL.defaultParams()[k]);
+    ok(dflt ? '料盤配置：Mark A 到 1-6、Mark C 到 1-7 的 X 距離 = 742.5 mm（配置圖）' : '料盤配置：自己的 Mark 到最遠穴位的 X 距離（自訂參數，只列出）', !dflt || (Math.abs(dA - 742.5) < 1e-9 && Math.abs(dC - 742.5) < 1e-9), `A→6 欄 ${dA.toFixed(1)} mm；7 欄→C ${dC.toFixed(1)} mm`);
+    ok('料盤座標：左平台只量得到 Mark A（角度量不到），右平台由 B、C 量到料盤角度', est.tray[0].single && !est.tray[1].single && Math.abs(est.tray[1].ang - (m.tray.ang - m.plat[1].axisRot)) < 1e-6, `右平台量到 ${(est.tray[1].ang * R2D * 3600).toFixed(2)}″，真值 ${((m.tray.ang - m.plat[1].axisRot) * R2D * 3600).toFixed(2)}″`);
+    // 模式 B（只靠 SPB Mark＋設計間距）：左平台料盤角度誤差 δ 會被 742.5 mm 的力臂放大
+    const pBL = CAL.runProduction(m, m, est, { px: 0, reps: 1, modeB: true }).filter(r => r.k === 0);
+    const dY = ci => pBL.filter(r => r.pocket.ci === ci).reduce((a, r, _, A) => a + r.err[1] / A.length, 0);
+    const delta = m.tray.ang - m.plat[0].axisRot, expY = -Math.sin(delta) * (m.tray.cols[h - 1] - m.tray.cols[0]);
+    ok('模式 B、左平台只有 Mark A：料盤角度差 δ 讓 6 欄比 1 欄多偏 −δ × 675 mm', Math.abs((dY(h - 1) - dY(0)) - expY) < 0.1 * Math.abs(expY) + 1e-4, `模擬 ${um(dY(h - 1) - dY(0))}、公式 ${um(expY)}（δ = ${(delta * R2D * 3600).toFixed(1)}″）`);
+    // 交界落差：相機4 鬆動只影響 7–12 欄，交界 6/7 欄出現落差 ≈ −δ
+    const bs = CAL.boundaryStep(m, CAL.runProduction(m, mC, est, { px: 0, reps: 1 }));
+    ok('交界落差：相機4 移動 → 1-6／2-6 與 1-7／2-7 之間出現落差 ≈ 相機移動量', bs && V.len(V.add(bs.step, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4 && V.len(bs.left) < 2e-4, bs ? `落差 (${um(bs.step[0])}, ${um(bs.step[1])})，左側 ${um(V.len(bs.left))}` : '無');
     // 12. 長方形料：長邊沿 Y（轉 90°）、斜對角 Mark；治具 Mark 也斜放
     const base = CAL.loadParams();
     const PR = Object.assign({}, base, { part_len: 90, part_wid: 30, part_mark_dx: 80, part_mark_dy: 22, pocket_mark_dx: 80, pocket_mark_dy: 20, part_orient: 90, jig_mark_dx: 60, jig_mark_dy: 12, jig_wid: 22 });

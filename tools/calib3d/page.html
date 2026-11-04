@@ -116,6 +116,9 @@ td{white-space:normal}
 .l-p1{stroke:var(--p1);stroke-width:2}.l-p2{stroke:var(--p2);stroke-width:2}
 .f-tray{fill:color-mix(in srgb,var(--p3) 14%,var(--panel));stroke:var(--p3-line)}
 .f-pocket{fill:none;stroke:var(--p3-line);stroke-opacity:.6}
+.f-p2{fill:color-mix(in srgb,var(--p2) 16%,var(--panel));stroke:var(--p2);stroke-width:1.5}
+.f-bz{fill:color-mix(in srgb,var(--err) 10%,transparent);stroke:var(--err);stroke-dasharray:5 4}
+.f-fid{fill:var(--cam)}
 .vec{width:100%;min-width:560px;height:auto;display:block}
 /* 偏移排查 */
 .cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}
@@ -208,9 +211,10 @@ label.btn{display:inline-block}
         <tr><td>只有一個平台固定偏移，而且就在上相機換過或碰過之後</td><td>該平台的上相機（相機1 或相機2）移動後沒重校</td><td>在上相機下重拍九點的中心那一點，和校正時的像素比</td></tr>
         <tr><td>只有一個平台固定偏移</td><td>該平台下相機鬆動；步驟 5 的 D 沒重做；換了料厚或 Z 行程（Z 軸傾斜 × 行程）；破真空、吹氣、下壓讓料滑</td><td>重做步驟 5 比較 D；同一片料改行程（墊片）比較；把破真空延遲、吹氣壓力調低比較</td></tr>
         <tr><td>同一穴位，料轉越多偏越多</td><td>旋轉中心 R̂ 錯（DD 或吸盤換過、撞機）；Δθ 正負相反；θ 比例不對</td><td>同一片料故意轉 −1°、−0.5°、0、+0.5°、+1° 放同一穴位：斜率 dX/dθ = −e_y、dY/dθ = e_x（θ 用弧度）</td></tr>
-        <tr><td>偏移隨穴位位置線性變大</td><td>穴位是用基準 Mark＋設計間距推算（方式 B）：軸比例、溫度、料盤實際間距不等於設計；料盤角度量錯</td><td>改成每個穴位都拍（方式 A）比較；量兩個基準 Mark 的距離算 ppm</td></tr>
+        <tr><td>偏移隨穴位位置線性變大（左平台越靠 6 欄越大、右平台越靠 7 欄越大）</td><td>穴位是用 SPB Mark＋設計間距推算（方式 B）：軸比例、溫度、料盤實際間距不等於設計；料盤角度量錯。左平台只有 Mark A，角度量不到，力臂 742.5 mm 時 1″ 就是 3.6 µm</td><td>改成每個穴位都拍（方式 A）比較；量兩個基準 Mark 的距離算 ppm</td></tr>
         <tr><td>每片不同，約是「拍照時 Mark 離畫面中心距離」的 2 倍</td><td>下相機九點沒取負號（A = +G）；上相機或下相機的影像翻轉設定與校正時不同</td><td>讓平台故意偏 +0.3 mm 去拍穴位：算出的穴位位置應該不變。若跟著偏 0.6 mm，就是符號錯</td></tr>
         <tr><td>角度固定偏一點，或某個平台角度比較差</td><td>下相機左右兩次拍照之間 X 軸偏擺或直線度；上、下相機的角度零點不一致</td><td>步驟 5 的右 Mark 檢查點；用下相機拍料盤上一排 Mark 看直線度</td></tr>
+        <tr><td>只有交界兩側（1-6／2-6 與 1-7／2-7）對不齊，其他穴位都好</td><td>兩平台各自的固定偏移方向不同（各自的下相機、D_j、Z 傾斜），在交界碰頭時變成落差；或兩平台用的料盤座標不一致（方式 B）</td><td>分平台算平均偏移：落差 ≈ 右平台平均 − 左平台平均。先把兩邊各自的固定偏移修到 0，落差就會消失</td></tr>
         <tr><td>某些料四點擬合殘差特別大，或擬合比例和設計差很多</td><td>某顆角 Mark 辨識錯（毛邊、反光）；料變形；平台在四個角 Mark 之間走得不準（XY 比例、直交度）；四張照片用了同一個平台位置去算</td><td>看每片料的四角殘差 log；同一片料轉 90° 再量，殘差跟著料走是料的問題，留在同一個位置是平台的問題</td></tr>
         <tr><td>同設定，只換一片料就跳</td><td>料的 Mark 與實際圖案偏移、料翹曲、吸附不平</td><td>兩片料對調穴位；同一片料同穴位重放 10 次</td></tr>
         <tr><td>同一片料重放也每次不同</td><td>真空、整定時間不足、拍照時抓指令位置、相機或光源鬆動、辨識不穩</td><td>不動連拍 20 次（影像雜訊）；加長整定時間比較；改用光學尺實際位置</td></tr>

@@ -14,7 +14,11 @@
     cam.up.set(0, 0, 1);
     const controls = new THREE.OrbitControls(cam, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.12;
-    const HOME = { pos: [-520, -1020, 760], tgt: [0, 40, 90] };
+    // 料盤大小決定整台機器的尺寸與預設視角
+    const TX = Math.max(...m.tray.cols.map(Math.abs), ...Object.values(m.fidT).map(f => Math.abs(f[0]))) + Math.max(...m.part.ext) + 40;
+    const TY0 = Math.min(...m.tray.rows, ...Object.values(m.fidT).map(f => f[1])) - Math.max(...m.part.ext) - 30, TY1 = Math.max(...m.tray.rows, ...Object.values(m.fidT).map(f => f[1])) + Math.max(...m.part.ext) + 30;
+    const SC = Math.max(1, TX / 440);
+    const HOME = { pos: [-520 * SC, -1020 * SC, 760 * SC], tgt: [0, 40, 90] };
     function resetView(v) { const h = v || HOME; cam.position.set(...h.pos); controls.target.set(...h.tgt); controls.update(); }
     resetView();
 
@@ -51,7 +55,7 @@
       draw();
       const tex = new THREE.CanvasTexture(cv);
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-      const s = scale || 0.62; sp.scale.set(w * s, cv.height * s, 1); sp.renderOrder = 10;
+      const s = (scale || 0.62) * Math.sqrt(SC); sp.scale.set(w * s, cv.height * s, 1); sp.renderOrder = 10;
       sp.userData.redraw = () => { draw(); tex.needsUpdate = true; };
       labels.push(sp); return sp;
     }
@@ -64,13 +68,14 @@
     const mGlass = mat('glass', '--glass', { transparent: true, opacity: 0.45, depthWrite: false }), mPocket = lmat('--p3-line', 0.95);
     const mHot = mat('hot', '--hot', { emissive: css('--hot'), emissiveIntensity: 0.6 });
 
-    scene.add(box(1100, 800, 4, mTable, 0, 0, -4));
+    scene.add(box(2 * TX + 260, 800 + 80 * SC, 4, mTable, 0, 0, -4));
     // 平台3：固定板、四支柱
     const zP = m.zPlate;
     const p3 = new THREE.Group(); scene.add(p3);
-    p3.add(box(880, 240, 12, mP3, 0, 205, zP));
-    [[-455, 95], [455, 95], [-455, 315], [455, 315]].forEach(([x, y]) => p3.add(box(22, 22, zP + 12, mSteel, x, y, 0)));
-    p3.add(box(932, 22, 14, mSteel, 0, 95, zP + 12)); p3.add(box(932, 22, 14, mSteel, 0, 315, zP + 12));
+    const yA = m.tray.nomC[1] + TY0, yB = m.tray.nomC[1] + TY1, yM = (yA + yB) / 2;
+    p3.add(box(2 * TX, yB - yA, 12, mP3, 0, yM, zP));
+    [[-TX - 15, yA - 10], [TX + 15, yA - 10], [-TX - 15, yB + 10], [TX + 15, yB + 10]].forEach(([x, y]) => p3.add(box(22, 22, zP + 12, mSteel, x, y, 0)));
+    p3.add(box(2 * TX + 52, 22, 14, mSteel, 0, yA - 10, zP + 12)); p3.add(box(2 * TX + 52, 22, 14, mSteel, 0, yB + 10, zP + 12));
     // 料盤穴位（下表面）與基準 Mark
     const trayZ = zP - 0.6;
     m.tray.cols.forEach(cx => m.tray.rows.forEach(ry => {
@@ -81,7 +86,8 @@
       [-1, 1].forEach(s => p3.add(disc(2.4, mMark, c[0] + s * m.tray.markV[0], c[1] + s * m.tray.markV[1], trayZ)));
     }));
     Object.values(m.fidT).forEach(f => { const c = [f[0] + m.tray.nomC[0], f[1] + m.tray.nomC[1]]; const d = disc(4, mHot, c[0], c[1], trayZ); d.material = mMark; p3.add(d); const ring = new THREE.Mesh(new THREE.RingGeometry(6, 7.5, 32), mMark); ring.position.set(c[0], c[1], trayZ); p3.add(ring); });
-    const lb3 = label('平台3（固定，料盤在下表面）', '--p3-line'); lb3.position.set(0, 320, zP + 70); scene.add(lb3);
+    const lb3 = label('平台3（固定，料盤在下表面）', '--p3-line'); lb3.position.set(0, yB + 30, zP + 70); scene.add(lb3);
+    Object.keys(m.fidT).forEach(k => { const f = m.fidT[k], l = label('Mark ' + k, '--cam', 0.5); l.position.set(f[0] + m.tray.nomC[0], f[1] + m.tray.nomC[1], zP - 40); scene.add(l); });
 
     // 上相機1、上相機2（固定，往下看；各拍自己的平台）
     const camMeshes = {}, fovs = {};
@@ -98,9 +104,10 @@
     const plats = m.plat.map((p, k) => {
       const mt = k === 0 ? mP1 : mP2, colorVar = k === 0 ? '--p1' : '--p2';
       const root = new THREE.Group(); root.position.set(p.base[0], p.base[1], 0); scene.add(root);
-      root.add(box(30, 640, 12, mSteel, -55, 0, 0)); root.add(box(30, 640, 12, mSteel, 55, 0, 0));
+      const ys = p.stroke[1] + 40, xs = p.stroke[0];
+      root.add(box(30, ys, 12, mSteel, -55, ys / 2 - 330, 0)); root.add(box(30, ys, 12, mSteel, 55, ys / 2 - 330, 0));
       const yc = new THREE.Group(); root.add(yc);
-      const xr = k === 0 ? [-140, 280] : [-280, 140];
+      const xr = [-xs / 2, xs / 2];
       yc.add(box(xr[1] - xr[0] + 120, 100, 16, mt, (xr[0] + xr[1]) / 2, 0, 12));
       const xc = new THREE.Group(); yc.add(xc);
       xc.add(box(150, 200, 12, mSteel, 0, 38, 28));
@@ -177,7 +184,7 @@
       if (flashT > 0) { flashT = Math.max(0, flashT - dt * 2.5); mHot.emissiveIntensity = 0.4 + flashT * 1.4; }
       controls.update(); renderer.render(scene, cam);
     }
-    return { THREE, scene, cam, controls, renderer, setPose, setChuckItem, setPlateItems, setActive, resetView, resize, render, retheme, plats };
+    return { SC, THREE, scene, cam, controls, renderer, setPose, setChuckItem, setPlateItems, setActive, resetView, resize, render, retheme, plats };
   }
   G.createScene = createScene;
 })(window);

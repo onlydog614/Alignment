@@ -49,8 +49,8 @@
   $('#speed').addEventListener('change', e => { player.speed = +e.target.value; });
   $('#scrub').addEventListener('input', e => { player.t = +e.target.value / 1000 * timelines[cur].total(); player.playing = false; updatePlayBtn(); });
   $('#viewreset').addEventListener('click', () => S3 && S3.resetView());
-  $('#viewtop').addEventListener('click', () => S3 && S3.resetView({ pos: [0, 30, 1500], tgt: [0, 31, 0] }));
-  $('#viewbelow').addEventListener('click', () => S3 && S3.resetView({ pos: [-300, -420, -10], tgt: [0, 200, 130] }));
+  $('#viewtop').addEventListener('click', () => S3 && S3.resetView({ pos: [0, 60, 1500 * Math.max(1, S3.SC || 1)], tgt: [0, 61, 0] }));
+  $('#viewbelow').addEventListener('click', () => S3 && S3.resetView({ pos: [-300 * Math.max(1, S3.SC || 1), -420 * Math.max(1, S3.SC || 1), -10], tgt: [0, 200, 130] }));
 
   const ease = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
   const lerp = (a, b, f) => a + (b - a) * f;
@@ -174,19 +174,22 @@
     if (!$('#sim-px')) return;
     const o = getSim(), prod = simulate(o);
     const an = [0, 1].map(k => CAL.analyze(rowsOf(prod, k)));
-    renderResult('#simout', prod.map(r => ({ k: r.k, x: r.pt[0], y: r.pt[1], dx: r.err[0], dy: r.err[1] })), an, o.thr);
+    renderResult('#simout', prod.map(r => ({ k: r.k, x: r.pt[0], y: r.pt[1], dx: r.err[0], dy: r.err[1] })), an, o.thr, CAL.boundaryStep(M0, prod));
   }
-  function renderResult(sel, pts, an, thrUm) {
+  function renderResult(sel, pts, an, thrUm, bs) {
     const host = $(sel);
     const maxE = Math.max(1e-6, ...pts.map(p => Math.hypot(p.dx, p.dy)));
     const unitTargets = [0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2];
     const ref = unitTargets.find(u => u >= maxE * 0.6) || 2, mag = 45 / ref;
-    const W = 760, H = 300, sx = x => 380 + x * 0.95, sy = y => 150 - y * 0.95;
+    const T = M0.tray, pe = M0.part.ext, h2 = T.nC / 2;
+    const XX = Math.max(...T.cols.map(Math.abs), ...pts.map(p => Math.abs(p.x))) + pe[0] + 20, YY = Math.max(...T.rows.map(Math.abs), ...pts.map(p => Math.abs(p.y))) + pe[1] + 20;
+    const sc = Math.min(720 / (2 * XX), 240 / (2 * YY)), W = 760, H = 2 * YY * sc + 60, sx = x => 380 + x * sc, sy = y => 25 + YY * sc - y * sc;
     let svg = `<svg viewBox="0 0 ${W} ${H}" class="vec" role="img" aria-label="各穴位偏移向量"><defs><marker id="va" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0L10,5L0,10z" class="f-ink"/></marker></defs>`;
-    svg += `<rect x="${sx(-420)}" y="${sy(105)}" width="${840 * 0.95}" height="${210 * 0.95}" rx="6" class="f-tray"/>`;
-    svg += `<line x1="${sx(0)}" y1="${sy(100)}" x2="${sx(0)}" y2="${sy(-100)}" class="l-dash"/>`;
-    M0.tray.cols.forEach(cx => M0.tray.rows.forEach(ry => { svg += `<rect x="${sx(cx - 35)}" y="${sy(ry + 20)}" width="${70 * 0.95}" height="${40 * 0.95}" class="f-pocket"/>`; }));
-    svg += `<text x="${sx(-210)}" y="${sy(92)}" class="t-c t-s">平台1</text><text x="${sx(210)}" y="${sy(92)}" class="t-c t-s">平台2</text>`;
+    svg += `<rect x="${sx(-XX)}" y="${sy(YY)}" width="${2 * XX * sc}" height="${2 * YY * sc}" rx="6" class="f-tray"/>`;
+    const xb = (T.cols[h2 - 1] + T.cols[h2]) / 2;
+    svg += `<line x1="${sx(xb)}" y1="${sy(YY)}" x2="${sx(xb)}" y2="${sy(-YY)}" class="l-dash"/>`;
+    T.cols.forEach((cx, ci) => T.rows.forEach((ry, ri) => { svg += `<rect x="${sx(cx - pe[0])}" y="${sy(ry + pe[1])}" width="${2 * pe[0] * sc}" height="${2 * pe[1] * sc}" class="f-pocket"/><text x="${sx(cx)}" y="${sy(ry - pe[1]) + 11}" class="t-c t-s t-m">${ri + 1}-${ci + 1}</text>`; }));
+    svg += `<text x="${sx((T.cols[0] + T.cols[h2 - 1]) / 2)}" y="${sy(YY) + 13}" class="t-c t-s">左平台（平台1）</text><text x="${sx((T.cols[h2] + T.cols[T.nC - 1]) / 2)}" y="${sy(YY) + 13}" class="t-c t-s">右平台（平台2）</text>`;
     pts.forEach(p => { const x0 = sx(p.x), y0 = sy(p.y), x1 = x0 + p.dx * mag, y1 = y0 - p.dy * mag; svg += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" class="${p.k === 0 ? 'l-p1' : 'l-p2'}" marker-end="url(#va)"/>`; });
     svg += `<line x1="20" y1="${H - 14}" x2="${20 + ref * mag}" y2="${H - 14}" class="l-ink"/><text x="${28 + ref * mag}" y="${H - 10}" class="t-s">${ref >= 1 ? ref + ' mm' : (ref * 1000) + ' µm'}</text></svg>`;
     const fmt = v => v == null ? '–' : v;
@@ -194,6 +197,7 @@
     const dg = CAL.diagnose(an, { minEffect: (thrUm > 0 ? thrUm : 10) / 1000 });
     host.innerHTML = `<div class="tbl">${svg}</div>
       ${U.table(['', '片數', '固定偏移 µm', 'X 比例 ppm', 'Y 比例 ppm', '旋轉', '旋轉中心誤差 e (mm)', '去趨勢後 1σ µm', '最大 µm', '最大角度誤差'], rows)}
+      ${bs ? `<p class="note">交界落差（右平台 ${bs.colR} 欄平均 − 左平台 ${bs.colL} 欄平均）：(${U.um(bs.step[0])}, ${U.um(bs.step[1])}) µm，合計 ${U.um(Math.hypot(...bs.step))} µm${Math.hypot(...bs.step) > 0.010 ? '，超過 10 µm：交界兩側的料會明顯對不齊' : ''}。</p>` : ''}
       <ul class="diag">${dg.map(d => `<li class="lv-${d.lvl}"><b>${d.t}</b><span>${d.s}</span></li>`).join('')}</ul>`;
   }
 
@@ -218,7 +222,17 @@
     const { rows, bad } = parseData(ta.value);
     $('#datamsg').textContent = `讀到 ${rows.length} 筆` + (bad.length ? `；第 ${bad.slice(0, 8).join('、')}${bad.length > 8 ? '…' : ''} 行格式不對，已略過（要 6 或 7 欄：平台 1 或 2、X、Y、Δθ、dX、dY、角度誤差）` : '');
     const an = [0, 1].map(k => CAL.analyze(rows.filter(r => r.k === k)));
-    renderResult('#dataout', rows, an, +$('#thr').value);
+    renderResult('#dataout', rows, an, +$('#thr').value, boundaryFromRows(rows));
+  }
+  // 實測資料的交界落差：左平台最靠交界那一欄（X 最大）與右平台最靠交界那一欄（X 最小）的平均偏移差
+  function boundaryFromRows(rows) {
+    const L = rows.filter(r => r.k === 0), R = rows.filter(r => r.k === 1);
+    if (!L.length || !R.length) return null;
+    const xl = Math.max(...L.map(r => r.x)), xr = Math.min(...R.map(r => r.x));
+    const Lc = L.filter(r => Math.abs(r.x - xl) < 1), Rc = R.filter(r => Math.abs(r.x - xr) < 1);
+    const avg = A => [A.reduce((a, r) => a + r.dx, 0) / A.length, A.reduce((a, r) => a + r.dy, 0) / A.length];
+    const l = avg(Lc), r = avg(Rc), ci = x => M0.tray.cols.findIndex(c => Math.abs(c - x) < 1) + 1;
+    return { left: l, right: r, step: [r[0] - l[0], r[1] - l[1]], colL: ci(xl) || `X=${xl}`, colR: ci(xr) || `X=${xr}` };
   }
   $('#datain').addEventListener('input', () => runAnalysis());
   $('#thr').addEventListener('input', () => runAnalysis());
@@ -341,7 +355,7 @@
     // 放料步驟：放下後料中心與穴位中心（設計）差 < 1 mm（動畫用的 S_p 來自真實計算）
     const tlc = timelines[STEPS.findIndex(s => s.id === 'cycle')];
     const last = tlc.segs[tlc.segs.length - 1].to.plate;
-    const tgt = [CAL.trayW(M0, CAL.pocketT(M0, 0, 0)), CAL.trayW(M0, CAL.pocketT(M0, 5, 1))];
+    const tgt = [CAL.trayW(M0, CAL.pocketT(M0, M0.tray.nC / 2 - 1, 0)), CAL.trayW(M0, CAL.pocketT(M0, M0.tray.nC / 2, M0.tray.nR - 1))];
     const d = last.map((it, i) => V.len(V.sub(it.W, tgt[i])));
     T.push({ name: '動畫「放料一個循環」：料放下的位置對準穴位', pass: last.length === 2 && d.every(x => x < 0.02), detail: d.map(x => (x * 1000).toFixed(1) + ' µm').join('、') });
     return T;
