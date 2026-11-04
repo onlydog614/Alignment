@@ -90,7 +90,7 @@
   // ---------- 相機畫面 ----------
   function drawCam(cv, id, img, hot) {
     const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
-    const cam = id === 1 ? M0.cam1 : M0.bcam[id], sc = W / cam.w;
+    const cam = id <= 2 ? M0.top[id - 1] : M0.bcam[id], sc = W / cam.w;
     ctx.fillStyle = css('--img-bg'); ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = css('--img-grid'); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
@@ -115,8 +115,8 @@
   // ---------- 偏移模擬 ----------
   const SIM_FIELDS = [
     { g: '校正後機台變了（沒重校）', items: [
-      ['cam1x', '相機1 移動 X', 'µm', 0], ['cam1y', '相機1 移動 Y', 'µm', 0],
-      ['camSel', '下相機鬆動：哪一台', 'sel', '4', [['2', '相機2'], ['3', '相機3'], ['4', '相機4']]], ['camx', '　移動 X', 'µm', 0], ['camy', '　移動 Y', 'µm', 0],
+      ['topSel', '上相機鬆動：哪一台', 'sel', '0', [['0', '相機1（平台1）'], ['1', '相機2（平台2）']]], ['topx', '　移動 X', 'µm', 0], ['topy', '　移動 Y', 'µm', 0],
+      ['camSel', '下相機鬆動：哪一台', 'sel', '4', [['3', '相機3（平台1）'], ['4', '相機4（平台2）']]], ['camx', '　移動 X', 'µm', 0], ['camy', '　移動 Y', 'µm', 0],
       ['rcSel', '旋轉中心改變：哪個平台', 'sel', '0', [['0', '平台1'], ['1', '平台2']]], ['rcx', '　改變 X', 'µm', 0], ['rcy', '　改變 Y', 'µm', 0],
       ['dh', 'Z 行程改變（換料厚）', 'mm', 0], ['tilt', '　平台1 Z 軸傾斜', 'mrad', 0],
       ['trx', '放料轉移量改變（平台1）X', 'µm', 0], ['try', '放料轉移量改變（平台1）Y', 'µm', 0],
@@ -129,7 +129,7 @@
   const PRESETS = [
     ['理想（只有雜訊）', {}],
     ['相機4 鬆動 20 µm', { camSel: '4', camx: 20, camy: -12 }],
-    ['相機1 被碰動', { cam1x: 25, cam1y: 15 }],
+    ['上相機1 被碰動', { topSel: '0', topx: 25, topy: 15 }],
     ['平台1 旋轉中心錯 0.8 mm', { rcSel: '0', rcx: 800, rcy: -400, phi: 2 }],
     ['下相機符號錯', { noFlip: true }],
     ['Δθ 正負相反', { thetaSign: true, phi: 0.5 }],
@@ -159,8 +159,9 @@
   }
   function simulate(o, seed) {
     const mCal = CAL.clone(M0); mCal.plat[0].tilt = [o.tilt, 0];
-    const drift = { cam1: [o.cam1x / 1000, o.cam1y / 1000], cam: { [o.camSel]: [o.camx / 1000, o.camy / 1000] }, rc: [null, null], transfer: [[o.trx / 1000, o.try / 1000], null], trayScale: o.trayppm, scale: [[o.axisppm, 0], [o.axisppm, 0]] };
+    const drift = { top: [null, null], cam: { [o.camSel]: [o.camx / 1000, o.camy / 1000] }, rc: [null, null], transfer: [[o.trx / 1000, o.try / 1000], null], trayScale: o.trayppm, scale: [[o.axisppm, 0], [o.axisppm, 0]] };
     drift.rc[+o.rcSel] = [o.rcx / 1000, o.rcy / 1000];
+    drift.top[+o.topSel] = [o.topx / 1000, o.topy / 1000];
     const mNow = CAL.applyDrift(mCal, drift);
     const noise = { px: o.px, rep: o.rep, thRep: 2, slip: 0, seed: seed || 11, noFlip: o.noFlip };
     const est = CAL.calibrateAll(mCal, noise);
@@ -228,7 +229,7 @@
     const T = [];
     timelines.forEach((tl, i) => {
       let n = 0, miss = 0;
-      tl.segs.forEach(sg => { if (!sg.shot) return; sg.shot.cams.forEach(id => { n++; const img = sg.shot.img[id]; const cam = id === 1 ? M0.cam1 : M0.bcam[id]; if (!img.marks.some(mk => CAL.inImage(cam, mk.u))) miss++; }); });
+      tl.segs.forEach(sg => { if (!sg.shot) return; sg.shot.cams.forEach(id => { n++; const img = sg.shot.img[id]; const cam = id <= 2 ? M0.top[id - 1] : M0.bcam[id]; if (!img.marks.some(mk => CAL.inImage(cam, mk.u))) miss++; }); });
       if (n) T.push({ name: `動畫「${STEPS[i].title}」：每次拍照目標都在相機視野內`, pass: miss === 0, detail: `${n} 次拍照，${miss} 次看不到目標` });
       let maxH = 0; tl.segs.forEach(sg => sg.to.p.forEach(p => { maxH = Math.max(maxH, p.h); }));
       if (maxH > M0.hPlace + 1e-9) T.push({ name: `動畫「${STEPS[i].title}」：Z 不超過放料行程`, pass: false, detail: maxH });

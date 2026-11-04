@@ -89,14 +89,18 @@
   // ===================== 真實機台 =====================
   function defaultMachine() {
     return {
-      cam1: { name: '相機1', C: [0, -250], mmpp: 0.065, ang: 0.35 * D2R, up: false, w: 1280, h: 960 },
+      // 上相機（固定、往下看）：相機1 拍平台1，相機2 拍平台2
+      top: [
+        { name: '相機1', plat: 0, C: [-250, -250], mmpp: 0.065, ang: 0.35 * D2R, up: false, w: 1280, h: 960 },
+        { name: '相機2', plat: 1, C: [250, -250], mmpp: 0.065, ang: -0.28 * D2R, up: false, w: 1280, h: 960 }
+      ],
+      // 下相機（裝在 XY 載台上、往上看）：相機3 隨平台1，相機4 隨平台2
       bcam: {
-        2: { name: '相機2', plat: 0, d: [-30.35, 110.20], dNom: [-30, 110], mmpp: 0.010, ang: 0.25 * D2R, up: true, w: 1280, h: 960 },
-        3: { name: '相機3', plat: 0, d: [29.80, 109.70], dNom: [30, 110], mmpp: 0.010, ang: -0.40 * D2R, up: true, w: 1280, h: 960 },
+        3: { name: '相機3', plat: 0, d: [-0.35, 110.20], dNom: [0, 110], mmpp: 0.010, ang: 0.25 * D2R, up: true, w: 1280, h: 960 },
         4: { name: '相機4', plat: 1, d: [0.45, 110.35], dNom: [0, 110], mmpp: 0.010, ang: 0.60 * D2R, up: true, w: 1280, h: 960 }
       },
       plat: [
-        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [2, 3] },
+        { name: '平台1', base: [-250, 0], rcOff: [0.42, -0.31], axisRot: 0.05 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [3] },
         { name: '平台2', base: [250, 0], rcOff: [-0.27, 0.38], axisRot: -0.08 * D2R, scale: [0, 0], ortho: 0, yaw: 0, thScale: 0, tilt: [0, 0], transfer: [0, 0], cams: [4] }
       ],
       // 平台3 料盤：中心、角度、間距誤差（ppm）。穴位設計座標（料盤座標系）
@@ -131,12 +135,12 @@
   }
   function camLocalA(cam) { const D = cam.up ? [-1, 0, 0, -1] : [1, 0, 0, -1]; return M.mul(M.rot(cam.ang), D).map(x => x * cam.mmpp); }
   function bcamPose(m, j, S) { const b = m.bcam[j], c = carriage(m, b.plat, S); return { o: V.add(c.K, V.rot(b.d, c.ang)), ang: c.ang }; }
-  function pixCam1(m, W) { return M.ap(M.inv(camLocalA(m.cam1)), V.sub(W, m.cam1.C)); }
+  function pixTop(m, k, W) { const c = m.top[k]; return M.ap(M.inv(camLocalA(c)), V.sub(W, c.C)); }
   function pixB(m, j, S, W) { const cp = bcamPose(m, j, S); return M.ap(M.inv(M.mul(M.rot(cp.ang), camLocalA(m.bcam[j]))), V.sub(W, cp.o)); }
   function inImage(cam, u, margin) { const mg = margin || 0; return Math.abs(u[0]) <= cam.w / 2 - mg && Math.abs(u[1]) <= cam.h / 2 - mg; }
 
   // 控制器拿來移動的「設計值」位置（不知道真實誤差）
-  const nomSc = (m, k) => V.sub(m.cam1.C, m.plat[k].base);                         // 吸盤中心到相機1 下方
+  const nomSc = (m, k) => V.sub(m.top[k].C, m.plat[k].base);                       // 吸盤中心到上相機 k 下方
   const nomSv = (m, j, W) => V.sub(V.sub(W, m.plat[m.bcam[j].plat].base), m.bcam[j].dNom); // 相機 j 到世界點 W 下方
   const nomSp = (m, k, W) => V.sub(W, m.plat[k].base);                             // 吸盤中心到世界點 W
 
@@ -151,22 +155,22 @@
   const JIG = { qc: [0.8, -0.6], ang: 0.15 * D2R };
   function jigMarks(m, qc, ang) { return [-1, 1].map(s => V.add(qc, V.rot([s * m.tray.markHalf, 0], ang))); }
 
-  // 步驟1：相機1 九點（平台 k 帶玻璃 Mark 走 3×3）
-  function calibCam1(m, k, N, g) {
+  // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
+  function calibTop(m, k, N, g) {
     const Sc = nomSc(m, k), q0 = [3, -2], step = g || 20, us = [], Ss = [];
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
       const S = V.add(Sc, [i * step, j * step]);
-      us.push(npx(N, pixCam1(m, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
+      us.push(npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
     }
     const f = fitAffine(us, Ss);
     return Object.assign(f, { Sc, info: describeG(f.G), us, Ss, step, q0 });
   }
-  // 步驟2：DD 旋轉中心（相機1 看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
+  // 步驟2：DD 旋轉中心（上相機看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
   function calibRC(m, k, est, N) {
     const Sc = est.Sc, q = [20, 1.5], ths = [], Ps = [], us = [];
     for (let a = 0; a < 360; a += 45) {
       const t = a * D2R + N.g() * N.th;
-      const u = npx(N, pixCam1(m, chuckPt(m, k, nS(N, Sc), t, 0, q)));
+      const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), t, 0, q)));
       us.push(u); ths.push(a * D2R); Ps.push(V.add(M.ap(est.G, u), est.c));
     }
     const f = fitRotCenter(ths, Ps);
@@ -188,8 +192,8 @@
   function calibLink(m, k, est, N, hCal) {
     const p = m.plat[k], h = hCal == null ? m.hPlace : hCal;
     const qm = jigMarks(m, JIG.qc, JIG.ang);
-    const Sc = est.cam1[k].Sc, R = est.R[k];
-    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.cam1[k].G, npx(N, pixCam1(m, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.cam1[k].c), Sc), R));
+    const Sc = est.top[k].Sc, R = est.R[k];
+    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
     const Wp = trayW(m, [k === 0 ? -180 : 180, -55]);
     const Sp = nomSp(m, k, trayNom(m, [k === 0 ? -180 : 180, -55]));
     const Spa = nS(N, Sp);
@@ -208,7 +212,7 @@
       const meas = V.add(V.add(Sv, D[j]), M.ap(est.A[j], u)), pred = V.add(V.add(Sp, R), qh[1]);
       check = { diff: V.sub(meas, pred), Sv, u };
       shots.push({ j, mi: 1, Sv, u });
-    } else { // 相機2/3 基線檢查：量到的兩 Mark 間距 vs 相機1 量到的
+    } else { // （兩台下相機時）基線檢查
       const [j2, j3] = p.cams;
       const s2 = shots[0], s3 = shots[1];
       const P2 = V.add(V.add(s2.Sv, D[j2]), M.ap(est.A[j2], s2.u)), P3 = V.add(V.add(s3.Sv, D[j3]), M.ap(est.A[j3], s3.u));
@@ -234,9 +238,9 @@
     o = o || {};
     // 校正時每個位置拍 3 次取平均 → 像素雜訊 ÷ √3；上下連結做 3 次取平均（手順中的建議做法）
     const N = noiseCtx(Object.assign({}, o, { px: (o.px || 0) / Math.sqrt(3) }));
-    const est = { cam1: [], R: [], rc: [], A: {}, b: {}, D: {}, link: [], tray: [], noFlip: !!o.noFlip };
-    [0, 1].forEach(k => { est.cam1[k] = calibCam1(mCal, k, N); const rc = calibRC(mCal, k, est.cam1[k], N); est.rc[k] = rc; est.R[k] = rc.R; });
-    [2, 3, 4].forEach(j => { const b = calibBottom(mCal, j, N, 3, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
+    const est = { top: [], R: [], rc: [], A: {}, b: {}, D: {}, link: [], tray: [], noFlip: !!o.noFlip };
+    [0, 1].forEach(k => { est.top[k] = calibTop(mCal, k, N); const rc = calibRC(mCal, k, est.top[k], N); est.rc[k] = rc; est.R[k] = rc.R; });
+    [3, 4].forEach(j => { const b = calibBottom(mCal, j, N, 3, o.noFlip); est.b[j] = b; est.A[j] = b.A; });
     [0, 1].forEach(k => {
       const reps = o.linkReps || 3, ls = [...Array(reps)].map(() => calibLink(mCal, k, est, N));
       est.link[k] = ls[0]; est.linkAll = est.linkAll || []; est.linkAll[k] = ls;
@@ -252,9 +256,9 @@
     o = o || {};
     const p = m.plat[k], h = m.hPlace + (o.dh || 0);
     const qm = jigMarks(m, wp.qc, wp.phi);
-    const Sc = est.cam1[k].Sc, R = est.R[k];
-    // a. 相機1 量料
-    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.cam1[k].G, npx(N, pixCam1(m, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.cam1[k].c), Sc), R));
+    const Sc = est.top[k].Sc, R = est.R[k];
+    // a. 上相機量料
+    const qh = qm.map(q => V.sub(V.sub(V.add(M.ap(est.top[k].G, npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), 0, 0, q)))), est.top[k].c), Sc), R));
     const wHat = V.mid(qh[0], qh[1]), phiHat = V.ang(V.sub(qh[1], qh[0]));
     // b. 下相機量穴位（或用基準 Mark 推算）
     const pt = pocketT(m, pocket.ci, pocket.ri);
@@ -294,8 +298,8 @@
   // 套用「校正後機台變化」與「隨機誤差」，跑多片
   function applyDrift(m0, d) {
     const m = clone(m0); d = d || {};
-    if (d.cam1) m.cam1.C = V.add(m.cam1.C, d.cam1);
-    [2, 3, 4].forEach(j => { if (d.cam && d.cam[j]) m.bcam[j].d = V.add(m.bcam[j].d, d.cam[j]); });
+    [0, 1].forEach(k => { if (d.top && d.top[k]) m.top[k].C = V.add(m.top[k].C, d.top[k]); });
+    [3, 4].forEach(j => { if (d.cam && d.cam[j]) m.bcam[j].d = V.add(m.bcam[j].d, d.cam[j]); });
     [0, 1].forEach(k => {
       const p = m.plat[k];
       if (d.rc && d.rc[k]) p.rcOff = V.add(p.rcOff, d.rc[k]);
@@ -381,9 +385,9 @@
     if (offs[0] && offs[1]) {
       const same = V.len(V.sub(offs[0], offs[1])) < 0.35 * Math.max(V.len(offs[0]), V.len(offs[1]));
       out.push(same
-        ? { lvl: 'hi', t: `兩個平台有相同方向的固定偏移（平台1 ${um(offs[0][0])}, ${um(offs[0][1])}；平台2 ${um(offs[1][0])}, ${um(offs[1][1])}）`, s: '兩平台共用的只有相機1、料盤與料本身。先查相機1 是否被碰動（重拍九點中心那一點比對像素）、料的 Mark 與外形是否一致。' }
+        ? { lvl: 'hi', t: `兩個平台有相同方向的固定偏移（平台1 ${um(offs[0][0])}, ${um(offs[0][1])}；平台2 ${um(offs[1][0])}, ${um(offs[1][1])}）`, s: '兩個平台的相機都是各自獨立的，共用的只有料盤、料本身與校正治具。先查料的 Mark 與外形是否一致、料盤本身位置、雙 Mark 玻璃治具（兩平台都用它做步驟 5）的 Mark 是否偏心，以及量偏移時的基準。' }
         : { lvl: 'hi', t: `兩個平台各有不同的固定偏移（平台1 ${um(offs[0][0])}, ${um(offs[0][1])}；平台2 ${um(offs[1][0])}, ${um(offs[1][1])}）`, s: '各平台自己的上下相機連結 D 或放料轉移量不對。重做步驟 5（玻璃治具轉移法），並確認 Z 行程、料厚與校正時相同。' });
-    } else offs.forEach((of, k) => { if (of) out.push({ lvl: 'hi', t: `平台${k + 1} 有固定偏移（${um(of[0])}, ${um(of[1])}），平台${2 - k} 沒有`, s: `查平台${k + 1}：下相機${k === 0 ? '2/3' : '4'} 是否鬆動、步驟 5 的 D、Z 軸傾斜 × 行程（換過料厚？）、破真空與吹氣造成的滑移。` }); });
+    } else offs.forEach((of, k) => { if (of) out.push({ lvl: 'hi', t: `平台${k + 1} 有固定偏移（${um(of[0])}, ${um(of[1])}），平台${2 - k} 沒有`, s: `查平台${k + 1}：上相機${k + 1} 或下相機${k + 3} 是否鬆動、步驟 5 的 D、Z 軸傾斜 × 行程（換過料厚？）、破真空與吹氣造成的滑移。` }); });
     byPlat.forEach((a, k) => {
       if (!a) return;
       const P = `平台${k + 1}`;
@@ -399,7 +403,7 @@
         const g = a.ang;
         if (g.c1 != null && Math.abs(g.c1 - 2) < 0.3 && Math.abs(g.c1) > 3 * g.c1SE) out.push({ lvl: 'hi', t: `${P} 放料角度誤差約等於 2 × Δθ（DD 實際轉的角度）`, s: 'DD 轉的方向和程式算的相反：檢查 Δθ = ψ̂ − φ̂ 的正負號，以及 DD 的正方向設定。' });
         else if (g.c1 != null && Math.abs(g.c1) > 3 * g.c1SE && Math.abs(g.c1) * a.maxDth > o.minAng) out.push({ lvl: 'mid', t: `${P} 角度誤差與 Δθ 成比例（斜率 ${g.c1.toFixed(4)}）`, s: 'θ 比例不對（DD 每圈脈波數、減速比）或相機1／下相機的角度定義不同。' });
-        if (Math.abs(g.c0) > 3 * g.c0SE && Math.abs(g.c0) > o.minAng) out.push({ lvl: 'mid', t: `${P} 有固定角度偏差 ${sec(g.c0)}`, s: '相機1 和下相機的角度零點不一致：步驟 5 用雙 Mark 治具同時比對角度，或檢查相機2/3 基線、相機4 兩點拍照時的偏擺。' });
+        if (Math.abs(g.c0) > 3 * g.c0SE && Math.abs(g.c0) > o.minAng) out.push({ lvl: 'mid', t: `${P} 有固定角度偏差 ${sec(g.c0)}`, s: '上相機與下相機的角度零點不一致：步驟 5 用雙 Mark 治具比對角度；檢查下相機兩次拍照（左、右 Mark）之間 X 軸的偏擺。' });
       }
       if (a.sigma > 0.03) out.push({ lvl: 'hi', t: `${P} 去掉趨勢後還有 ${um(a.sigma)}（1σ）的亂跳`, s: '這麼大的亂跳通常不是機構重複性：先查下相機 A 的正負號（平台故意偏 0.3 mm 去拍穴位，算出的穴位位置應不變），再查影像翻轉設定。' });
       else if (a.sigma > o.minEffect / 2) out.push({ lvl: 'lo', t: `${P} 去掉趨勢後還有 ${um(a.sigma)}（1σ）的隨機偏移`, s: '做「同料同穴重放 10 次」與「不動連拍 20 次」，分開機構重複性、真空滑移、整定時間與影像雜訊。' });
@@ -408,5 +412,5 @@
     return out;
   }
 
-  G.CAL = { D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixCam1, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibCam1, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, pocketT, pocketPlat, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);

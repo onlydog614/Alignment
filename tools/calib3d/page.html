@@ -148,7 +148,7 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
   <header class="top">
     <div>
       <h1>雙平台放料校正手順</h1>
-      <p>上相機1 固定往下看；下相機2、3 隨平台1、下相機4 隨平台2 移動往上看；平台1、平台2（XY＋DD＋Z）把料放進上方固定平台3 的料盤。每一步都有 3D 動作、相機畫面、公式、判定標準與模擬驗證。</p>
+      <p>上相機1、上相機2 固定往下看（各拍平台1、平台2）；下相機3 隨平台1、下相機4 隨平台2 移動往上看；平台1、平台2（XY＋DD＋Z）把料放進上方固定平台3 的料盤。每一步都有 3D 動作、相機畫面、公式、判定標準與模擬驗證。</p>
     </div>
     <div class="legend" aria-label="顏色說明"><span><i style="background:var(--p1)"></i>平台1</span><span><i style="background:var(--p2)"></i>平台2</span><span><i style="background:var(--p3)"></i>平台3／料盤</span><span><i style="background:var(--cam)"></i>相機</span><span><i style="background:var(--hot)"></i>正在拍照</span></div>
   </header>
@@ -172,10 +172,10 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
         </div>
         <div class="readout" id="readout"></div>
         <div class="cams">
-          <div class="camv"><div class="h"><b>相機1</b><span>固定・往下</span></div><canvas id="cv1" width="256" height="192"></canvas><div class="uv"></div></div>
-          <div class="camv"><div class="h"><b>相機2</b><span>平台1・往上</span></div><canvas id="cv2" width="256" height="192"></canvas><div class="uv"></div></div>
-          <div class="camv"><div class="h"><b>相機3</b><span>平台1・往上</span></div><canvas id="cv3" width="256" height="192"></canvas><div class="uv"></div></div>
-          <div class="camv"><div class="h"><b>相機4</b><span>平台2・往上</span></div><canvas id="cv4" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機1</b><span>上・拍平台1</span></div><canvas id="cv1" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機2</b><span>上・拍平台2</span></div><canvas id="cv2" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機3</b><span>下・隨平台1</span></div><canvas id="cv3" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機4</b><span>下・隨平台2</span></div><canvas id="cv4" width="256" height="192"></canvas><div class="uv"></div></div>
         </div>
         <p class="note">拖曳旋轉、滾輪縮放、右鍵平移。相機畫面是用同一套公式算出的像素位置（距中心最近的 Mark 座標顯示在下方），可以用來確認影像移動方向。</p>
       </div>
@@ -195,12 +195,13 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
       <h3>放料偏移：看偏移的樣子找原因</h3>
       <p class="lead">先把偏移畫在料盤圖上，看它是「每片都一樣」、「跟著料的角度變」、「跟著穴位位置變」還是「每片亂跳」。不同的樣子對應不同的校正參數。</p>
       <div class="tbl"><table class="sig"><thead><tr><th>偏移的樣子</th><th>最可能的原因</th><th>怎麼確認</th></tr></thead><tbody>
-        <tr><td>兩個平台、所有穴位都往同一方向偏一樣多</td><td>相機1 被碰動或重裝後沒重校；料本身的 Mark 與外形不一致；量偏移的基準和機台不同</td><td>相機1 下重拍九點的中心那一點，和校正時的像素比；換一批料比較</td></tr>
+        <tr><td>兩個平台、所有穴位都往同一方向偏一樣多</td><td>兩平台的相機各自獨立，共用的只有料、料盤與校正治具：料的 Mark 與外形不一致；雙 Mark 治具偏心（兩平台的步驟 5 都用它）；量偏移的基準和機台不同</td><td>換一批料比較；治具轉 180° 重做步驟 5，看 D 是否跟著變</td></tr>
+        <tr><td>只有一個平台固定偏移，而且就在上相機換過或碰過之後</td><td>該平台的上相機（相機1 或相機2）移動後沒重校</td><td>在上相機下重拍九點的中心那一點，和校正時的像素比</td></tr>
         <tr><td>只有一個平台固定偏移</td><td>該平台下相機鬆動；步驟 5 的 D 沒重做；換了料厚或 Z 行程（Z 軸傾斜 × 行程）；破真空、吹氣、下壓讓料滑</td><td>重做步驟 5 比較 D；同一片料改行程（墊片）比較；把破真空延遲、吹氣壓力調低比較</td></tr>
         <tr><td>同一穴位，料轉越多偏越多</td><td>旋轉中心 R̂ 錯（DD 或吸盤換過、撞機）；Δθ 正負相反；θ 比例不對</td><td>同一片料故意轉 −1°、−0.5°、0、+0.5°、+1° 放同一穴位：斜率 dX/dθ = −e_y、dY/dθ = e_x（θ 用弧度）</td></tr>
         <tr><td>偏移隨穴位位置線性變大</td><td>穴位是用基準 Mark＋設計間距推算（方式 B）：軸比例、溫度、料盤實際間距不等於設計；料盤角度量錯</td><td>改成每個穴位都拍（方式 A）比較；量兩個基準 Mark 的距離算 ppm</td></tr>
-        <tr><td>每片不同，約是「拍照時 Mark 離畫面中心距離」的 2 倍</td><td>下相機九點沒取負號（A = +G）；相機1 或下相機的影像翻轉設定與校正時不同</td><td>讓平台故意偏 +0.3 mm 去拍穴位：算出的穴位位置應該不變。若跟著偏 0.6 mm，就是符號錯</td></tr>
-        <tr><td>平台2 的角度比平台1 差</td><td>相機4 兩次拍照之間 X 軸偏擺或直線度</td><td>步驟 5 的相機4 第二點檢查；用相機4 拍料盤上一排 Mark 看直線度</td></tr>
+        <tr><td>每片不同，約是「拍照時 Mark 離畫面中心距離」的 2 倍</td><td>下相機九點沒取負號（A = +G）；上相機或下相機的影像翻轉設定與校正時不同</td><td>讓平台故意偏 +0.3 mm 去拍穴位：算出的穴位位置應該不變。若跟著偏 0.6 mm，就是符號錯</td></tr>
+        <tr><td>角度固定偏一點，或某個平台角度比較差</td><td>下相機左右兩次拍照之間 X 軸偏擺或直線度；上、下相機的角度零點不一致</td><td>步驟 5 的右 Mark 檢查點；用下相機拍料盤上一排 Mark 看直線度</td></tr>
         <tr><td>同設定，只換一片料就跳</td><td>料的 Mark 與實際圖案偏移、料翹曲、吸附不平</td><td>兩片料對調穴位；同一片料同穴位重放 10 次</td></tr>
         <tr><td>同一片料重放也每次不同</td><td>真空、整定時間不足、拍照時抓指令位置、相機或光源鬆動、辨識不穩</td><td>不動連拍 20 次（影像雜訊）；加長整定時間比較；改用光學尺實際位置</td></tr>
       </tbody></table></div>
@@ -208,7 +209,7 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
         <div>
           <h4>建議檢查順序（由快到慢）</h4>
           <ol class="order">
-            <li><b>符號與單位（5 分鐘）</b>對照步驟 7 的公式看程式：Δθ = ψ̂ − φ̂ 不要反；sin、cos 用弧度；下相機 A = −G；相機1 兩個平台各用自己的 Â1。</li>
+            <li><b>符號與單位（5 分鐘）</b>對照步驟 7 的公式看程式：Δθ = ψ̂ − φ̂ 不要反；sin、cos 用弧度；下相機 A = −G；平台1 用上相機1 的 Â_top、平台2 用上相機2 的，不要拿錯。</li>
             <li><b>不動連拍 20 次</b>每台相機各一次，σ 應 &lt; 0.1 px。太大先處理光源、對焦、辨識參數。</li>
             <li><b>同料同穴重放 10 次</b>得到機構＋放料的重複性。這個數字是後面所有判斷的雜訊門檻。</li>
             <li><b>平台故意偏移測試</b>下相機拍穴位前，平台故意偏 ±0.3 mm，算出的穴位位置應不變（檢查 A 的符號與比例）。</li>
@@ -221,7 +222,7 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
           <h4>和 11/3 SPB 拼接數據的對照</h4>
           <p>如果這台就是 11/3 量四角偏差的機台：當時扣掉角度後還有約 (+0.29, +0.33) mm 的共同偏移，以及 X 約 +300 ppm、Y 約 +600 ppm 的比例。用這裡的模型看：</p>
           <ul>
-            <li><b>共同偏移</b>屬於「固定偏移」：先查步驟 5 的 D（平台座標中的下相機位置）與放料轉移量，其次是相機1 位置。</li>
+            <li><b>共同偏移</b>屬於「固定偏移」：先查步驟 5 的 D（平台座標中的下相機位置）與放料轉移量，其次是該平台上相機的位置。</li>
             <li><b>比例</b>只有在穴位用「基準 Mark＋設計間距」推算時才會出現：查軸比例（光學尺、溫度）和料盤實際間距。若每個穴位都有拍，比例應該接近 0。</li>
           </ul>
           <p class="note">這是依模型推測，需要用左邊的第 4、6 項檢查確認。</p>

@@ -10,17 +10,18 @@
     // 1. 無雜訊校正：相機參數還原
     const est = CAL.calibrateAll(m, { px: 0 });
     [0, 1].forEach(k => {
-      const i = est.cam1[k].info;
-      ok(`相機1 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - m.cam1.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${m.cam1.mmpp}`);
-      ok(`相機1 九點（平台${k + 1}）：殘差 ≈ 0`, est.cam1[k].maxRes < 1e-9, um(est.cam1[k].maxRes));
+      const i = est.top[k].info, c = m.top[k];
+      ok(`上${c.name} 九點（平台${k + 1}）：mm/px 還原`, Math.abs(i.mmpp - c.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs 真值 ${c.mmpp}`);
+      ok(`上${c.name} 九點（平台${k + 1}）：相機角度還原（含平台軸安裝角）`, Math.abs(i.angDeg - (c.ang - m.plat[k].axisRot) * R2D) < 1e-6, `${i.angDeg.toFixed(4)}° vs ${((c.ang - m.plat[k].axisRot) * R2D).toFixed(4)}°`);
+      ok(`上${c.name} 九點（平台${k + 1}）：殘差 ≈ 0`, est.top[k].maxRes < 1e-9, um(est.top[k].maxRes));
     });
-    [2, 3, 4].forEach(j => {
+    [3, 4].forEach(j => {
       const b = m.bcam[j], i = est.b[j].info;
       ok(`相機${j} 九點：mm/px 還原`, Math.abs(i.mmpp - b.mmpp) < 1e-9, `${i.mmpp.toFixed(6)} vs ${b.mmpp}`);
-      ok(`相機${j} 九點：G 行列式為正（往上看、相機隨平台動）`, est.b[j].Ginfo.det > 0, `det(G)=${est.b[j].Ginfo.det.toExponential(3)}；相機1 det=${est.cam1[0].info.det.toExponential(3)}`);
+      ok(`相機${j} 九點：G 行列式為正（往上看、相機隨平台動）`, est.b[j].Ginfo.det > 0, `det(G)=${est.b[j].Ginfo.det.toExponential(3)}；上相機 det=${est.top[b.plat].info.det.toExponential(3)}`);
     });
     // 2. 旋轉中心與相機偏移：D_j − R 應等於「相機中心 − 旋轉中心」的載台座標（真值）
-    [2, 3, 4].forEach(j => {
+    [3, 4].forEach(j => {
       const b = m.bcam[j], k = b.plat, p = m.plat[k];
       const truth = V.sub(b.d, p.rcOff), got = V.sub(est.D[j], est.R[k]);
       const d = V.len(V.sub(truth, got));
@@ -53,12 +54,12 @@
     const meanC = prC.reduce((a, r) => V.add(a, V.mul(r.err, 1 / prC.length)), [0, 0]);
     const spreadC = Math.max(...prC.map(r => V.len(V.sub(r.err, meanC))));
     ok('相機4 移動 δ → 平台2 每片固定偏移 ≈ −δ', V.len(V.add(meanC, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4 && spreadC < 2e-4, `平均 (${um(meanC[0])}, ${um(meanC[1])})，散佈 ${um(spreadC)}`);
-    // 6. 相機1 移動 → 兩平台同向偏移 ≈ +δ
-    const mc1 = CAL.applyDrift(m, { cam1: [0.03, 0.01] });
+    // 6. 上相機1 移動 → 只有平台1 偏移 ≈ +δ，平台2 不受影響
+    const mc1 = CAL.applyDrift(m, { top: [[0.03, 0.01], null] });
     const pc1 = CAL.runProduction(m, mc1, est, { px: 0, reps: 1 });
     const mean0 = pc1.filter(r => r.k === 0).reduce((a, r, _, A) => V.add(a, V.mul(r.err, 1 / A.length)), [0, 0]);
     const mean1 = pc1.filter(r => r.k === 1).reduce((a, r, _, A) => V.add(a, V.mul(r.err, 1 / A.length)), [0, 0]);
-    ok('相機1 移動 δ → 兩平台同向偏移 ≈ +δ', V.len(V.sub(mean0, [0.03, 0.01])) < 2e-3 && V.len(V.sub(mean1, [0.03, 0.01])) < 2e-3, `平台1 (${um(mean0[0])}, ${um(mean0[1])})；平台2 (${um(mean1[0])}, ${um(mean1[1])})`);
+    ok('上相機1 移動 δ → 平台1 偏移 ≈ +δ、平台2 不受影響', V.len(V.sub(mean0, [0.03, 0.01])) < 2e-3 && V.len(mean1) < 2e-4, `平台1 (${um(mean0[0])}, ${um(mean0[1])})；平台2 (${um(mean1[0])}, ${um(mean1[1])})`);
 
     // 7. 下相機九點沒有取負號 → 偏移隨 Mark 在畫面的位置變化（約 2 倍）
     const estF = CAL.calibrateAll(m, { px: 0, noFlip: true });
@@ -77,10 +78,10 @@
 
     // 9. 雜訊下旋轉中心精度：Monte-Carlo 標準差 vs 理論 σ_P/√(N/2)/r·r …（圓心 σ ≈ σ_P·√(2/N)）
     const sims = [];
-    for (let s = 1; s <= 200; s++) { const N = CAL.noiseCtx({ px: 0.1, seed: s * 17 }); const c1 = CAL.calibCam1(m, 0, N); const rc = CAL.calibRC(m, 0, c1, N); sims.push(rc.R); }
+    for (let s = 1; s <= 200; s++) { const N = CAL.noiseCtx({ px: 0.1, seed: s * 17 }); const c1 = CAL.calibTop(m, 0, N); const rc = CAL.calibRC(m, 0, c1, N); sims.push(rc.R); }
     const mu = sims.reduce((a, r) => V.add(a, V.mul(r, 1 / sims.length)), [0, 0]);
     const sdx = Math.sqrt(sims.reduce((a, r) => a + (r[0] - mu[0]) ** 2, 0) / sims.length);
-    const theo = 0.1 * m.cam1.mmpp * Math.sqrt(2 / 8);
+    const theo = 0.1 * m.top[0].mmpp * Math.sqrt(2 / 8);
     ok('旋轉中心精度（0.1 px 雜訊、8 角度 Monte-Carlo）接近理論 σ·√(2/N)', sdx < theo * 2.2, `模擬 1σ ${um(sdx)}；理論（不含九點誤差）${um(theo)}`);
 
     // 11. 推測規則：理想機台（只有雜訊）不應出現高風險推測；Δθ 正負相反要被抓到

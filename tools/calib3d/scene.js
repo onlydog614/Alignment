@@ -82,14 +82,16 @@
     Object.values(m.fidT).forEach(f => { const c = [f[0] + m.tray.nomC[0], f[1] + m.tray.nomC[1]]; const d = disc(4, mHot, c[0], c[1], trayZ); d.material = mMark; p3.add(d); const ring = new THREE.Mesh(new THREE.RingGeometry(6, 7.5, 32), mMark); ring.position.set(c[0], c[1], trayZ); p3.add(ring); });
     const lb3 = label('平台3（固定，料盤在下表面）', '--p3-line'); lb3.position.set(0, 320, zP + 70); scene.add(lb3);
 
-    // 相機1（固定，往下看）
-    const c1 = new THREE.Group(); c1.position.set(m.cam1.C[0], m.cam1.C[1], 0); scene.add(c1);
-    c1.add(box(24, 24, 300, mSteel, 0, -90, 0)); c1.add(box(24, 110, 18, mSteel, 0, -45, 282));
-    c1.add(box(46, 46, 60, mCam, 0, 0, 222)); c1.add(cyl(13, 18, mDark, 0, 0, 204));
-    const c1fov = frustum(204, 102, m.cam1.w * m.cam1.mmpp, m.cam1.h * m.cam1.mmpp, lmat('--cam', 0.75)); c1.add(c1fov);
-    const lb1 = label('相機1（固定・往下看）', '--cam'); lb1.position.set(0, 0, 320); c1.add(lb1);
-    const camMeshes = { 1: c1.children[2] };
-    const fovs = { 1: c1fov };
+    // 上相機1、上相機2（固定，往下看；各拍自己的平台）
+    const camMeshes = {}, fovs = {};
+    m.top.forEach((tc, k) => {
+      const g = new THREE.Group(); g.position.set(tc.C[0], tc.C[1], 0); scene.add(g);
+      g.add(box(24, 24, 300, mSteel, 0, -90, 0)); g.add(box(24, 110, 18, mSteel, 0, -45, 282));
+      const body = box(46, 46, 60, mCam, 0, 0, 222); g.add(body); g.add(cyl(13, 18, mDark, 0, 0, 204));
+      const fv = frustum(204, 102, tc.w * tc.mmpp, tc.h * tc.mmpp, lmat('--cam', 0.75)); g.add(fv);
+      const lb = label(`上${tc.name}（固定・拍平台${k + 1}）`, '--cam', 0.5); lb.position.set(0, 0, 320); g.add(lb);
+      camMeshes[k + 1] = body; fovs[k + 1] = fv;
+    });
 
     // 平台1、平台2
     const plats = m.plat.map((p, k) => {
@@ -113,10 +115,10 @@
       p.cams.forEach(j => {
         const b = m.bcam[j];
         const g = new THREE.Group(); g.position.set(b.dNom[0], b.dNom[1], 0); xc.add(g);
-        g.add(box(24, 24, 38, mCam, 0, 0, 40)); g.add(cyl(9, 14, mDark, 0, 0, 78));
+        const body = box(24, 24, 38, mCam, 0, 0, 40); g.add(body); g.add(cyl(9, 14, mDark, 0, 0, 78));
         const fv = frustum(92, zP - 1, b.w * b.mmpp, b.h * b.mmpp, lmat('--cam', 0.9)); g.add(fv); fovs[j] = fv;
-        const l = label(b.name + (j === 4 ? '' : ''), '--cam', 0.5); l.position.set(0, 18, 120); g.add(l);
-        camMeshes[j] = g.children[0];
+        const l = label('下' + b.name, '--cam', 0.5); l.position.set(0, 18, 120); g.add(l);
+        camMeshes[j] = body;
       });
       return { root, yc, xc, dd, zg, chuckItems, pose: { S: [0, 0], th: 0, h: 0 } };
     });
