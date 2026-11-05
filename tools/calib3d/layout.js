@@ -6,7 +6,8 @@
 
   // 每次更新的簡要（最新的放最上面；時間為台灣時間）
   const CHANGELOG = [
-    ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。頁首與右下角加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],
+    ['2026-11-06 07:30', '版面切換鈕整併成一顆：固定在分頁列最右邊（捲動時也看得到），手機版顯示「電腦版」、電腦版顯示「手機版」，點一下切換並記住；移除頁首與右下角重複的切換鈕，不再擋到內容。'],
+    ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],
     ['2026-11-05 22:55', '相機預設改為 5M＋3 倍鏡（2448×2040 px、視野 2.8152×2.346 mm）；Mark 直徑預設 0.3 mm。視野小時設計位置不一定看得到 Mark：先螺旋搜尋、找到後對中再拍（九點、上下連結、SPB Mark、四角都套用）；參數檢查會算出手動放料最壞每片要多拍幾張。'],
     ['2026-11-05 12:38', '「旋轉中心計算」改成表格逐點手填，可匯入 CSV、下載／複製 CSV，也能從 Excel 複製多列直接貼上。'],
     ['2026-11-05 11:33', '新增「旋轉中心計算」分頁：輸入多點機械座標（可附 DD 角度），最小二乘圓擬合算圓心、半徑、殘差、DD 角度比例與方向，附 2D 圖與 3D 動畫。'],
@@ -32,22 +33,14 @@
     const zoom = e === 'desktop' && w < DESK_W - 20;
     H.toggleAttribute('data-zoomed', zoom);
     if (wrap) wrap.style.zoom = zoom ? String(w / DESK_W) : '';
-    $$('.seg [data-lay]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lay === e ? 'true' : 'false'));
-    const an = $('#autonote'); if (an) an.textContent = pref === 'auto' ? '（依螢幕寬度自動）' : '（已記住，點另一個可切換）';
-    if (typeof fabUpdate === 'function') fabUpdate();
+    H.style.setProperty('--unzoom', zoom ? String(DESK_W / w) : '1');
+    const lb = $('#laybtn'); if (lb) { const to = e === 'mobile' ? '電腦版' : '手機版'; lb.querySelector('.lb-t').textContent = to; lb.setAttribute('aria-label', '切換成' + to); lb.dataset.lay = e === 'mobile' ? 'desktop' : 'mobile'; }
     G.dispatchEvent(new Event('resize'));
   }
   function setPref(p) { pref = p; try { localStorage.setItem(KEY, p); } catch (e) { /* 無儲存空間 */ } apply(); }
-  $$('.seg [data-lay], .laybtn[data-lay]').forEach(b => b.addEventListener('click', () => setPref(b.dataset.lay)));
+  const lbtn = $('#laybtn'); if (lbtn) lbtn.addEventListener('click', () => setPref(lbtn.dataset.lay));
   let lastW = G.innerWidth;
   G.addEventListener('resize', () => { if (G.innerWidth !== lastW) { lastW = G.innerWidth; apply(); } });
-
-  // 電腦版：頁首切換鈕捲出畫面時右下角顯示浮動切換鈕；手機版改用分頁列右邊的「電腦版」鈕（不擋內容）
-  const fab = $('#layoutfab'), sw = $('.layoutsw');
-  // 手機上強制電腦版時頁首被縮得很小，浮動鈕一直顯示
-  let swVisible = true;
-  function fabUpdate() { if (!fab) return; const on = H.hasAttribute('data-zoomed') || (!swVisible && H.getAttribute('data-layout') === 'desktop'); if (on) fab.removeAttribute('data-off'); else fab.setAttribute('data-off', ''); }
-  if (fab && sw && 'IntersectionObserver' in G) new IntersectionObserver(es => es.forEach(en => { swVisible = en.isIntersecting; fabUpdate(); })).observe(sw);
 
   // 手機版：頁首說明點一下展開
   const hp = $('header.top p'); if (hp) hp.addEventListener('click', () => hp.classList.toggle('open'));

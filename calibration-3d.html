@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* 版面：電腦版左側 3D 機台與四台相機畫面（捲動時固定），右側步驟內容；手機版由 html[data-layout="mobile"] 控制（可用頁首切換鈕手動切換），不用螢幕寬度的 media query，強制電腦版時在手機上才會整頁縮小顯示 */
+/* 版面：電腦版左側 3D 機台與四台相機畫面（捲動時固定），右側步驟內容；手機版由 html[data-layout="mobile"] 控制（可用分頁列右邊的切換鈕手動切換），不用螢幕寬度的 media query，強制電腦版時在手機上才會整頁縮小顯示 */
 :root{
   --bg:#eef1f0; --panel:#ffffff; --ink:#17201f; --muted:#56635f; --line:#d3dbd8; --soft:#e4e9e7;
   --accent:#1f6f78; --accent-ink:#ffffff;
@@ -52,7 +52,7 @@ nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line)
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
-.viewer{position:sticky;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;flex-direction:column;gap:10px;min-width:0}
+.viewer{position:sticky;top:calc(env(safe-area-inset-top,0px) + 58px);display:flex;flex-direction:column;gap:10px;min-width:0}
 #three{position:relative;width:100%;aspect-ratio:4/3;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
 #three canvas{display:block;touch-action:none}
 .fallback{padding:24px;color:var(--muted)}
@@ -177,17 +177,7 @@ label.btn{display:inline-block}
 .rcplot .c-ax{stroke:var(--line);stroke-width:1}
 .rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
 .rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
-/* ===== 版面切換鈕、更新紀錄 ===== */
-.layoutsw{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted)}
-.seg{display:inline-flex;border:2px solid var(--accent);border-radius:999px;overflow:hidden;background:var(--panel)}
-.seg button{appearance:none;border:0;background:none;color:var(--accent);font:600 .88rem var(--f-body);padding:6px 14px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;min-height:36px}
-.seg button+button{border-left:2px solid var(--accent)}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-.seg svg{width:16px;height:16px;flex:none}
-.autonote{font-size:.74rem;color:var(--muted)}
-.fab{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.22);transition:opacity .2s,transform .2s}
-.fab[data-off]{opacity:0;transform:translateY(12px);pointer-events:none}
-.fab .seg button{padding:8px 12px;font-size:.84rem}
+/* ===== 更新紀錄 ===== */
 .changelog{background:color-mix(in srgb,var(--accent) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:var(--r);padding:8px 12px;margin:0 0 12px;font-size:.86rem}
 .changelog summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .changelog summary::-webkit-details-marker{display:none}
@@ -198,9 +188,13 @@ label.btn{display:inline-block}
 .changelog li{max-width:none;display:grid;grid-template-columns:7.2em minmax(0,1fr);gap:8px;border-top:1px solid var(--line);padding-top:6px}
 .changelog time{font:500 .78rem var(--f-mono);color:var(--muted)}
 .mob-only{display:none}
-.laybtn{appearance:none;flex:none;display:inline-flex;align-items:center;gap:4px;margin:6px 10px 6px 0;padding:0 10px;border:2px solid var(--accent);border-radius:999px;background:var(--panel);color:var(--accent);font:600 .8rem var(--f-body);cursor:pointer;box-shadow:-10px 0 10px -4px var(--bg)}
-.laybtn svg{width:15px;height:15px}
-html[data-layout="mobile"] .laybtn.mob-only{display:inline-flex}
+.tabbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabbar nav.tabs{flex:1 1 auto;min-width:0;border-bottom:0;margin-bottom:0}
+.laybtn{appearance:none;flex:none;display:inline-flex;align-items:center;gap:5px;margin:5px 0;padding:6px 12px;border:2px solid var(--accent);border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 .84rem var(--f-body);cursor:pointer;white-space:nowrap;box-shadow:-12px 0 10px -4px var(--bg)}
+.laybtn:hover{filter:brightness(1.08)}
+.laybtn svg{width:16px;height:16px;flex:none}
+html[data-layout="desktop"] .laybtn .ic-d,html[data-layout="mobile"] .laybtn .ic-m{display:none}
+html[data-zoomed] .laybtn{zoom:var(--unzoom,1)}
 html[data-layout="mobile"] .mob-only{display:revert}
 html[data-layout="mobile"] .desk-only{display:none}
 /* 強制手機版但螢幕很寬：模擬手機寬度置中 */
@@ -216,11 +210,11 @@ html[data-layout="mobile"] header.top h1{font-size:1.3rem}
 html[data-layout="mobile"] header.top p{font-size:.84rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 html[data-layout="mobile"] header.top p.open{display:block}
 html[data-layout="mobile"] .legend{font-size:.74rem;gap:2px 10px}
-html[data-layout="mobile"] .layoutsw{width:100%;justify-content:space-between}
 html[data-layout="mobile"] .changelog{font-size:.82rem;padding:8px 10px}
 html[data-layout="mobile"] .changelog li{grid-template-columns:minmax(0,1fr);gap:0}
-html[data-layout="mobile"] .tabbar{position:sticky;top:0;z-index:30;display:flex;align-items:stretch;background:var(--bg);margin:0 -16px 12px;box-shadow:0 1px 0 var(--line)}
-html[data-layout="mobile"] nav.tabs{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0;padding:0 6px 0 10px;border-bottom:0}
+html[data-layout="mobile"] .tabbar{margin:0 -16px 12px;padding-right:10px;gap:4px}
+html[data-layout="mobile"] nav.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:0 6px 0 10px}
+html[data-layout="mobile"] .laybtn{padding:5px 10px;font-size:.8rem}
 html[data-layout="mobile"] nav.tabs::-webkit-scrollbar{display:none}
 html[data-layout="mobile"] .tab{flex:none;padding:12px 11px;font-size:.92rem}
 html[data-layout="mobile"] .grid{display:flex;flex-direction:column;gap:10px;align-items:stretch}
@@ -309,7 +303,6 @@ html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
       <p>上相機1、上相機2 固定往下看（各拍平台1、平台2）；下相機3 隨平台1、下相機4 隨平台2 移動往上看；平台1、平台2（XY＋DD＋Z）把料放進上方固定平台3 的料盤。每一步都有 3D 動作、相機畫面、公式、判定標準與模擬驗證。</p>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-      <div class="layoutsw"><span>版面</span><span class="seg" role="group" aria-label="切換電腦版／手機版"><button type="button" data-lay="desktop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button><button type="button" data-lay="mobile" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>手機版</button></span><span class="autonote" id="autonote"></span></div>
       <div class="legend" aria-label="顏色說明"><span><i style="background:var(--p1)"></i>平台1</span><span><i style="background:var(--p2)"></i>平台2</span><span><i style="background:var(--p3)"></i>平台3／料盤</span><span><i style="background:var(--cam)"></i>相機</span><span><i style="background:var(--hot)"></i>正在拍照</span></div>
     </div>
   </header>
@@ -323,7 +316,7 @@ html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
     <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
-    <button type="button" class="laybtn mob-only" data-lay="desktop" aria-label="切換成電腦版"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button>
+    <button type="button" class="laybtn" id="laybtn" title="切換電腦版／手機版版面（會記住）"><svg class="ic-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><svg class="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="lb-t">電腦版</span></button>
   </div>
 
   <section class="view" id="view-steps">
@@ -501,7 +494,6 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     </div>
   </section>
 </div>
-<div class="fab" id="layoutfab" data-off><span class="seg" role="group" aria-label="切換電腦版／手機版"><button type="button" data-lay="desktop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button><button type="button" data-lay="mobile" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>手機版</button></span></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -2992,7 +2984,8 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
 
   // 每次更新的簡要（最新的放最上面；時間為台灣時間）
   const CHANGELOG = [
-    ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。頁首與右下角加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],
+    ['2026-11-06 07:30', '版面切換鈕整併成一顆：固定在分頁列最右邊（捲動時也看得到），手機版顯示「電腦版」、電腦版顯示「手機版」，點一下切換並記住；移除頁首與右下角重複的切換鈕，不再擋到內容。'],
+    ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],
     ['2026-11-05 22:55', '相機預設改為 5M＋3 倍鏡（2448×2040 px、視野 2.8152×2.346 mm）；Mark 直徑預設 0.3 mm。視野小時設計位置不一定看得到 Mark：先螺旋搜尋、找到後對中再拍（九點、上下連結、SPB Mark、四角都套用）；參數檢查會算出手動放料最壞每片要多拍幾張。'],
     ['2026-11-05 12:38', '「旋轉中心計算」改成表格逐點手填，可匯入 CSV、下載／複製 CSV，也能從 Excel 複製多列直接貼上。'],
     ['2026-11-05 11:33', '新增「旋轉中心計算」分頁：輸入多點機械座標（可附 DD 角度），最小二乘圓擬合算圓心、半徑、殘差、DD 角度比例與方向，附 2D 圖與 3D 動畫。'],
@@ -3018,22 +3011,14 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
     const zoom = e === 'desktop' && w < DESK_W - 20;
     H.toggleAttribute('data-zoomed', zoom);
     if (wrap) wrap.style.zoom = zoom ? String(w / DESK_W) : '';
-    $$('.seg [data-lay]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lay === e ? 'true' : 'false'));
-    const an = $('#autonote'); if (an) an.textContent = pref === 'auto' ? '（依螢幕寬度自動）' : '（已記住，點另一個可切換）';
-    if (typeof fabUpdate === 'function') fabUpdate();
+    H.style.setProperty('--unzoom', zoom ? String(DESK_W / w) : '1');
+    const lb = $('#laybtn'); if (lb) { const to = e === 'mobile' ? '電腦版' : '手機版'; lb.querySelector('.lb-t').textContent = to; lb.setAttribute('aria-label', '切換成' + to); lb.dataset.lay = e === 'mobile' ? 'desktop' : 'mobile'; }
     G.dispatchEvent(new Event('resize'));
   }
   function setPref(p) { pref = p; try { localStorage.setItem(KEY, p); } catch (e) { /* 無儲存空間 */ } apply(); }
-  $$('.seg [data-lay], .laybtn[data-lay]').forEach(b => b.addEventListener('click', () => setPref(b.dataset.lay)));
+  const lbtn = $('#laybtn'); if (lbtn) lbtn.addEventListener('click', () => setPref(lbtn.dataset.lay));
   let lastW = G.innerWidth;
   G.addEventListener('resize', () => { if (G.innerWidth !== lastW) { lastW = G.innerWidth; apply(); } });
-
-  // 電腦版：頁首切換鈕捲出畫面時右下角顯示浮動切換鈕；手機版改用分頁列右邊的「電腦版」鈕（不擋內容）
-  const fab = $('#layoutfab'), sw = $('.layoutsw');
-  // 手機上強制電腦版時頁首被縮得很小，浮動鈕一直顯示
-  let swVisible = true;
-  function fabUpdate() { if (!fab) return; const on = H.hasAttribute('data-zoomed') || (!swVisible && H.getAttribute('data-layout') === 'desktop'); if (on) fab.removeAttribute('data-off'); else fab.setAttribute('data-off', ''); }
-  if (fab && sw && 'IntersectionObserver' in G) new IntersectionObserver(es => es.forEach(en => { swVisible = en.isIntersecting; fabUpdate(); })).observe(sw);
 
   // 手機版：頁首說明點一下展開
   const hp = $('header.top p'); if (hp) hp.addEventListener('click', () => hp.classList.toggle('open'));
