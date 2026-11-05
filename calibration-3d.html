@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* 版面：左側 3D 機台與四台相機畫面（像調機時的監看螢幕，捲動時固定），右側步驟內容；窄螢幕上下堆疊 */
+/* 版面：電腦版左側 3D 機台與四台相機畫面（捲動時固定），右側步驟內容；手機版由 html[data-layout="mobile"] 控制（可用頁首切換鈕手動切換），不用螢幕寬度的 media query，強制電腦版時在手機上才會整頁縮小顯示 */
 :root{
   --bg:#eef1f0; --panel:#ffffff; --ink:#17201f; --muted:#56635f; --line:#d3dbd8; --soft:#e4e9e7;
   --accent:#1f6f78; --accent-ink:#ffffff;
@@ -52,9 +52,7 @@ nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line)
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
-@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
 .viewer{position:sticky;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;flex-direction:column;gap:10px;min-width:0}
-@media (max-width:980px){.viewer{position:static}}
 #three{position:relative;width:100%;aspect-ratio:4/3;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
 #three canvas{display:block;touch-action:none}
 .fallback{padding:24px;color:var(--muted)}
@@ -70,7 +68,6 @@ nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line)
 select,input[type=number],.rctbl input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 .readout{font:.74rem/1.4 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;overflow-x:auto;white-space:nowrap}
 .cams{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-@media (max-width:560px){.cams{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .camv{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px;min-width:0;transition:border-color .2s}
 .camv.hot{border-color:var(--hot);box-shadow:0 0 0 2px color-mix(in srgb,var(--hot) 35%,transparent)}
 .camv canvas{width:100%;height:auto;display:block;border-radius:4px}
@@ -127,7 +124,6 @@ td{white-space:normal}
 .vec{width:100%;min-width:560px;height:auto;display:block}
 /* 偏移排查 */
 .cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}
-@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
 fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;padding:8px 12px 10px}
 legend{font-weight:600;font-size:.86rem;padding:0 4px}
 .fld{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.84rem;margin:5px 0}
@@ -156,7 +152,6 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
 .grp td{font-weight:600;color:var(--muted);background:var(--soft)}
 label.btn{display:inline-block}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
-@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
 /* 旋轉中心計算 */
 #rc3d{position:relative;width:100%;aspect-ratio:4/3;max-height:56vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
 #rc3d canvas{display:block;touch-action:none}
@@ -167,7 +162,6 @@ label.btn{display:inline-block}
 .rctbl td:first-child{color:var(--muted);text-align:right;width:2em}
 .rctbl input{width:100%;min-width:58px;box-sizing:border-box;text-align:right;font-size:.86rem;padding:4px 5px;font-variant-numeric:tabular-nums}
 .rctbl td:nth-child(2),.rctbl td:nth-child(3){width:34%}
-@media (max-width:480px){.rctbl input{font-size:.78rem;padding:4px 3px;min-width:0}.rctbl td{padding:3px 2px}.rctbl .del{width:24px}}
 #rcpaste{margin:4px 0 10px}
 .rctbl input[aria-invalid="true"]{border-color:var(--bad);background:var(--bad-bg)}
 .rctbl .del{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:1rem;line-height:1}
@@ -183,8 +177,130 @@ label.btn{display:inline-block}
 .rcplot .c-ax{stroke:var(--line);stroke-width:1}
 .rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
 .rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
+/* ===== 版面切換鈕、更新紀錄 ===== */
+.layoutsw{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted)}
+.seg{display:inline-flex;border:2px solid var(--accent);border-radius:999px;overflow:hidden;background:var(--panel)}
+.seg button{appearance:none;border:0;background:none;color:var(--accent);font:600 .88rem var(--f-body);padding:6px 14px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;min-height:36px}
+.seg button+button{border-left:2px solid var(--accent)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg svg{width:16px;height:16px;flex:none}
+.autonote{font-size:.74rem;color:var(--muted)}
+.fab{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.22);transition:opacity .2s,transform .2s}
+.fab[data-off]{opacity:0;transform:translateY(12px);pointer-events:none}
+.fab .seg button{padding:8px 12px;font-size:.84rem}
+.changelog{background:color-mix(in srgb,var(--accent) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:var(--r);padding:8px 12px;margin:0 0 12px;font-size:.86rem}
+.changelog summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.changelog summary::-webkit-details-marker{display:none}
+.changelog summary b{color:var(--accent)}
+.changelog summary .more{color:var(--accent);font-size:.8rem;margin-left:auto;white-space:nowrap}
+.changelog[open] summary .more::after{content:"（收起）"}
+.changelog ol{list-style:none;padding:0;margin:8px 0 2px;display:flex;flex-direction:column;gap:6px}
+.changelog li{max-width:none;display:grid;grid-template-columns:7.2em minmax(0,1fr);gap:8px;border-top:1px solid var(--line);padding-top:6px}
+.changelog time{font:500 .78rem var(--f-mono);color:var(--muted)}
+.mob-only{display:none}
+.laybtn{appearance:none;flex:none;display:inline-flex;align-items:center;gap:4px;margin:6px 10px 6px 0;padding:0 10px;border:2px solid var(--accent);border-radius:999px;background:var(--panel);color:var(--accent);font:600 .8rem var(--f-body);cursor:pointer;box-shadow:-10px 0 10px -4px var(--bg)}
+.laybtn svg{width:15px;height:15px}
+html[data-layout="mobile"] .laybtn.mob-only{display:inline-flex}
+html[data-layout="mobile"] .mob-only{display:revert}
+html[data-layout="mobile"] .desk-only{display:none}
+/* 強制手機版但螢幕很寬：模擬手機寬度置中 */
+html[data-layout="mobile"][data-wide] body{background:color-mix(in srgb,var(--ink) 12%,var(--bg))}
+html[data-layout="mobile"][data-wide] .wrap{max-width:440px;background:var(--bg);min-height:100vh;box-shadow:0 0 0 1px var(--line),0 10px 40px rgba(0,0,0,.15)}
+/* 強制電腦版但螢幕很窄：整頁照電腦版寬度排，再縮小到螢幕寬 */
+html[data-layout="desktop"][data-zoomed] .wrap{width:1240px;max-width:none}
+
+/* ===== 手機版 ===== */
+html[data-layout="mobile"] .wrap{padding-top:10px;padding-bottom:110px}
+html[data-layout="mobile"] header.top{gap:8px;margin-bottom:8px;align-items:flex-start}
+html[data-layout="mobile"] header.top h1{font-size:1.3rem}
+html[data-layout="mobile"] header.top p{font-size:.84rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+html[data-layout="mobile"] header.top p.open{display:block}
+html[data-layout="mobile"] .legend{font-size:.74rem;gap:2px 10px}
+html[data-layout="mobile"] .layoutsw{width:100%;justify-content:space-between}
+html[data-layout="mobile"] .changelog{font-size:.82rem;padding:8px 10px}
+html[data-layout="mobile"] .changelog li{grid-template-columns:minmax(0,1fr);gap:0}
+html[data-layout="mobile"] .tabbar{position:sticky;top:0;z-index:30;display:flex;align-items:stretch;background:var(--bg);margin:0 -16px 12px;box-shadow:0 1px 0 var(--line)}
+html[data-layout="mobile"] nav.tabs{flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0;padding:0 6px 0 10px;border-bottom:0}
+html[data-layout="mobile"] nav.tabs::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .tab{flex:none;padding:12px 11px;font-size:.92rem}
+html[data-layout="mobile"] .grid{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+html[data-layout="mobile"] .grid>*,html[data-layout="mobile"] .steplist{min-width:0}
+html[data-layout="mobile"] .content{display:contents}
+html[data-layout="mobile"] .steplist{order:1;flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:2px 16px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
+html[data-layout="mobile"] .steplist::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .stepbtn{flex:0 0 auto;max-width:210px;scroll-snap-align:start;padding:7px 12px 7px 7px}
+html[data-layout="mobile"] .stepbtn small{display:none}
+html[data-layout="mobile"] .viewer{order:2;position:static;gap:8px}
+html[data-layout="mobile"] .grid article.card{order:3}
+html[data-layout="mobile"] #three{max-height:46vh}
+html[data-layout="mobile"] .caption{font-size:.8rem;padding:4px 8px;left:6px;right:6px;bottom:6px;line-height:1.45}
+html[data-layout="mobile"] .viewbtns{top:6px;right:6px}
+html[data-layout="mobile"] .cams{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+html[data-layout="mobile"] .camv{padding:3px}
+html[data-layout="mobile"] .camv .h{font-size:.7rem;margin-bottom:2px}
+html[data-layout="mobile"] .camv .h span,html[data-layout="mobile"] .camv .uv{display:none}
+html[data-layout="mobile"] .readout{font-size:.66rem}
+html[data-layout="mobile"] #speed{min-height:40px}
+html[data-layout="mobile"] .card{padding:14px}
+html[data-layout="mobile"] h3{font-size:1.15rem}
+html[data-layout="mobile"] .lead{font-size:.98rem}
+html[data-layout="mobile"] pre{font-size:.72rem;padding:8px 10px}
+html[data-layout="mobile"] .stepnav{position:sticky;bottom:0;z-index:5;margin:16px -14px -14px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);border-radius:0 0 var(--r) var(--r)}
+html[data-layout="mobile"] .stepnav .btn{flex:1;min-height:46px;font-size:1rem}
+html[data-layout="mobile"] .btn{min-height:40px;padding:8px 14px}
+html[data-layout="mobile"] .btn.sm{min-height:0;padding:4px 8px}
+html[data-layout="mobile"] .chip{padding:7px 12px;font-size:.84rem}
+html[data-layout="mobile"] input,html[data-layout="mobile"] select,html[data-layout="mobile"] textarea{font-size:16px}
+html[data-layout="mobile"] .inp input{width:100px}
+html[data-layout="mobile"] .cols,html[data-layout="mobile"] .two{grid-template-columns:minmax(0,1fr)}
+html[data-layout="mobile"] .fld{font-size:.86rem}
+html[data-layout="mobile"] .vec{min-width:0}
+html[data-layout="mobile"] .fig{max-width:100%}
+html[data-layout="mobile"] #rc3d{max-height:46vh}
+html[data-layout="mobile"] .rctbl input{font-size:16px;padding:6px 4px;min-width:0}
+html[data-layout="mobile"] .rctbl td{padding:3px 2px}
+html[data-layout="mobile"] .rctbl .del{width:32px;height:36px}
+/* 手機版：參數表改成一列一張卡 */
+html[data-layout="mobile"] .ptbl{min-width:0}
+html[data-layout="mobile"] .ptbl thead{display:none}
+html[data-layout="mobile"] .ptbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto 2.4em;gap:2px 8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+html[data-layout="mobile"] .ptbl tr.grp{display:block;padding:0}
+html[data-layout="mobile"] .ptbl td{border:0;padding:0}
+html[data-layout="mobile"] .ptbl tr.grp td{display:block;padding:6px 8px}
+html[data-layout="mobile"] .ptbl td:nth-child(4){grid-column:1/-1;font-size:.7rem}
+html[data-layout="mobile"] .ptbl input{width:112px}
+/* 手機版：一般表格每列疊成一張卡（標題在左、值在右） */
+html[data-layout="mobile"] table.stk{min-width:0}
+html[data-layout="mobile"] table.stk thead{display:none}
+html[data-layout="mobile"] table.stk tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}
+html[data-layout="mobile"] table.stk td{display:grid;grid-template-columns:minmax(5.5em,36%) minmax(0,1fr);gap:8px;border:0;padding:2px 0}
+html[data-layout="mobile"] table.stk td::before{content:attr(data-label);color:var(--muted);font-size:.78rem;line-height:1.5}
+html[data-layout="mobile"] table.stk td:first-child{display:block;font-weight:600;padding-bottom:4px}
+html[data-layout="mobile"] table.stk td:first-child::before{content:none}
+html[data-layout="mobile"] .sig td:first-child{min-width:0}
+html[data-layout="mobile"] table.stk{width:100%}
+html[data-layout="mobile"] table.cmp{font-size:.78rem}
+html[data-layout="mobile"] table.cmp th,html[data-layout="mobile"] table.cmp td{padding:5px 6px;white-space:nowrap}
+html[data-layout="mobile"] #scrub{min-width:90px}
+/* 手機版：檢查表／驗證表（狀態＋項目一行，數值與說明在下面） */
+html[data-layout="mobile"] .vtbl{min-width:0;width:100%}
+html[data-layout="mobile"] .vtbl thead{display:none}
+html[data-layout="mobile"] .vtbl tr{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:start}
+html[data-layout="mobile"] .vtbl td{border:0;padding:0}
+html[data-layout="mobile"] .vtbl td:nth-child(n+3){grid-column:2;color:var(--muted);font-size:.8rem}
+html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
+<script>
+// 版面：先決定手機版／電腦版（避免閃一下）。cal-layout = auto | desktop | mobile
+(function () {
+  var pref = 'auto'; try { pref = localStorage.getItem('cal-layout') || 'auto'; } catch (e) { /* 無儲存空間 */ }
+  if (['auto', 'desktop', 'mobile'].indexOf(pref) < 0) pref = 'auto';
+  var w = window.innerWidth || document.documentElement.clientWidth;
+  document.documentElement.setAttribute('data-layout', pref === 'auto' ? (w < 900 ? 'mobile' : 'desktop') : pref);
+  document.documentElement.setAttribute('data-layout-pref', pref);
+})();
+</script>
 
 <div class="wrap">
   <header class="top">
@@ -192,8 +308,13 @@ label.btn{display:inline-block}
       <h1>雙平台放料校正手順</h1>
       <p>上相機1、上相機2 固定往下看（各拍平台1、平台2）；下相機3 隨平台1、下相機4 隨平台2 移動往上看；平台1、平台2（XY＋DD＋Z）把料放進上方固定平台3 的料盤。每一步都有 3D 動作、相機畫面、公式、判定標準與模擬驗證。</p>
     </div>
-    <div class="legend" aria-label="顏色說明"><span><i style="background:var(--p1)"></i>平台1</span><span><i style="background:var(--p2)"></i>平台2</span><span><i style="background:var(--p3)"></i>平台3／料盤</span><span><i style="background:var(--cam)"></i>相機</span><span><i style="background:var(--hot)"></i>正在拍照</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div class="layoutsw"><span>版面</span><span class="seg" role="group" aria-label="切換電腦版／手機版"><button type="button" data-lay="desktop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button><button type="button" data-lay="mobile" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>手機版</button></span><span class="autonote" id="autonote"></span></div>
+      <div class="legend" aria-label="顏色說明"><span><i style="background:var(--p1)"></i>平台1</span><span><i style="background:var(--p2)"></i>平台2</span><span><i style="background:var(--p3)"></i>平台3／料盤</span><span><i style="background:var(--cam)"></i>相機</span><span><i style="background:var(--hot)"></i>正在拍照</span></div>
+    </div>
   </header>
+  <details class="changelog" id="changelog"></details>
+  <div class="tabbar">
   <nav class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="steps" id="tab-steps">校正手順</button>
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
@@ -202,6 +323,8 @@ label.btn{display:inline-block}
     <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
+    <button type="button" class="laybtn mob-only" data-lay="desktop" aria-label="切換成電腦版"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button>
+  </div>
 
   <section class="view" id="view-steps">
     <div class="grid">
@@ -211,7 +334,7 @@ label.btn{display:inline-block}
           <button class="btn primary" id="play" aria-pressed="true">暫停</button>
           <button class="btn" id="restart">重播</button>
           <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="動畫進度">
-          <label class="note" for="speed">速度</label>
+          <label class="note desk-only" for="speed">速度</label>
           <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
         </div>
         <div class="readout" id="readout"></div>
@@ -221,7 +344,7 @@ label.btn{display:inline-block}
           <div class="camv"><div class="h"><b>相機3</b><span>下・隨平台1</span></div><canvas id="cv3" width="256" height="192"></canvas><div class="uv"></div></div>
           <div class="camv"><div class="h"><b>相機4</b><span>下・隨平台2</span></div><canvas id="cv4" width="256" height="192"></canvas><div class="uv"></div></div>
         </div>
-        <p class="note">拖曳旋轉、滾輪縮放、右鍵平移。相機畫面是用同一套公式算出的像素位置（距中心最近的 Mark 座標顯示在下方），可以用來確認影像移動方向。</p>
+        <p class="note"><span class="desk-only">拖曳旋轉、滾輪縮放、右鍵平移。</span><span class="mob-only">單指拖曳旋轉、雙指縮放與平移。</span>相機畫面是用同一套公式算出的像素位置（距中心最近的 Mark 座標顯示在下方），可以用來確認影像移動方向。</p>
       </div>
       <div class="content">
         <div class="steplist" id="steplist"></div>
@@ -273,13 +396,13 @@ label.btn{display:inline-block}
             <li><b>共同偏移</b>屬於「固定偏移」：先查步驟 5 的 D（平台座標中的下相機位置）與放料轉移量，其次是該平台上相機的位置。</li>
             <li><b>比例</b>只有在穴位用「基準 Mark＋設計間距」推算時才會出現：查軸比例（光學尺、溫度）和料盤實際間距。若每個穴位都有拍，比例應該接近 0。</li>
           </ul>
-          <p class="note">這是依模型推測，需要用左邊的第 4、6 項檢查確認。</p>
+          <p class="note">這是依模型推測，需要用「建議檢查順序」的第 4、6 項確認。</p>
         </div>
       </div>
     </div>
     <div class="card" style="margin-top:16px">
       <h3>誤差注入模擬</h3>
-      <p>在模擬機台上先照手順校正，然後改變一個條件（例如相機鬆動），再放滿整盤 36 片，看偏移長什麼樣子。上方按鈕是常見情況。</p>
+      <p>在模擬機台上先照手順校正，然後改變一個條件（例如相機鬆動），再把整盤每個穴位各放 3 次，看偏移長什麼樣子。下方按鈕是常見情況。</p>
       <div class="chips" id="presets"></div>
       <div class="cols">
         <form id="simform" onsubmit="return false"></form>
@@ -299,7 +422,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       <p class="note">只有在統計上顯著（超過 3 倍標準誤差）而且影響超過門檻（預設 10 µm）的項目才會列入推測，避免把雜訊當成原因。</p>
       <p class="note">片數不夠或某一項沒有變化（例如所有片 Δθ 都一樣）時，那一項會自動不擬合，表格顯示「–」。</p>
       <div class="ctrl" style="margin:8px 0"><button class="btn" id="datasample">載入範例</button><button class="btn" id="dataclear">清空</button><label class="note" for="thr">推測門檻</label><span class="inp"><input type="number" id="thr" value="10" min="0" step="any"><i>µm</i></span><span class="note" id="datamsg"></span></div>
-      <textarea id="datain" spellcheck="false" aria-label="實測資料"></textarea>
+      <textarea id="datain" wrap="off" spellcheck="false" aria-label="實測資料"></textarea>
       <div id="dataout"></div>
     </div>
   </section>
@@ -378,6 +501,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     </div>
   </section>
 </div>
+<div class="fab" id="layoutfab" data-off><span class="seg" role="group" aria-label="切換電腦版／手機版"><button type="button" data-lay="desktop" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>電腦版</button><button type="button" data-lay="mobile" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>手機版</button></span></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -2779,7 +2903,7 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
     updParamMsg();
     const ck = paramChecks(), lv = { ok: ['ok', '可以'], warn: ['warn', '注意'], bad: ['bad', '不行'] };
     const nb = ck.filter(c => c.lvl === 'bad').length, nw = ck.filter(c => c.lvl === 'warn').length;
-    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])) + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
+    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])).replace('<table>', '<table class="vtbl">') + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
   }
   function importText(txt, src) {
     const r = CAL.parseParamsCSV(txt, draft);
@@ -2834,7 +2958,7 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
     }
     const pass = verified.filter(t => t.pass).length;
     $('#verifysum').innerHTML = `<span class="pill ${pass === verified.length ? 'ok' : 'bad'}">${pass} / ${verified.length} 通過</span><span class="muted">在你的瀏覽器上剛剛重新計算（${verified.ms.toFixed(0)} ms）</span>`;
-    $('#verifylist').innerHTML = U.table(['結果', '項目', '數值'], verified.map(t => [`<span class="pill ${t.pass ? 'ok' : 'bad'}">${t.pass ? '通過' : '失敗'}</span>`, t.name, t.detail]));
+    $('#verifylist').innerHTML = U.table(['結果', '項目', '數值'], verified.map(t => [`<span class="pill ${t.pass ? 'ok' : 'bad'}">${t.pass ? '通過' : '失敗'}</span>`, t.name, t.detail])).replace('<table>', '<table class="vtbl">');
     document.body.dataset.verify = pass === verified.length ? 'pass' : 'fail';
   }
   G.runVerifyNow = () => { verified = null; runVerify(); return document.body.dataset.verify; };
@@ -2857,6 +2981,91 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
   requestAnimationFrame(loop);
   G.__app = { player, timelines, selectStep, stateAt, showTab };
 })(window);
+
+</script>
+<script>
+// ===== 版面：電腦版／手機版切換、表格手機排法、更新紀錄 =====
+(function (G) {
+  'use strict';
+  const D = document, H = D.documentElement, $ = s => D.querySelector(s), $$ = s => [...D.querySelectorAll(s)];
+  const KEY = 'cal-layout', DESK_W = 1240, AUTO_W = 900;
+
+  // 每次更新的簡要（最新的放最上面；時間為台灣時間）
+  const CHANGELOG = [
+    ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。頁首與右下角加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],
+    ['2026-11-05 22:55', '相機預設改為 5M＋3 倍鏡（2448×2040 px、視野 2.8152×2.346 mm）；Mark 直徑預設 0.3 mm。視野小時設計位置不一定看得到 Mark：先螺旋搜尋、找到後對中再拍（九點、上下連結、SPB Mark、四角都套用）；參數檢查會算出手動放料最壞每片要多拍幾張。'],
+    ['2026-11-05 12:38', '「旋轉中心計算」改成表格逐點手填，可匯入 CSV、下載／複製 CSV，也能從 Excel 複製多列直接貼上。'],
+    ['2026-11-05 11:33', '新增「旋轉中心計算」分頁：輸入多點機械座標（可附 DD 角度），最小二乘圓擬合算圓心、半徑、殘差、DD 角度比例與方向，附 2D 圖與 3D 動畫。'],
+    ['2026-11-05 08:32', 'DD 旋轉中心校正改成 XY 跟隨：每轉一格 XY 把 Mark 移回上相機畫面，不會轉出視野；可設定 Mark 半徑、可轉角度範圍與點數。'],
+    ['2026-11-05 08:14', '實放驗證：每片放料前都重新用上相機拍四角對位。'],
+    ['2026-11-05 07:58', '生產流程改為人工放料、每片重拍上相機；SPB Mark A–D 只量第一次。'],
+    ['2026-11-05 07:47', '料盤改為四顆 SPB Mark：左平台看 A、B，右平台看 C、D；料盤配置圖改成字母圓圈。'],
+    ['2026-11-05 03:01', '平台3 料盤改為 2×12 穴：左平台放 1–6 欄、右平台放 7–12 欄，交界兩側標成誤差疊加區。'],
+    ['2026-11-05 02:45', '上相機逐顆拍料的四角 Mark（平台移動）做四點擬合；下相機拍兩邊 Mark。'],
+    ['2026-11-05 02:20', '支援長方形料（長邊方向、對角 Mark），並重新檢查你填的參數。'],
+    ['2026-11-05 02:01', '「機台參數」分頁：可手動填或匯入 CSV（相機視野、XY 行程、Mark 尺寸、治具與產品尺寸），自動檢查做不做得起來。'],
+    ['2026-11-05 01:55', '改成每個平台一上一下兩台相機（上相機1／2 固定、下相機3／4 隨平台）。'],
+    ['2026-11-05 01:23', '第一版：雙平台放料校正手順，含 3D 動作、四台相機畫面、公式、判定標準、偏移排查、實測資料分析與自我驗證。']
+  ];
+
+  let pref = H.getAttribute('data-layout-pref') || 'auto';
+  function eff() { return pref === 'auto' ? ((G.innerWidth || H.clientWidth) < AUTO_W ? 'mobile' : 'desktop') : pref; }
+  function apply() {
+    const e = eff(), w = G.innerWidth || H.clientWidth, wrap = $('.wrap');
+    H.setAttribute('data-layout', e); H.setAttribute('data-layout-pref', pref);
+    H.toggleAttribute('data-wide', e === 'mobile' && w > 600);
+    // 強制電腦版但螢幕比電腦版窄：整頁照 1240 px 排，再縮小到螢幕寬
+    const zoom = e === 'desktop' && w < DESK_W - 20;
+    H.toggleAttribute('data-zoomed', zoom);
+    if (wrap) wrap.style.zoom = zoom ? String(w / DESK_W) : '';
+    $$('.seg [data-lay]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lay === e ? 'true' : 'false'));
+    const an = $('#autonote'); if (an) an.textContent = pref === 'auto' ? '（依螢幕寬度自動）' : '（已記住，點另一個可切換）';
+    if (typeof fabUpdate === 'function') fabUpdate();
+    G.dispatchEvent(new Event('resize'));
+  }
+  function setPref(p) { pref = p; try { localStorage.setItem(KEY, p); } catch (e) { /* 無儲存空間 */ } apply(); }
+  $$('.seg [data-lay], .laybtn[data-lay]').forEach(b => b.addEventListener('click', () => setPref(b.dataset.lay)));
+  let lastW = G.innerWidth;
+  G.addEventListener('resize', () => { if (G.innerWidth !== lastW) { lastW = G.innerWidth; apply(); } });
+
+  // 電腦版：頁首切換鈕捲出畫面時右下角顯示浮動切換鈕；手機版改用分頁列右邊的「電腦版」鈕（不擋內容）
+  const fab = $('#layoutfab'), sw = $('.layoutsw');
+  // 手機上強制電腦版時頁首被縮得很小，浮動鈕一直顯示
+  let swVisible = true;
+  function fabUpdate() { if (!fab) return; const on = H.hasAttribute('data-zoomed') || (!swVisible && H.getAttribute('data-layout') === 'desktop'); if (on) fab.removeAttribute('data-off'); else fab.setAttribute('data-off', ''); }
+  if (fab && sw && 'IntersectionObserver' in G) new IntersectionObserver(es => es.forEach(en => { swVisible = en.isIntersecting; fabUpdate(); })).observe(sw);
+
+  // 手機版：頁首說明點一下展開
+  const hp = $('header.top p'); if (hp) hp.addEventListener('click', () => hp.classList.toggle('open'));
+
+  // 表格：加 data-label，手機版每列疊成一張卡（自訂排法的表格除外）
+  const SKIP = ['ptbl', 'rctbl', 'rcsum', 'vtbl'];
+  function label() {
+    $$('.view table').forEach(t => {
+      if (SKIP.some(c => t.classList.contains(c))) return;
+      const hs = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+      if (hs.length < 3 || t.classList.contains('stk') || t.classList.contains('cmp')) return;
+      // 文字多的表格每列疊成卡；短數字為主、列數多的表格保留表格（可左右滑）
+      const cells = [...t.querySelectorAll('tbody td')], longest = Math.max(0, ...cells.map(td => td.textContent.trim().length));
+      const nRows = t.querySelectorAll('tbody tr').length;
+      t.classList.add(longest <= 22 && nRows > 3 ? 'cmp' : 'stk');
+      if (t.classList.contains('cmp')) return;
+      t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', hs[i] || ''); }));
+    });
+  }
+  let pend = false;
+  new MutationObserver(() => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; label(); }); }).observe($('.wrap'), { childList: true, subtree: true });
+
+  // 更新紀錄
+  const cl = $('#changelog');
+  if (cl) {
+    const [t0, s0] = CHANGELOG[0];
+    cl.innerHTML = `<summary><b>最新更新</b><time>${t0.slice(5)}</time><span>${s0.split('：')[0]}</span><span class="more">全部更新紀錄（${CHANGELOG.length}）</span></summary><ol>${CHANGELOG.map(([t, x]) => `<li><time>${t.slice(5)}</time><span>${x}</span></li>`).join('')}</ol>`;
+  }
+
+  apply(); label();
+  G.LAYOUT = { apply, setPref, eff, CHANGELOG, label };
+})(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
 
