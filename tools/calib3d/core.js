@@ -585,5 +585,70 @@
     return out;
   }
 
-  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+
+  // ===================== 手動旋轉中心計算（多點機械座標） =====================
+  // 幾何最小二乘圓擬合：Kåsa 代數解當初值，再用 Gauss–Newton 最小化徑向殘差；回傳中心、半徑、殘差、1σ 不確定度、涵蓋角度
+  function inv3(A) {
+    const [a, b, c] = A[0], [d, e, f] = A[1], [g, h, i] = A[2];
+    const C = [e * i - f * h, -(d * i - f * g), d * h - e * g], det = a * C[0] + b * C[1] + c * C[2];
+    if (!isFinite(det) || Math.abs(det) < 1e-300) return null;
+    return [[C[0], -(b * i - c * h), b * f - c * e], [C[1], a * i - c * g, -(a * f - c * d)], [C[2], -(a * h - b * g), a * e - b * d]].map(r => r.map(v => v / det));
+  }
+  function fitCircleGeo(Ps) {
+    const n = Ps.length;
+    if (n < 3) return { ok: false, msg: '至少要 3 點（有填 DD 角度時 2 點）' };
+    const mx = Ps.reduce((a, p) => a + p[0], 0) / n, my = Ps.reduce((a, p) => a + p[1], 0) / n;
+    const Q = Ps.map(p => [p[0] - mx, p[1] - my]);
+    let x;
+    try { x = lstsq(Q.map(p => [p[0], p[1], 1]), Q.map(p => p[0] * p[0] + p[1] * p[1])); } catch (e) { x = null; }
+    if (!x || !x.every(isFinite)) return { ok: false, msg: '點排成一直線或重疊，無法擬合圓' };
+    let a = x[0] / 2, b = x[1] / 2, r = Math.sqrt(Math.max(0, x[2] + a * a + b * b));
+    if (!isFinite(r) || r <= 0) return { ok: false, msg: '點排成一直線或重疊，無法擬合圓' };
+    let JtJ = null;
+    for (let it = 0; it < 30; it++) {
+      const rows = [], res = [];
+      Q.forEach(p => { const dx = p[0] - a, dy = p[1] - b, d = Math.hypot(dx, dy) || 1e-12; rows.push([-dx / d, -dy / d, -1]); res.push(-(d - r)); });
+      let step;
+      try { step = lstsq(rows, res); } catch (e) { break; }
+      if (!step.every(isFinite)) break;
+      a += step[0]; b += step[1]; r += step[2];
+      if (Math.hypot(step[0], step[1], step[2]) < 1e-12 * Math.max(1, r)) break;
+    }
+    const res = Q.map(p => Math.hypot(p[0] - a, p[1] - b) - r);
+    const rows = Q.map(p => { const dx = p[0] - a, dy = p[1] - b, d = Math.hypot(dx, dy) || 1e-12; return [-dx / d, -dy / d, -1]; });
+    JtJ = [0, 1, 2].map(i => [0, 1, 2].map(j => rows.reduce((s, rw) => s + rw[i] * rw[j], 0)));
+    const ss = res.reduce((s, v) => s + v * v, 0), dof = n - 3, s2 = dof > 0 ? ss / dof : NaN, Ci = inv3(JtJ);
+    const sig = Ci && dof > 0 ? [Math.sqrt(Math.abs(Ci[0][0] * s2)), Math.sqrt(Math.abs(Ci[1][1] * s2)), Math.sqrt(Math.abs(Ci[2][2] * s2))] : [NaN, NaN, NaN];
+    // 涵蓋角度 = 360° − 最大空隙
+    const angs = Q.map(p => Math.atan2(p[1] - b, p[0] - a)).sort((u, v) => u - v);
+    let gap = 0; angs.forEach((t, i) => { const nx = i + 1 < n ? angs[i + 1] : angs[0] + 2 * Math.PI; gap = Math.max(gap, nx - t); });
+    return { ok: true, center: [a + mx, b + my], r, res, rms: Math.sqrt(ss / n), max: Math.max(...res.map(Math.abs)), sig, span: 2 * Math.PI - gap, phis: Q.map(p => Math.atan2(p[1] - b, p[0] - a)) };
+  }
+  // 由 n 點機械座標（可附 DD 角度）算旋轉中心。mode 'follow'：XY 跟隨（點 = Mark 對到十字時的平台 XY）；'mark'：XY 不動，點 = Mark 的機械座標
+  function rcFromPoints(Ps, thDeg) {
+    const geo = Ps.length >= 3 ? fitCircleGeo(Ps) : { ok: false, msg: '至少要 3 點（有填 DD 角度時 2 點）' };
+    const out = { geo, n: Ps.length };
+    const hasTh = thDeg && thDeg.length === Ps.length && thDeg.every(v => v != null && isFinite(v));
+    if (hasTh && Ps.length >= 2) {
+      const ths = thDeg.map(v => v * D2R), spanTh = Math.max(...ths) - Math.min(...ths);
+      if (spanTh < 1e-6) { out.ang = { ok: false, msg: '所有 DD 角度都一樣，無法用角度擬合' }; return out; }
+      // DD 正方向可能和機械座標相反：兩種方向都擬合，取殘差小的
+      const fs = [1, -1].map(sg => Object.assign(fitRotCenter(ths.map(t => sg * t), Ps), { sign: sg }));
+      // 只有 2 點時兩個方向都剛好解得出來：預設 DD 正方向和機械座標相同
+      const f = Ps.length >= 3 && fs[1].rms < 0.5 * fs[0].rms - 1e-12 ? fs[1] : fs[0];
+      // 角度比例：實際角度（由幾何圓的位置角）對指令角度做線性回歸
+      let k = NaN, phi0 = NaN, angRes = null;
+      if (geo.ok) {
+        const ph = geo.phis.slice(), base = ph[0], un = [base];
+        for (let i = 1; i < ph.length; i++) { let d = ph[i] - un[i - 1]; const exp = f.sign * (ths[i] - ths[i - 1]); d = d - 2 * Math.PI * Math.round((d - exp) / (2 * Math.PI)); un.push(un[i - 1] + d); }
+        const t0 = ths.reduce((a, v) => a + v, 0) / ths.length, p0 = un.reduce((a, v) => a + v, 0) / un.length;
+        const sxx = ths.reduce((a, v) => a + (v - t0) ** 2, 0), sxy = ths.reduce((a, v, i) => a + (v - t0) * (un[i] - p0), 0);
+        k = sxy / sxx; phi0 = p0 - k * t0; angRes = ths.map((t, i) => un[i] - (phi0 + k * t));
+      }
+      out.ang = Object.assign({ ok: true }, f, { k, angRes, spanTh });
+    }
+    return out;
+  }
+
+  G.CAL = { fitCircleGeo, rcFromPoints, PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);

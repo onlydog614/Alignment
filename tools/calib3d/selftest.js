@@ -189,6 +189,28 @@
     // 13. 舊版 CSV（只有 part_pitch、jig_pitch）仍可匯入
     const old = CAL.parseParamsCSV('part_pitch,產品,舊,55,mm,\njig_pitch,校正片,舊,50,mm,\n', base);
     ok('舊版 CSV 代碼 part_pitch／jig_pitch 自動對應到穴位／治具 Mark 間距', old.params.pocket_mark_dx === 55 && old.params.jig_mark_dx === 50 && old.params.part_mark_dx === base.part_mark_dx, `pocket_mark_dx=${old.params.pocket_mark_dx}、jig_mark_dx=${old.params.jig_mark_dx}`);
+
+    // 手動旋轉中心計算（多點機械座標）
+    {
+      const r = CAL.rng(5), gs = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+      const C = [-412.3456, 233.21], Rr = 30, mk = (angs, sg, nz, mode) => angs.map(a => { const t = sg * a * D2R + 0.4; const v = [Rr * Math.cos(t), Rr * Math.sin(t)]; return [C[0] + (mode === 'follow' ? -v[0] : v[0]) + gs() * nz, C[1] + (mode === 'follow' ? -v[1] : v[1]) + gs() * nz]; });
+      const full = [0, 45, 90, 135, 180, 225, 270, 315];
+      const a0 = CAL.rcFromPoints(mk(full, 1, 0, 'follow'), full);
+      ok('旋轉中心計算：無雜訊整圈 8 點，圓心與半徑還原', a0.geo.ok && V.len(V.sub(a0.geo.center, C)) < 1e-9 && Math.abs(a0.geo.r - Rr) < 1e-9 && V.len(V.sub(a0.ang.center, C)) < 1e-9 && Math.abs(a0.ang.k - 1) < 1e-9, `幾何 ${um(V.len(V.sub(a0.geo.center, C)))}、角度 ${um(V.len(V.sub(a0.ang.center, C)))}、k ${a0.ang.k.toFixed(9)}`);
+      const a1 = CAL.rcFromPoints(mk(full, 1, 0.001, 'mark'), full);
+      ok('旋轉中心計算：1 µm 雜訊，圓心誤差 < 3σ 且 σ 估計合理', V.len(V.sub(a1.geo.center, C)) < 3 * Math.hypot(...a1.geo.sig) && a1.geo.sig[0] > 0.0002 && a1.geo.sig[0] < 0.002, `誤差 ${um(V.len(V.sub(a1.geo.center, C)))}、1σ ${um(a1.geo.sig[0])}`);
+      const a2 = CAL.rcFromPoints(mk(full, -1, 0, 'mark'), full);
+      ok('旋轉中心計算：DD 正方向相反時自動判斷', a2.ang.sign === -1 && V.len(V.sub(a2.ang.center, C)) < 1e-9 && Math.abs(Math.abs(a2.ang.k) - 1) < 1e-9, `sign ${a2.ang.sign}、k ${a2.ang.k.toFixed(6)}`);
+      const half = [-45, -22.5, 0, 22.5, 45];
+      const a3 = CAL.rcFromPoints(mk(half, 1, 0.001, 'follow'), half);
+      ok('旋轉中心計算：±45° 能解，σ 比整圈大', a3.geo.ok && a3.ang.ok && a3.geo.sig[0] > a1.geo.sig[0] && Math.abs(a3.geo.span * R2D - 90) < 0.5, `±45° 1σ ${um(Math.hypot(...a3.geo.sig))}，整圈 ${um(Math.hypot(...a1.geo.sig))}，涵蓋 ${(a3.geo.span * R2D).toFixed(1)}°`);
+      const a4 = CAL.rcFromPoints(mk([0, 90], 1, 0, 'mark'), [0, 90]);
+      const a5 = CAL.rcFromPoints([[0, 0], [1, 1], [2, 2]], null);
+      ok('旋轉中心計算：2 點＋角度可解；3 點共線會回報錯誤', a4.ang.ok && V.len(V.sub(a4.ang.center, C)) < 1e-9 && !a5.geo.ok, `2 點誤差 ${um(V.len(V.sub(a4.ang.center, C)))}；共線：${a5.geo.msg}`);
+      const sc = [0, 45, 90, 135, 180].map(a => a);
+      const a6 = CAL.rcFromPoints(mk(sc.map(a => a * 1.001), 1, 0, 'mark'), sc);
+      ok('旋轉中心計算：DD 角度比例 1.001 能被量出', Math.abs(a6.ang.k - 1.001) < 1e-6, `k ${a6.ang.k.toFixed(6)}`);
+    }
     return T;
   }
   G.selfTest = selfTest;

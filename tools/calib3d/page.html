@@ -154,6 +154,21 @@ textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertica
 label.btn{display:inline-block}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 @media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+/* 旋轉中心計算 */
+#rc3d{position:relative;width:100%;aspect-ratio:4/3;max-height:56vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#rc3d canvas{display:block;touch-action:none}
+#rc3d .caption{position:absolute;left:10px;right:10px;bottom:8px;font-size:.84rem;background:var(--label-bg);border-radius:8px;padding:5px 10px;pointer-events:none}
+#rcin{min-height:200px}
+#rcmode{min-width:0;max-width:100%;flex:1 1 auto}
+.rcsum td:first-child{color:var(--muted);white-space:nowrap}
+.rcplot{width:100%;max-width:520px;height:auto;display:block;margin:6px 0}
+.rcplot text{font-family:var(--f-body);font-size:12px;fill:var(--ink)}
+.rcplot .c-fit{fill:none;stroke:var(--accent);stroke-width:1.5}
+.rcplot .c-pt{fill:var(--p1);stroke:var(--panel);stroke-width:1.5}
+.rcplot .c-res{stroke:var(--err);stroke-width:2}
+.rcplot .c-ax{stroke:var(--line);stroke-width:1}
+.rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
+.rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
@@ -169,6 +184,7 @@ label.btn{display:inline-block}
     <button class="tab" role="tab" data-tab="steps" id="tab-steps">校正手順</button>
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
     <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
+    <button class="tab" role="tab" data-tab="rccalc" id="tab-rccalc">旋轉中心計算</button>
     <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
@@ -271,6 +287,38 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       <div class="ctrl" style="margin:8px 0"><button class="btn" id="datasample">載入範例</button><button class="btn" id="dataclear">清空</button><label class="note" for="thr">推測門檻</label><span class="inp"><input type="number" id="thr" value="10" min="0" step="any"><i>µm</i></span><span class="note" id="datamsg"></span></div>
       <textarea id="datain" spellcheck="false" aria-label="實測資料"></textarea>
       <div id="dataout"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-rccalc" hidden>
+    <div class="card">
+      <h3>旋轉中心計算（手動輸入多點機械座標）</h3>
+      <p>把 DD 轉到幾個不同角度時記下的機械座標貼進來，算出 DD 旋轉中心。每行一點：<code>X(mm)　Y(mm)　DD 角度(°，可省略)</code>，空白、Tab、逗號分隔都可以（可直接從 Excel 複製），# 開頭是註解。</p>
+      <div class="two">
+        <div>
+          <label class="fld"><span>座標是什麼</span><select id="rcmode">
+            <option value="follow">XY 跟隨：Mark 對到上相機十字時的平台 XY（光學尺讀值）</option>
+            <option value="mark">XY 不動：相機換算出的 Mark 機械座標</option></select></label>
+          <div class="chips" id="rcsamples"></div>
+          <textarea id="rcin" spellcheck="false" aria-label="旋轉中心量測點"></textarea>
+          <div class="ctrl" style="margin:6px 0"><button class="btn" id="rcclear">清空</button><span class="note" id="rcmsg" role="status"></span></div>
+          <fieldset><legend id="rcreflg">換算成 R̂（可省略）</legend>
+            <p class="note" id="rcrefnote" style="margin:0 0 4px"></p>
+            <label class="fld"><span id="rcreflx">X</span><span class="inp"><input type="number" step="any" id="rcrefx"><i>mm</i></span></label>
+            <label class="fld"><span id="rcrefly">Y</span><span class="inp"><input type="number" step="any" id="rcrefy"><i>mm</i></span></label>
+          </fieldset>
+          <label class="fld"><span>殘差門檻（建議 0.5 px × 上相機 mm/px）</span><span class="inp"><input type="number" step="any" id="rcthr" min="0"><i>µm</i></span></label>
+        </div>
+        <div>
+          <div id="rc3d"><div class="caption" id="rccap">—</div></div>
+          <div class="ctrl" style="margin-top:6px">
+            <button class="btn primary" id="rcplay" aria-pressed="false">播放</button>
+            <button class="btn" id="rcrestart">重播</button>
+            <input type="range" id="rcscrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          </div>
+        </div>
+      </div>
+      <div id="rcout" style="margin-top:14px"></div>
     </div>
   </section>
 
