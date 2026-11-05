@@ -1033,6 +1033,11 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const pTr = CAL.runProduction(m, mTr, est, { px: 0, reps: 1, modeB: true });
     const aTr = [0, 1].map(k => CAL.analyze(pTr.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr }))));
     ok('量完 A–D 後料盤轉 20″ → 兩平台偏移都隨位置旋轉約 −20″', aTr.every(a => a && Math.abs(a.rotXY * R2D * 3600 + 20) < 1.5), aTr.map(a => (a.rotXY * R2D * 3600).toFixed(1) + '″').join('、'));
+    // 10c. 實放驗證：同一穴位重放 10 次，每次人工重放＋重拍上相機（只有雜訊）→ 3σ 小、平均 ≈ 0
+    const Nv = CAL.noiseCtx({ px: 0.1, rep: 1, thRep: 2, slip: 1, seed: 71 }), rv = [];
+    for (let i = 0; i < 10; i++) rv.push(CAL.placeOne(m, estN, 0, { ci: h - 1, ri: 0 }, { qc: [(Nv.r() * 2 - 1), (Nv.r() * 2 - 1)], phi: (Nv.r() * 2 - 1) * D2R }, { modeB: true }, Nv));
+    const mv = rv.reduce((a2, r) => V.add(a2, V.mul(r.err, 0.1)), [0, 0]), s3 = 3 * Math.sqrt(rv.reduce((a2, r) => a2 + V.len(V.sub(r.err, mv)) ** 2, 0) / rv.length);
+    ok('實放驗證：同一穴位重放 10 次、每次重拍上相機四角，3σ < 10 µm 且四點殘差 < 5 µm（只有雜訊）', s3 < 0.010 && rv.every(r => r.cornerMax < 0.005), `3σ ${um(s3)}、平均 (${um(mv[0])}, ${um(mv[1])})`);
     // 交界落差：相機4 鬆動只影響 7–12 欄，交界 6/7 欄出現落差 ≈ −δ
     const bs = CAL.boundaryStep(m, CAL.runProduction(m, mC, est, { px: 0, reps: 1 }));
     ok('交界落差：相機4 移動 → 1-6／2-6 與 1-7／2-7 之間出現落差 ≈ 相機移動量', bs && V.len(V.add(bs.step, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4 && V.len(bs.left) < 2e-4, bs ? `落差 (${um(bs.step[0])}, ${um(bs.step[1])})，左側 ${um(V.len(bs.left))}` : '無');
@@ -1752,29 +1757,57 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
   });
   // 8 實放驗證
   STEPS.push({
-    id: 'verify', title: '實放驗證', sub: '全盤放料、故意轉角度、重放統計',
+    id: 'verify', title: '實放驗證', sub: '全盤放料、故意轉角度、重放統計（每片都重拍上相機）',
     build() {
-      const tl = TL();
-      // 全盤：左平台從 1 欄往交界放、右平台從 12 欄往交界放，兩邊輪流
+      const tl = TL(), N = CAL.noiseCtx({ px: 0.1, rep: 1, thRep: 2, seed: 41 });
+      // 全盤：左平台從 1 欄往交界放、右平台從 12 欄往交界放，兩邊輪流；最後在交界穴位重放 2 次
       const h = M0.tray.nC / 2, order = [];
       for (let i = 0; i < h; i++) for (let r = 0; r < M0.tray.nR; r++) { order.push([0, i, r]); order.push([1, M0.tray.nC - 1 - i, r]); }
-      order.forEach(([k, ci, ri], i) => {
-        const t = CAL.pocketT(M0, ci, ri), it = { type: 'wp', q: [0, 0], ang: ((i % 5) - 2) * 0.5 * D2R };
-        const Sp = SpT(k, t);
-        tl.set(c => { c.chuck[k] = it; }, null, 0.2).go(k, { S: Sp, th: -it.ang }, 0.8, `平台${k + 1} 放 ${ri + 1}-${ci + 1}（料故意轉 ${(it.ang * R2D).toFixed(1)}°）${ci === h - 1 || ci === h ? '　← 交界' : ''}`).go(k, { h: M0.hPlace }, 0.3).set(release(k, it), null, 0.15).go(k, { h: 0 }, 0.25);
+      order.push([0, h - 1, 0, true], [0, h - 1, 0, true]);
+      order.forEach(([k, ci, ri, again], i) => {
+        // 人工放料：位置偏一點、角度故意轉 −1°…+1°
+        const wp = { qc: [((i * 37) % 9 - 4) * 0.1, ((i * 53) % 9 - 4) * 0.1], phi: ((i % 5) - 2) * 0.5 * D2R };
+        const res = CAL.placeOne(M0, EST, k, { ci, ri }, wp, { modeB: true }, N);
+        const it = { type: 'wp', q: wp.qc, ang: wp.phi }, detail = i < 2, mv = detail ? 0.8 : 0.22, sh = detail ? 0.45 : 0.16;
+        tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：人工放料到吸盤${again ? '（同一穴位重放）' : ''}，料故意轉 ${(wp.phi * R2D).toFixed(1)}°`, detail ? 0.6 : 0.2);
+        M0.part.corners.forEach((cq, n) => {
+          tl.go(k, { S: V.sub(Sc(k), cq) }, n ? mv : (detail ? 1.4 : 0.5), `上相機${k + 1} 重新對位：拍角 Mark ${n + 1}/4`).shot([k + 1], n < 3 ? `角 Mark ${n + 1}` : `四點擬合 φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`, sh);
+        });
+        tl.go(k, { S: res.Sp, th: res.dth }, detail ? 1.3 : 0.7, `平台${k + 1} 放 ${ri + 1}-${ci + 1}：DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°${ci === h - 1 || ci === h ? '　← 交界' : ''}`)
+          .go(k, { h: M0.hPlace }, 0.3).set(release(k, it), null, 0.15).go(k, { h: 0 }, 0.25)
+          .set(c => { if (again) c.plate.pop(); }, again ? `偏移 (${um(res.err[0])}, ${um(res.err[1])}) µm → 取出再放` : null, again ? 0.6 : 0.01);
       });
       tl.go2({ 0: { S: [0, 0], th: 0 }, 1: { S: [0, 0], th: 0 } }, 1.4, '全盤放完 → 量每片偏移，貼到「實測分析」');
       return tl;
     },
-    html: () => `
-      <p class="lead">用實際的料把整盤（${M0.tray.nR}×${M0.tray.nC} 穴）放滿，量每一片的偏移，再用「實測分析」把偏移拆成固定偏移、比例、旋轉中心誤差與隨機量。</p>
-      <h4>動作</h4><ol>
-        <li>兩個平台都放，每個穴位至少 3 片。料放上吸盤時故意偏 ±0.5 mm、轉 −1°、−0.5°、0、+0.5°、+1°（讓旋轉中心誤差現形）。</li>
-        <li>記錄每片的 Δθ（機台 log）與放料後偏移 dX、dY（離線量測，或用下相機拍料與穴位 Mark 的差）。</li>
-        <li>資料貼到「實測分析」頁。</li>
-        <li>同一片料、同一穴位重放 10 次，統計 3σ。</li></ol>
-      <h4>判定</h4><ul><li>所有片的偏移 ≤ 公差。</li><li>3σ ≤ 公差 × 0.6（保留 40% 餘裕）。</li><li>回歸後的固定偏移、比例、旋轉中心誤差都在「偏移排查」表的門檻內。</li><li><b>交界落差</b>：右平台 ${M0.tray.nC / 2 + 1} 欄平均偏移 − 左平台 ${M0.tray.nC / 2} 欄平均偏移 &lt; 10 µm。這兩欄離自己的 Mark 最遠、又緊鄰另一個平台，兩邊各自的誤差在這裡碰頭，最容易看出對不齊。「實測分析」與模擬都會算出這個落差。</li></ul>
-      <p>任何一項不合格，到「偏移排查」頁依樣子找原因，修正後從對應的步驟重做。</p>`
+    html: () => {
+      // 模擬：人工放料 ±place_tol、每片重拍上相機、穴位用第一次量的 A–D
+      const pr = CAL.runProduction(M0, M0, EST, { px: 0.1, rep: 1, thRep: 2, slip: 1, seed: 61, reps: 3, modeB: true });
+      const N = CAL.noiseCtx({ px: 0.1, rep: 1, thRep: 2, slip: 1, seed: 71 }), h = M0.tray.nC / 2, rp = [];
+      for (let i = 0; i < 10; i++) rp.push(CAL.placeOne(M0, EST, 0, { ci: h - 1, ri: 0 }, { qc: [(N.r() * 2 - 1) * M0.P.place_tol_xy, (N.r() * 2 - 1) * M0.P.place_tol_xy], phi: (N.r() * 2 - 1) * M0.P.place_tol_deg * D2R }, { modeB: true }, N));
+      const sd = L => { const mx = L.reduce((a, r) => a + r.err[0], 0) / L.length, my = L.reduce((a, r) => a + r.err[1], 0) / L.length; return Math.sqrt(L.reduce((a, r) => a + (r.err[0] - mx) ** 2 + (r.err[1] - my) ** 2, 0) / L.length); };
+      const bs = CAL.boundaryStep(M0, pr), mx = Math.max(...pr.map(r => V.len(r.err)));
+      const cr = Math.max(...pr.map(r => r.cornerMax));
+      return `
+      <p class="lead">用實際的料把整盤（${M0.tray.nR}×${M0.tray.nC} 穴）放滿，量每一片的偏移，再用「實測分析」把偏移拆成固定偏移、比例、旋轉中心誤差與隨機量。驗證要和生產用<b>同一套流程</b>：每一片都是人工放到吸盤上，所以<b>每一片放料前都要重新用上相機拍四角對位</b>，不能沿用上一片的結果。</p>
+      <h4>動作（每一片都一樣）</h4><ol>
+        <li>人工把料放上吸盤。驗證時故意偏 ±0.5 mm、轉 −1°、−0.5°、0、+0.5°、+1°（讓旋轉中心誤差現形）。</li>
+        <li>平台到上相機下，<b>重新拍料的四角 Mark</b>，四點擬合得到這一片的 ŵ、φ̂，記下四點殘差。</li>
+        <li>用第一次量的 SPB Mark A–D 推算穴位，算 Δθ、S_p，放料。</li>
+        <li>記錄每片的 Δθ、ŵ、φ̂、四點殘差（機台 log）與放料後偏移 dX、dY（離線量測）。資料貼到「實測分析」頁。</li>
+        <li>重放：同一片料、同一穴位取出再放 10 次，<b>每次都重新放上吸盤、重新拍上相機</b>，統計 3σ。這個 3σ 包含人工放料＋上相機對位＋放料動作，就是生產時每片會有的隨機量。</li>
+        <li>整盤放完，再量一次 A–D，和第一次比（料盤有沒有在驗證過程中移動）。</li></ol>
+      <h4>判定</h4><ul><li>所有片的偏移 ≤ 公差。</li><li>重放 3σ ≤ 公差 × 0.6（保留 40% 餘裕）。</li><li>每片四點擬合殘差 &lt; 5 µm；有超過的片要先排除（角 Mark 辨識錯或料沒吸平）再算統計。</li><li>回歸後的固定偏移、比例、旋轉中心誤差都在「偏移排查」表的門檻內。</li><li><b>交界落差</b>：右平台 ${h + 1} 欄平均偏移 − 左平台 ${h} 欄平均偏移 &lt; 10 µm。兩個平台各自的誤差在這裡碰頭，最容易看出對不齊。「實測分析」與模擬都會算出這個落差。</li></ul>
+      <h4>模擬結果（理想機台，只有雜訊；人工放料 ±${M0.P.place_tol_xy} mm、±${M0.P.place_tol_deg}°，每片重拍上相機）</h4>
+      ${table(['項目', '結果'], [
+        ['全盤 ' + pr.length + ' 片最大偏移', um(mx) + ' µm'],
+        ['同一穴位（1-' + h + '）重放 10 次 3σ', um(3 * sd(rp)) + ' µm'],
+        ['四點擬合殘差最大', um(cr) + ' µm'],
+        ['交界落差', bs ? `(${um(bs.step[0])}, ${um(bs.step[1])}) µm` : '–']
+      ])}
+      <p class="note">每片重拍上相機時，影像雜訊與平台重複性每片都重新抽一次，所以重放的散佈會比「拍一次、放很多次」大一點；這才是生產時真正會看到的量。</p>
+      <p>任何一項不合格，到「偏移排查」頁依樣子找原因，修正後從對應的步驟重做。</p>`;
+    }
   });
 
   G.STEPS = STEPS; G.M0 = M0; G.EST = EST; G.SIMOPT = SIMOPT; G.stepUtil = { table, um, pt, f3 };

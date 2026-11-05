@@ -134,6 +134,11 @@
     const pTr = CAL.runProduction(m, mTr, est, { px: 0, reps: 1, modeB: true });
     const aTr = [0, 1].map(k => CAL.analyze(pTr.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr }))));
     ok('量完 A–D 後料盤轉 20″ → 兩平台偏移都隨位置旋轉約 −20″', aTr.every(a => a && Math.abs(a.rotXY * R2D * 3600 + 20) < 1.5), aTr.map(a => (a.rotXY * R2D * 3600).toFixed(1) + '″').join('、'));
+    // 10c. 實放驗證：同一穴位重放 10 次，每次人工重放＋重拍上相機（只有雜訊）→ 3σ 小、平均 ≈ 0
+    const Nv = CAL.noiseCtx({ px: 0.1, rep: 1, thRep: 2, slip: 1, seed: 71 }), rv = [];
+    for (let i = 0; i < 10; i++) rv.push(CAL.placeOne(m, estN, 0, { ci: h - 1, ri: 0 }, { qc: [(Nv.r() * 2 - 1), (Nv.r() * 2 - 1)], phi: (Nv.r() * 2 - 1) * D2R }, { modeB: true }, Nv));
+    const mv = rv.reduce((a2, r) => V.add(a2, V.mul(r.err, 0.1)), [0, 0]), s3 = 3 * Math.sqrt(rv.reduce((a2, r) => a2 + V.len(V.sub(r.err, mv)) ** 2, 0) / rv.length);
+    ok('實放驗證：同一穴位重放 10 次、每次重拍上相機四角，3σ < 10 µm 且四點殘差 < 5 µm（只有雜訊）', s3 < 0.010 && rv.every(r => r.cornerMax < 0.005), `3σ ${um(s3)}、平均 (${um(mv[0])}, ${um(mv[1])})`);
     // 交界落差：相機4 鬆動只影響 7–12 欄，交界 6/7 欄出現落差 ≈ −δ
     const bs = CAL.boundaryStep(m, CAL.runProduction(m, mC, est, { px: 0, reps: 1 }));
     ok('交界落差：相機4 移動 → 1-6／2-6 與 1-7／2-7 之間出現落差 ≈ 相機移動量', bs && V.len(V.add(bs.step, V.rot(dc, m.plat[1].axisRot - m.tray.ang))) < 2e-4 && V.len(bs.left) < 2e-4, bs ? `落差 (${um(bs.step[0])}, ${um(bs.step[1])})，左側 ${um(V.len(bs.left))}` : '無');
