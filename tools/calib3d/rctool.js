@@ -26,30 +26,64 @@
   const SAMPLES = [['整圈 8 點（XY 跟隨）', 'full'], ['只轉 ±45°（5 點）', 'half'], ['沒填角度（只有 XY）', 'noang']];
 
   // ---------- 解析 ----------
-  function parse(txt) {
-    const pts = [], ths = [], bad = [];
-    txt.split(/\r?\n/).forEach((ln, i) => {
+  // 文字（CSV／Tab／空白分隔）→ 列；# 註解、非數字的標題行略過
+  function parseRows(txt) {
+    const rows = [], bad = []; let header = 0;
+    String(txt).replace(/^\uFEFF/, '').split(/\r?\n/).forEach((ln, i) => {
       const s = ln.replace(/#.*/, '').trim(); if (!s) return;
-      const a = s.split(/[\s,;，]+/).filter(Boolean).map(Number);
-      if (a.length < 2 || !a.slice(0, 3).every(isFinite)) { bad.push(i + 1); return; }
-      pts.push([a[0], a[1]]); ths.push(a.length >= 3 ? a[2] : null);
+      const a = s.split(/[\t,;，；]+|\s+/).map(v => v.trim()).filter(v => v !== '');
+      const num = a.slice(0, 3).map(v => v === '' ? NaN : Number(v));
+      if (a.length >= 2 && isFinite(num[0]) && isFinite(num[1])) rows.push([a[0], a[1], a.length >= 3 && isFinite(num[2]) ? a[2] : '']);
+      else if (!rows.length && !header && !bad.length) header++;
+      else bad.push(i + 1);
+    });
+    return { rows, bad, header };
+  }
+  // 表格的列 → 計算用的點
+  function rowsToPts(rows) {
+    const pts = [], ths = [], bad = [];
+    rows.forEach((r, i) => {
+      const [x, y, t] = r.map(v => String(v == null ? '' : v).trim());
+      if (x === '' && y === '' && t === '') return;
+      if (x === '' || y === '' || !isFinite(+x) || !isFinite(+y) || (t !== '' && !isFinite(+t))) { bad.push(i + 1); return; }
+      pts.push([+x, +y]); ths.push(t === '' ? null : +t);
     });
     return { pts, ths, bad };
+  }
+  function parse(txt) { return rowsToPts(parseRows(txt).rows); }
+
+  // ---------- 表格 ----------
+  let ROWS = [];
+  function renderRows(focus) {
+    const tb = $('#rcrows');
+    tb.innerHTML = ROWS.map((r, i) => `<tr><td>${i + 1}</td>${[0, 1, 2].map(j => `<td><input type="text" inputmode="decimal" data-r="${i}" data-c="${j}" value="${esc(r[j])}" aria-label="第 ${i + 1} 點 ${['X', 'Y', 'DD 角度'][j]}"></td>`).join('')}<td><button class="del" data-del="${i}" aria-label="刪除第 ${i + 1} 點" title="刪除這一列">×</button></td></tr>`).join('');
+    if (focus) { const el = tb.querySelector(`input[data-r="${focus[0]}"][data-c="${focus[1]}"]`); if (el) el.focus(); }
+  }
+  function markBad(bad) { $$('#rcrows tr').forEach((tr, i) => tr.querySelectorAll('input').forEach(el => { const v = el.value.trim(); el.setAttribute('aria-invalid', bad.includes(i + 1) && (v === '' ? el.dataset.c !== '2' : !isFinite(+v)) ? 'true' : 'false'); })); }
+  function setRows(rows) { ROWS = rows.map(r => [0, 1, 2].map(j => r[j] == null ? '' : String(r[j]))); if (!ROWS.length) ROWS.push(['', '', '']); renderRows(); }
+  function rowsCSV() { return 'X(mm),Y(mm),DD角度(deg)\n' + ROWS.filter(r => r.some(v => String(v).trim() !== '')).map(r => r.map(v => String(v).trim()).join(',')).join('\n') + '\n'; }
+  function importText(txt, src) {
+    const p = parseRows(txt);
+    if (!p.rows.length) { $('#rcmsg').textContent = `${src}沒有讀到任何點（每行要有 X、Y 兩個數字）`; return false; }
+    setRows(p.rows); compute();
+    $('#rcmsg').textContent = `已從${src}讀入 ${p.rows.length} 點` + (p.bad.length ? `；第 ${p.bad.join('、')} 行看不懂，已略過` : '');
+    return true;
   }
 
   // ---------- 計算 ----------
   let last = null;
   function compute() {
-    const txt = $('#rcin').value, mode = $('#rcmode').value;
-    try { localStorage.setItem(KEY, JSON.stringify({ txt, mode, rx: $('#rcrefx').value, ry: $('#rcrefy').value, thr: $('#rcthr').value })); } catch (e) { /* 無儲存空間時略過 */ }
-    const { pts, ths, bad } = parse(txt);
+    const mode = $('#rcmode').value;
+    try { localStorage.setItem(KEY, JSON.stringify({ rows: ROWS, mode, rx: $('#rcrefx').value, ry: $('#rcrefy').value, thr: $('#rcthr').value })); } catch (e) { /* 無儲存空間時略過 */ }
+    const { pts, ths, bad } = rowsToPts(ROWS);
+    markBad(bad);
     const anyTh = ths.some(v => v != null), allTh = ths.length > 0 && ths.every(v => v != null);
     const fit = CAL.rcFromPoints(pts, allTh ? ths : null);
     const thrUm = +$('#rcthr').value > 0 ? +$('#rcthr').value : 0.5 * M0.top[0].mmpp * 1000;
     // 主要結果：有角度用「已知角度擬合」（線性、2 點即可）；沒角度用幾何圓
     const main = fit.ang && fit.ang.ok ? { kind: 'ang', center: fit.ang.center, r: fit.ang.r, res: fit.ang.res, rms: fit.ang.rms } : (fit.geo.ok ? { kind: 'geo', center: fit.geo.center, r: fit.geo.r, res: fit.geo.res.map(Math.abs), rms: fit.geo.rms } : null);
     last = { pts, ths: allTh ? ths : null, fit, main, mode, thrUm };
-    $('#rcmsg').textContent = `讀到 ${pts.length} 點` + (bad.length ? `；第 ${bad.join('、')} 行看不懂，已略過` : '') + (anyTh && !allTh ? '；有些行沒填角度，角度全部不用' : '');
+    $('#rcmsg').textContent = `讀到 ${pts.length} 點` + (bad.length ? `；第 ${bad.join('、')} 列有格子不是數字（紅框），先略過` : '') + (anyTh && !allTh ? '；有些列沒填角度，角度全部不用' : '');
     render();
     anim.build(last);
     return last;
@@ -285,17 +319,51 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
     if (inited) return; inited = true;
     let st = null; try { st = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { st = null; }
     $('#rcsamples').innerHTML = '<span class="note" style="margin-right:4px">範例：</span>' + SAMPLES.map(s => `<button class="chip" data-s="${s[1]}">${s[0]}</button>`).join('');
-    $$('#rcsamples .chip').forEach(b => b.addEventListener('click', () => { $('#rcin').value = sample(b.dataset.s); $('#rcmode').value = 'follow'; compute(); }));
-    $('#rcin').value = st && st.txt != null ? st.txt : sample('full');
+    $$('#rcsamples .chip').forEach(b => b.addEventListener('click', () => { importText(sample(b.dataset.s), '範例'); $('#rcmode').value = 'follow'; compute(); }));
+    if (st && Array.isArray(st.rows)) setRows(st.rows); else if (st && st.txt != null) setRows(parseRows(st.txt).rows); else setRows(parseRows(sample('full')).rows);
     if (st && st.mode) $('#rcmode').value = st.mode;
     if (st) { $('#rcrefx').value = st.rx || ''; $('#rcrefy').value = st.ry || ''; $('#rcthr').value = st.thr || ''; }
     let tm = 0; const later = () => { clearTimeout(tm); tm = setTimeout(compute, 250); };
-    $('#rcin').addEventListener('input', later);
+    const tb = $('#rcrows');
+    tb.addEventListener('input', e => { const el = e.target; if (el.dataset.r == null) return; ROWS[+el.dataset.r][+el.dataset.c] = el.value; later(); });
+    tb.addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; ROWS.splice(+b.dataset.del, 1); if (!ROWS.length) ROWS.push(['', '', '']); renderRows(); compute(); });
+    // 從 Excel 複製多列／多欄貼到任一格：從這一格開始往右、往下填
+    tb.addEventListener('paste', e => {
+      const el = e.target; if (el.dataset.r == null) return;
+      const txt = (e.clipboardData || G.clipboardData).getData('text');
+      if (!/[\t\n,]/.test(txt.trim())) return;
+      e.preventDefault();
+      const r0 = +el.dataset.r, c0 = +el.dataset.c;
+      const lines = txt.replace(/\r/g, '').split('\n').filter(l => l.trim() !== '' && !/^\s*#/.test(l)).map(l => l.split(/\t|,/).map(v => v.trim()));
+      if (lines.length && lines[0].some(v => v !== '' && !isFinite(+v))) lines.shift(); // 標題列
+      lines.forEach((cells, k) => { const r = r0 + k; while (ROWS.length <= r) ROWS.push(['', '', '']); cells.slice(0, 3 - c0).forEach((v, j) => { ROWS[r][c0 + j] = v; }); });
+      renderRows([r0, c0]); compute();
+    });
+    // Enter 跳到下一列同一欄，最後一列自動新增
+    tb.addEventListener('keydown', e => {
+      const el = e.target; if (e.key !== 'Enter' || el.dataset.r == null) return;
+      e.preventDefault(); const r = +el.dataset.r + 1, c = +el.dataset.c;
+      if (r >= ROWS.length) { ROWS.push(['', '', '']); renderRows([r, c]); } else { const n = tb.querySelector(`input[data-r="${r}"][data-c="${c}"]`); if (n) n.focus(); }
+    });
+    $('#rcadd').addEventListener('click', () => { ROWS.push(['', '', '']); renderRows([ROWS.length - 1, 0]); });
+    $('#rcclear').addEventListener('click', () => { setRows([]); compute(); $('#rcmsg').textContent = '已清空，請填入至少 3 點（有角度時 2 點）'; });
+    $('#rcfile').addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const rd = new FileReader(); rd.onload = () => importText(String(rd.result), `「${f.name}」`); rd.readAsText(f, 'utf-8'); e.target.value = '';
+    });
+    $('#rcdl').addEventListener('click', () => {
+      const a = document.createElement('a'), url = URL.createObjectURL(new Blob(['\uFEFF' + rowsCSV()], { type: 'text/csv;charset=utf-8' }));
+      a.href = url; a.download = 'rc-points.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+    $('#rccopy').addEventListener('click', () => {
+      const txt = rowsCSV(), fallback = () => { $('#rcpaste').open = true; $('#rcin').value = txt; $('#rcin').select(); $('#rcmsg').textContent = '已把 CSV 放進下方文字框並選取，請按 Ctrl+C 複製'; };
+      try { navigator.clipboard.writeText(txt).then(() => { $('#rcmsg').textContent = '已複製 CSV，可以貼到 Excel 或記事本'; }, fallback); } catch (e) { fallback(); }
+    });
+    $('#rcparse').addEventListener('click', () => { if (importText($('#rcin').value, '貼上的內容')) { $('#rcin').value = ''; $('#rcpaste').open = false; } });
     ['#rcrefx', '#rcrefy', '#rcthr'].forEach(s => $(s).addEventListener('input', later));
     $('#rcmode').addEventListener('change', compute);
-    $('#rcclear').addEventListener('click', () => { $('#rcin').value = ''; compute(); });
     anim.bind();
   }
   function show() { init(); compute(); anim.resize(); }
-  G.RCT = { show, compute, parse, sample, anim, last: () => last };
+  G.RCT = { show, compute, parse, parseRows, rowsToPts, rowsCSV, importText, setRows, rows: () => ROWS, sample, anim, last: () => last };
 })(typeof window !== 'undefined' ? window : globalThis);
