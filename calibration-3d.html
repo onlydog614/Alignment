@@ -2347,9 +2347,20 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
       const f = e.target.files && e.target.files[0]; if (!f) return;
       const rd = new FileReader(); rd.onload = () => importText(String(rd.result), `「${f.name}」`); rd.readAsText(f, 'utf-8'); e.target.value = '';
     });
-    $('#rcdl').addEventListener('click', () => {
-      const a = document.createElement('a'), url = URL.createObjectURL(new Blob(['\uFEFF' + rowsCSV()], { type: 'text/csv;charset=utf-8' }));
-      a.href = url; a.download = 'rc-points.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $('#rcdl').addEventListener('click', async () => {
+      const data = '\uFEFF' + rowsCSV(), name = 'rc-points.csv';
+      // 在 claude.ai 裡要透過 downloads 能力存檔；本機開啟時用一般下載連結
+      if (G.claude && typeof G.claude.use === 'function') {
+        let dl = null; try { dl = await G.claude.use('downloads'); } catch (e) { dl = null; }
+        if (dl) {
+          try { await dl.save({ filename: name, data }); $('#rcmsg').textContent = '已下載 ' + name; }
+          catch (e) { $('#rcmsg').textContent = e && e.code === 'declined' ? '已取消下載' : '這裡無法下載檔案，請改用「複製 CSV」'; }
+          return;
+        }
+        $('#rcmsg').textContent = '這裡無法下載檔案，請改用「複製 CSV」'; return;
+      }
+      const a = document.createElement('a'), url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }));
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
     $('#rccopy').addEventListener('click', () => {
       const txt = rowsCSV(), fallback = () => { $('#rcpaste').open = true; $('#rcin').value = txt; $('#rcin').select(); $('#rcmsg').textContent = '已把 CSV 放進下方文字框並選取，請按 Ctrl+C 複製'; };
