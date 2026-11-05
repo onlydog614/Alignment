@@ -332,7 +332,7 @@
     updParamMsg();
     const ck = paramChecks(), lv = { ok: ['ok', '可以'], warn: ['warn', '注意'], bad: ['bad', '不行'] };
     const nb = ck.filter(c => c.lvl === 'bad').length, nw = ck.filter(c => c.lvl === 'warn').length;
-    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])) + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
+    $('#pchecks').innerHTML = `<p><span class="pill ${nb ? 'bad' : 'ok'}">${nb ? nb + ' 項做不起來' : '沒有做不起來的項目'}</span>${nw ? `<span class="pill warnp">${nw} 項要注意</span>` : ''}</p>` + U.table(['', '項目', '數值', '說明'], ck.map(c => [`<span class="pill ${lv[c.lvl][0] === 'warn' ? 'warnp' : lv[c.lvl][0]}">${lv[c.lvl][1]}</span>`, c.item, c.val, c.note])).replace('<table>', '<table class="vtbl">') + '<p class="note">XY 行程的「需要」是用本頁假設的配置估算的（上相機站在平台原點前方 250 mm、料盤中心在後方 205 mm、6 欄 2 列）。實際配置不同時，請以機台座標重新確認。</p>';
   }
   function importText(txt, src) {
     const r = CAL.parseParamsCSV(txt, draft);
@@ -387,7 +387,7 @@
     }
     const pass = verified.filter(t => t.pass).length;
     $('#verifysum').innerHTML = `<span class="pill ${pass === verified.length ? 'ok' : 'bad'}">${pass} / ${verified.length} 通過</span><span class="muted">在你的瀏覽器上剛剛重新計算（${verified.ms.toFixed(0)} ms）</span>`;
-    $('#verifylist').innerHTML = U.table(['結果', '項目', '數值'], verified.map(t => [`<span class="pill ${t.pass ? 'ok' : 'bad'}">${t.pass ? '通過' : '失敗'}</span>`, t.name, t.detail]));
+    $('#verifylist').innerHTML = U.table(['結果', '項目', '數值'], verified.map(t => [`<span class="pill ${t.pass ? 'ok' : 'bad'}">${t.pass ? '通過' : '失敗'}</span>`, t.name, t.detail])).replace('<table>', '<table class="vtbl">');
     document.body.dataset.verify = pass === verified.length ? 'pass' : 'fail';
   }
   G.runVerifyNow = () => { verified = null; runVerify(); return document.body.dataset.verify; };
