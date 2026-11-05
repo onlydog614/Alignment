@@ -278,7 +278,17 @@
         // 手動放料：角 Mark 偏離設計位置 ≈ 放料位置誤差 + 角 Mark 半徑 × 角度誤差
         const rC = Math.hypot(M0.P.part_mark_dx, M0.P.part_mark_dy) / 2, tolXY = M0.P.place_tol_xy, tolA = M0.P.place_tol_deg * D2R;
         const need = Math.SQRT2 * tolXY + rC * tolA, phiMax = Math.max(0, mg - Math.SQRT2 * tolXY) / rC;
-        add(`${nm} 手動放料後四角 Mark 是否都入鏡`, `角 Mark 最多偏 ${need.toFixed(2)}／餘量 ${mg.toFixed(2)} mm`, need <= mg ? (need > 0.8 * mg ? 'warn' : 'ok') : 'bad', need <= mg ? `放料 ±${tolXY} mm、±${M0.P.place_tol_deg}° 時還拍得到；角度最多可到約 ±${(phiMax * R2D).toFixed(2)}°` : `手動放料誤差太大，角 Mark 會出畫面：放料要更準（加定位靠塊），或先拍一顆角 Mark 粗定位再拍其他三顆`);
+        if (need <= mg) add(`${nm} 手動放料後四角 Mark 是否都入鏡`, `角 Mark 最多偏 ${need.toFixed(2)}／餘量 ${mg.toFixed(2)} mm`, need > 0.8 * mg ? 'warn' : 'ok', `放料 ±${tolXY} mm、±${M0.P.place_tol_deg}° 時第一張就拍得到；角度最多可到約 ±${(phiMax * R2D).toFixed(2)}°`);
+        else {
+          // 看不到時：先螺旋搜尋第 1 顆，後面幾顆用已找到的角 Mark 修正預估位置。用最壞的放料組合算要多拍幾張
+          const k = id - 1, Nz = CAL.noiseCtx({ px: 0, rep: 0, thRep: 0, seed: 1 });
+          let worst = 0, lost = false;
+          [-1, 1].forEach(sx => [-1, 1].forEach(sy => [-1, 1].forEach(sa => {
+            const qm = CAL.partMarks(M0, [sx * tolXY, sy * tolXY], sa * tolA), sh = CAL.topShots(M0, k, G.EST, Nz, qm, M0.part.corners);
+            worst = Math.max(worst, sh.reduce((a, t) => a + t.search.length, 0)); if (sh.some(t => !t.found)) lost = true;
+          })));
+          add(`${nm} 手動放料後四角 Mark 是否都入鏡`, `角 Mark 最多偏 ${need.toFixed(2)}／餘量 ${mg.toFixed(2)} mm`, lost ? 'bad' : 'warn', lost ? '放料誤差太大，搜尋 8 mm 內也找不到：放料要更準（加定位靠塊）' : `第一張看不到，要螺旋搜尋：第 1 顆角 Mark 搜到後，後面幾顆用已找到的位置修正預估；最壞每片多拍 ${worst} 張（影響節拍）。想第一張就拍到：放料要在約 ±${(0.5 * mg / Math.SQRT2).toFixed(2)} mm、±${(0.5 * mg / rC * R2D).toFixed(2)}° 以內（加定位靠塊）`);
+        }
         const ang = Math.hypot(0.1 * c.mmpp, 0.001) / (2 * rC);
         add(`${nm} 料角度量測解析（四角擬合）`, `約 ${(ang * R2D * 3600).toFixed(1)}″`, 'ok', `0.1 px 雜訊＋1 µm 平台重複性，四角對角距 ${(2 * rC).toFixed(1)} mm`);
       } else {

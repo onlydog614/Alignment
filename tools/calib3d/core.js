@@ -89,24 +89,24 @@
   // ===================== 機台參數（可由 CSV 匯入） =====================
   // [代碼, 分組, 項目, 預設值, 單位, 說明]
   const PARAMS = [
-    ['top1_fov_x', '相機', '上相機1 視野 X', 19.2, 'mm', '影像寬方向實際看到的長度；一次只需拍到一顆 Mark'],
-    ['top1_fov_y', '相機', '上相機1 視野 Y', 14.4, 'mm', '影像高方向實際看到的長度'],
-    ['top1_res_x', '相機', '上相機1 解析度 X', 1280, 'px', '影像寬（像素）'],
-    ['top1_res_y', '相機', '上相機1 解析度 Y', 960, 'px', '影像高（像素）'],
-    ['top2_fov_x', '相機', '上相機2 視野 X', 19.2, 'mm', ''],
-    ['top2_fov_y', '相機', '上相機2 視野 Y', 14.4, 'mm', ''],
-    ['top2_res_x', '相機', '上相機2 解析度 X', 1280, 'px', ''],
-    ['top2_res_y', '相機', '上相機2 解析度 Y', 960, 'px', ''],
-    ['bot3_fov_x', '相機', '下相機3 視野 X', 12.8, 'mm', ''],
-    ['bot3_fov_y', '相機', '下相機3 視野 Y', 9.6, 'mm', ''],
-    ['bot3_res_x', '相機', '下相機3 解析度 X', 1280, 'px', ''],
-    ['bot3_res_y', '相機', '下相機3 解析度 Y', 960, 'px', ''],
+    ['top1_fov_x', '相機', '上相機1 視野 X', 2.8152, 'mm', '影像寬方向實際看到的長度；一次只需拍到一顆 Mark'],
+    ['top1_fov_y', '相機', '上相機1 視野 Y', 2.346, 'mm', '影像高方向實際看到的長度'],
+    ['top1_res_x', '相機', '上相機1 解析度 X', 2448, 'px', '影像寬（像素）'],
+    ['top1_res_y', '相機', '上相機1 解析度 Y', 2040, 'px', '影像高（像素）'],
+    ['top2_fov_x', '相機', '上相機2 視野 X', 2.8152, 'mm', ''],
+    ['top2_fov_y', '相機', '上相機2 視野 Y', 2.346, 'mm', ''],
+    ['top2_res_x', '相機', '上相機2 解析度 X', 2448, 'px', ''],
+    ['top2_res_y', '相機', '上相機2 解析度 Y', 2040, 'px', ''],
+    ['bot3_fov_x', '相機', '下相機3 視野 X', 2.8152, 'mm', ''],
+    ['bot3_fov_y', '相機', '下相機3 視野 Y', 2.346, 'mm', ''],
+    ['bot3_res_x', '相機', '下相機3 解析度 X', 2448, 'px', ''],
+    ['bot3_res_y', '相機', '下相機3 解析度 Y', 2040, 'px', ''],
     ['bot3_off_x', '相機', '下相機3 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
     ['bot3_off_y', '相機', '下相機3 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
-    ['bot4_fov_x', '相機', '下相機4 視野 X', 12.8, 'mm', ''],
-    ['bot4_fov_y', '相機', '下相機4 視野 Y', 9.6, 'mm', ''],
-    ['bot4_res_x', '相機', '下相機4 解析度 X', 1280, 'px', ''],
-    ['bot4_res_y', '相機', '下相機4 解析度 Y', 960, 'px', ''],
+    ['bot4_fov_x', '相機', '下相機4 視野 X', 2.8152, 'mm', ''],
+    ['bot4_fov_y', '相機', '下相機4 視野 Y', 2.346, 'mm', ''],
+    ['bot4_res_x', '相機', '下相機4 解析度 X', 2448, 'px', ''],
+    ['bot4_res_y', '相機', '下相機4 解析度 Y', 2040, 'px', ''],
     ['bot4_off_x', '相機', '下相機4 中心相對 DD 中心 X', 0, 'mm', '設計值（從機構圖）'],
     ['bot4_off_y', '相機', '下相機4 中心相對 DD 中心 Y', 110, 'mm', '設計值（從機構圖）'],
     ['p1_x_stroke', '平台', '平台1 X 可移動範圍', 900, 'mm', '軟體極限之間的總行程'],
@@ -116,7 +116,7 @@
     ['p2_y_stroke', '平台', '平台2 Y 可移動範圍', 650, 'mm', ''],
     ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
     ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
-    ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
+    ['mark_dia', 'Mark', 'Mark 直徑', 0.3, 'mm', '料、治具、穴位、基準 Mark 共用；建議佔視野短邊 1/10～1/5'],
     ['rc_mark_r', 'Mark', 'DD 旋轉中心校正：Mark 離 DD 中心距離', 30, 'mm', '越遠越準；每轉一格 XY 會把 Mark 移回上相機畫面，不受視野限制'],
     ['rc_span_deg', 'Mark', 'DD 旋轉中心校正：DD 可轉角度範圍', 360, '°', '能轉整圈填 360；管線限制時填實際可轉範圍（例如 90）'],
     ['rc_steps', 'Mark', 'DD 旋轉中心校正：取點數', 8, '點', ''],
@@ -269,6 +269,28 @@
   function pixTop(m, k, W) { const c = m.top[k]; return M.ap(M.inv(camLocalA(c)), V.sub(W, c.C)); }
   function pixB(m, j, S, W) { const cp = bcamPose(m, j, S); return M.ap(M.inv(M.mul(M.rot(cp.ang), camLocalA(m.bcam[j]))), V.sub(W, cp.o)); }
   function inImage(cam, u, margin) { const mg = margin || 0; return Math.abs(u[0]) <= cam.w / 2 - mg && Math.abs(u[1]) <= cam.h / 2 - mg; }
+  // 找 Mark：在預估位置 S0 拍；看不到就以「視野扣掉 Mark 後的 90%」為步距由內往外螺旋搜尋（格子之間不留死角），找到後用點動方向表把 Mark 移回畫面中心（九點校正一律先對中）。
+  // uFn(S)：平台在 S 時 Mark 的真實像素位置（無雜訊）。回傳 {S: 對中後位置, path: 搜尋時拍過的位置, n: 多拍的次數, found}
+  function findMark(m, cam, uFn, S0, o) {
+    o = o || {};
+    const rpx = (m.markDia || 0) / 2 / cam.mmpp, vis = u => inImage(cam, u, rpx);
+    const md = (m.markDia || 0) / 2, step = Math.max(0.05, 1.8 * (Math.min(cam.fov[0], cam.fov[1]) / 2 - md)), lim = o.maxR || 8, path = [];
+    let S = S0, u = uFn(S);
+    if (!vis(u)) {
+      const nR = Math.ceil(lim / step), offs = [];
+      for (let j = -nR; j <= nR; j++) for (let i = -nR; i <= nR; i++) if (i || j) offs.push([i * step, j * step]);
+      offs.sort((a, b) => (Math.max(Math.abs(a[0]), Math.abs(a[1])) - Math.max(Math.abs(b[0]), Math.abs(b[1]))) || (Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0])));
+      let ok = false;
+      for (const o of offs) { const St = V.add(S0, o); path.push(St); const ut = uFn(St); if (vis(ut)) { S = St; u = ut; ok = true; break; } }
+      if (!ok) return { S: S0, path, n: path.length, found: false };
+    }
+    if (!path.length && !o.center) return { S, path, n: 0, found: true };   // 第一張就看得到：直接用
+    // 對中：點動方向表（數值微分）把 u 換算成平台移動量
+    const e = 0.05, ux = uFn(V.add(S, [e, 0])), uy = uFn(V.add(S, [0, e]));
+    const J = [(ux[0] - u[0]) / e, (uy[0] - u[0]) / e, (ux[1] - u[1]) / e, (uy[1] - u[1]) / e];
+    const Sc = V.sub(S, M.ap(M.inv(J), u));
+    return { S: Sc, path, n: path.length, found: true };
+  }
 
   // 控制器拿來移動的「設計值」位置（不知道真實誤差）
   const nomSc = (m, k) => V.sub(m.top[k].C, m.plat[k].base);                       // 吸盤中心到上相機 k 下方
@@ -292,11 +314,18 @@
   const partMarks = (m, qc, ang) => m.part.corners.map(c => V.add(qc, V.rot(c, ang)));
   // 上相機逐顆拍：平台移到「這顆 Mark 的設計位置在相機下方」S = S_c − R̂ − q_nom，拍照後 q̂ = Â·u + Ĉ − S − R̂
   function topShots(m, k, est, N, qTrue, qNom) {
-    const Sc = est.top[k].Sc, R = est.R[k];
-    return qTrue.map((q, i) => {
-      const S = V.sub(V.sub(Sc, R), qNom[i]), u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q)));
-      return { S, u, q: V.sub(V.sub(V.add(M.ap(est.top[k].G, u), est.top[k].c), S), R) };
+    const R = est.R[k], cam = m.top[k], out = [];
+    qTrue.forEach((q, i) => {
+      // 用前面已找到的 Mark 修正下一顆的預估位置（1 顆：平移；2 顆以上：相似轉換）
+      let qp = qNom[i];
+      if (out.length === 1) qp = V.add(qNom[i], V.sub(out[0].q, qNom[0]));
+      else if (out.length >= 2) qp = fitSimilarity(qNom.slice(0, out.length), out.map(o => o.q)).apply(qNom[i]);
+      // 預估位置：Mark 在畫面中心（u = 0）時 q = Ĉ − S − R̂ → S = Ĉ − R̂ − q
+      const f = findMark(m, cam, S => pixTop(m, k, chuckPt(m, k, S, 0, 0, q)), V.sub(V.sub(est.top[k].c, R), qp));
+      const S = f.S, u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q)));
+      out.push({ S, u, q: V.sub(V.sub(V.add(M.ap(est.top[k].G, u), est.top[k].c), S), R), search: f.path, found: f.found });
     });
+    return out;
   }
   // 四點擬合：設計角 Mark c_i → 量到的 q̂_i，求中心 ŵ、角度 φ̂、比例與殘差
   function fitCorners(design, meas) {
@@ -308,12 +337,14 @@
   // 步驟1：上相機九點（平台 k 帶玻璃 Mark 走 3×3，相機1↔平台1、相機2↔平台2）
   function calibTop(m, k, N, g) {
     const Sc = nomSc(m, k), q0 = [3, -2], step = g || m.top[k].grid, us = [], Ss = [];
+    // 先找 Mark 並對到畫面中心（視野小時設計位置不一定看得到），再以它為中心走九點
+    const fm = findMark(m, m.top[k], S => pixTop(m, k, chuckPt(m, k, S, 0, 0, q0)), V.sub(Sc, q0), { center: true }), S0 = fm.S;
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-      const S = V.add(V.sub(Sc, q0), [i * step, j * step]);   // 以「Mark 在畫面中心」的位置為中心走九點
+      const S = V.add(S0, [i * step, j * step]);
       us.push(npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), 0, 0, q0)))); Ss.push(S);
     }
     const f = fitAffine(us, Ss);
-    return Object.assign(f, { Sc, info: describeG(f.G), us, Ss, step, q0 });
+    return Object.assign(f, { Sc, info: describeG(f.G), us, Ss, step, q0, S0, search: fm.path });
   }
   // 步驟2：DD 旋轉中心（Mark 離中心 rcR，轉一格就用 XY 把 Mark 移回上相機畫面中心附近）
   // 平台在 S_i = S_c − Rot(θ_i)·q 拍照；P_i = Â·u_i + Ĉ − (S_i − S_c) 是「平台停在 S_c 時」Mark 的位置
@@ -331,14 +362,14 @@
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
     const b = m.bcam[j], F = trayW(m, m.fidT[b.plat === 0 ? 'A' : 'D']);
-    const S0 = nomSv(m, j, F), step = g || m.bcam[j].grid, us = [], Ss = [];
+    const fm = findMark(m, b, S => pixB(m, j, S, F), nomSv(m, j, F), { center: true }), S0 = fm.S, step = g || m.bcam[j].grid, us = [], Ss = [];
     for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) {
       const S = V.add(S0, [i * step, jj * step]);
       us.push(npx(N, pixB(m, j, nS(N, S), F))); Ss.push(S);
     }
     const f = fitAffine(us, Ss);
     const A = noFlip ? f.G.slice() : M.neg(f.G);
-    return Object.assign(f, { A, info: describeG(A), Ginfo: describeG(f.G), us, Ss, step, F });
+    return Object.assign(f, { A, info: describeG(A), Ginfo: describeG(f.G), us, Ss, step, F, S0, search: fm.path });
   }
   // 步驟4：上下相機連結（玻璃雙 Mark 治具轉移法）→ D_j（相機 j 影像中心 = S + D_j，平台座標）
   function calibLink(m, k, est, N, hCal) {
@@ -346,7 +377,7 @@
     const qm = jigMarks(m, JIG.qc, JIG.ang, m.jig.mv);
     const Sc = est.top[k].Sc, R = est.R[k];
     // 上相機一次只拍一顆：平台移動逐顆拍治具兩個 Mark
-    const qh = topShots(m, k, est, N, qm, jigMarks(m, [0, 0], 0, m.jig.mv)).map(s => s.q);
+    const tops = topShots(m, k, est, N, qm, jigMarks(m, [0, 0], 0, m.jig.mv)), qh = tops.map(s => s.q);
     const tc = linkPocket(m, k);
     const Wp = trayW(m, tc);
     const Sp = nomSp(m, k, trayNom(m, tc));
@@ -355,24 +386,24 @@
     const D = {}, shots = [];
     p.cams.forEach((j, idx) => {
       const mi = p.cams.length === 2 ? idx : 0;
-      const Sv = nomSv(m, j, jw[mi]);
+      const fv = findMark(m, m.bcam[j], S => pixB(m, j, S, jw[mi]), nomSv(m, j, jw[mi])), Sv = fv.S;
       const u = npx(N, pixB(m, j, nS(N, Sv), jw[mi]));
       D[j] = V.sub(V.sub(V.add(V.add(Sp, R), qh[mi]), Sv), M.ap(est.A[j], u));
-      shots.push({ j, mi, Sv, u });
+      shots.push({ j, mi, Sv, u, search: fv.path });
     });
     let check = null;
     if (p.cams.length === 1) { // 相機4：第二點驗證（量右 Mark，與預測比較）
-      const j = p.cams[0], Sv = nomSv(m, j, jw[1]), u = npx(N, pixB(m, j, nS(N, Sv), jw[1]));
+      const j = p.cams[0], fv = findMark(m, m.bcam[j], S => pixB(m, j, S, jw[1]), nomSv(m, j, jw[1])), Sv = fv.S, u = npx(N, pixB(m, j, nS(N, Sv), jw[1]));
       const meas = V.add(V.add(Sv, D[j]), M.ap(est.A[j], u)), pred = V.add(V.add(Sp, R), qh[1]);
       check = { diff: V.sub(meas, pred), Sv, u };
-      shots.push({ j, mi: 1, Sv, u });
+      shots.push({ j, mi: 1, Sv, u, search: fv.path });
     } else { // （兩台下相機時）基線檢查
       const [j2, j3] = p.cams;
       const s2 = shots[0], s3 = shots[1];
       const P2 = V.add(V.add(s2.Sv, D[j2]), M.ap(est.A[j2], s2.u)), P3 = V.add(V.add(s3.Sv, D[j3]), M.ap(est.A[j3], s3.u));
       check = { baseline: V.sub(D[j3], D[j2]), spacingBottom: V.len(V.sub(P3, P2)), spacingTop: V.len(V.sub(qh[1], qh[0])) };
     }
-    return { D, qh, Sp, Wp, jw, shots, check, h };
+    return { D, qh, tops, Sp, Wp, jw, shots, check, h };
   }
   // 上下連結用的穴位：自己半盤中間那一欄、前排
   const linkPocket = (m, k) => { const h = m.tray.nC / 2; return [m.tray.cols[k * h + Math.floor((h - 1) / 2)], m.tray.rows[0]]; };
@@ -380,9 +411,9 @@
   function measureTray(m, k, est, N) {
     const j = m.plat[k].cams[0], keys = m.fidOf[k];
     const pts = keys.map(key => {
-      const W = trayW(m, m.fidT[key]), Sv = nomSv(m, j, W);
+      const W = trayW(m, m.fidT[key]), fv = findMark(m, m.bcam[j], S => pixB(m, j, S, W), nomSv(m, j, W)), Sv = fv.S;
       const u = npx(N, pixB(m, j, nS(N, Sv), W));
-      return { key, design: m.fidT[key], P: V.add(V.add(Sv, est.D[j]), M.ap(est.A[j], u)) };
+      return { key, design: m.fidT[key], Sv, search: fv.path, P: V.add(V.add(Sv, est.D[j]), M.ap(est.A[j], u)) };
     });
     if (pts.length < 2) return { pts, single: true, ang: 0, scalePpm: NaN, toPlat: t => V.add(pts[0].P, V.sub(t, pts[0].design)) };
     const dd = V.sub(pts[1].design, pts[0].design), dp = V.sub(pts[1].P, pts[0].P);
@@ -432,13 +463,13 @@
       PL = tr.toPlat(trayMarkT(m, pt, -1)); PR = tr.toPlat(trayMarkT(m, pt, 1));
     } else if (p.cams.length === 2) {
       const [j2, j3] = p.cams, ap = [N.r() - 0.5, N.r() - 0.5].map(x => x * 0.4);
-      const Sv = V.add(nomSv(m, j2, nomMarks[0]), ap), Sva = nS(N, Sv);
+      const Sv = findMark(m, m.bcam[j2], S => pixB(m, j2, S, trueMarks[0]), V.add(nomSv(m, j2, nomMarks[0]), ap)).S, Sva = nS(N, Sv);
       PL = V.add(V.add(Sv, est.D[j2]), M.ap(est.A[j2], npx(N, pixB(m, j2, Sva, trueMarks[0]))));
       PR = V.add(V.add(Sv, est.D[j3]), M.ap(est.A[j3], npx(N, pixB(m, j3, Sva, trueMarks[1]))));
     } else {
       const j = p.cams[0];
       const P2 = trueMarks.map((W, i) => {
-        const Sv = V.add(nomSv(m, j, nomMarks[i]), [N.r() - 0.5, N.r() - 0.5].map(x => x * 0.4));
+        const Sv = findMark(m, m.bcam[j], S => pixB(m, j, S, W), V.add(nomSv(m, j, nomMarks[i]), [N.r() - 0.5, N.r() - 0.5].map(x => x * 0.4))).S;
         return V.add(V.add(Sv, est.D[j]), M.ap(est.A[j], npx(N, pixB(m, j, nS(N, Sv), W))));
       });
       PL = P2[0]; PR = P2[1];
@@ -650,5 +681,5 @@
     return out;
   }
 
-  G.CAL = { fitCircleGeo, rcFromPoints, PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { findMark, fitCircleGeo, rcFromPoints, PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);

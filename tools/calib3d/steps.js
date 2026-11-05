@@ -79,6 +79,11 @@
   const SIMOPT = { px: 0.1, rep: 1, thRep: 2, slip: 0, seed: 11 };
   const EST = CAL.calibrateAll(M0, SIMOPT);
   const EST0 = CAL.calibrateAll(M0, { px: 0 });
+  // 視野小、第一張看不到 Mark 時：動畫照模型實際的螺旋搜尋路徑走（不拍照，只示意）
+  function seek(tl, k, path, cam) {
+    (path || []).forEach((S, i) => tl.go(k, { S }, 0.3, `${cam} 看不到 Mark → 螺旋搜尋第 ${i + 1} 格`));
+    return tl;
+  }
   const f3 = v => (v >= 0 ? '+' : '') + v.toFixed(3), f4 = v => (v >= 0 ? '+' : '') + v.toFixed(4), um = v => (v * 1000).toFixed(1);
   const pt = (p, f) => `(${(f || f3)(p[0])}, ${(f || f3)(p[1])})`;
   function table(head, rows) { return `<div class="tbl"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
@@ -198,11 +203,13 @@
     build() {
       const tl = TL();
       tl.set(c => { c.chuck[0] = { type: 'mark', q: [3, -2], ang: 0 }; }, '吸盤放單點玻璃 Mark');
-      tl.go(0, { S: Sc(0) }, 1.6, '平台1 到上相機1 下方').shot([1], '上相機1 拍一張（基準）');
-      tl.go(0, { S: V.add(Sc(0), [5, 0]) }, 0.7, '只點動 +X 5 mm').shot([1], '看影像：Mark 往右 → 方向表填「+X = 影像 +u」');
-      tl.go(0, { S: V.add(Sc(0), [0, 5]) }, 0.7, '只點動 +Y 5 mm').shot([1], 'Mark 往影像上方（v 減少）＝往下看相機的正常現象');
-      tl.go(0, { S: Sc(0) }, 0.6).go(0, { S: SvT(3, M0.fidT.A) }, 2, '換下相機：下相機3 移到平台3 的 SPB Mark A 下方').shot([3], '下相機3 拍基準 Mark');
-      tl.go(0, { S: V.add(SvT(3, M0.fidT.A), [1, 0]) }, 0.7, '平台 +X 1 mm').shot([3], '下相機3 影像中 Mark 往右移：相機往 +X，Mark 相對相機往 −X，往上看的影像左右相反');
+      const jg = +Math.min(5, 0.25 * Math.min(...M0.top[0].fov)).toPrecision(2), jb = +Math.min(1, 0.25 * Math.min(...M0.bcam[3].fov)).toPrecision(2);
+      const T0 = EST.top[0].S0, B0 = EST.b[3].S0;
+      tl.go(0, { S: T0 }, 1.6, '平台1 把玻璃 Mark 移到上相機1 下方').shot([1], '上相機1 拍一張（基準）');
+      tl.go(0, { S: V.add(T0, [jg, 0]) }, 0.7, `只點動 +X ${jg} mm`).shot([1], '看影像：Mark 往右 → 方向表填「+X = 影像 +u」');
+      tl.go(0, { S: V.add(T0, [0, jg]) }, 0.7, `只點動 +Y ${jg} mm`).shot([1], 'Mark 往影像上方（v 減少）＝往下看相機的正常現象');
+      tl.go(0, { S: T0 }, 0.6).go(0, { S: B0 }, 2, '換下相機：下相機3 移到平台3 的 SPB Mark A 下方').shot([3], '下相機3 拍基準 Mark');
+      tl.go(0, { S: V.add(B0, [jb, 0]) }, 0.7, `平台 +X ${jb} mm`).shot([3], '下相機3 影像中 Mark 往右移：相機往 +X，Mark 相對相機往 −X，往上看的影像左右相反');
       tl.go(0, { S: [0, 0] }, 1.6).set(c => { c.chuck[0] = null; });
       return tl;
     },
@@ -228,10 +235,12 @@
       const tl = TL();
       [0, 1].forEach(k => {
         tl.set(c => { c.chuck[k] = { type: 'mark', q: [3, -2], ang: 0 }; }, `平台${k + 1} 吸盤放單點玻璃 Mark（θ=0、Z=Z_cam）`);
-        tl.go(k, { S: V.sub(Sc(k), [3, -2]) }, 1.8, `平台${k + 1} 移到 S_0：玻璃 Mark 在上相機${k + 1} 畫面中心`);
+        const et = EST.top[k];
+        tl.go(k, { S: V.sub(Sc(k), [3, -2]) }, 1.8, `平台${k + 1} 移到設計位置：玻璃 Mark 應在上相機${k + 1} 下方`);
+        seek(tl, k, et.search, `上相機${k + 1}`).go(k, { S: et.S0 }, 0.6, `找到 Mark，點動對到畫面中心 → S_0`);
         let n = 0;
         for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
-          n++; const g = M0.top[k].grid; tl.go(k, { S: V.add(V.sub(Sc(k), [3, -2]), [i * g, j * g]) }, 0.45, `第 ${n}/9 點：S = S_0 + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
+          n++; const g = M0.top[k].grid; tl.go(k, { S: et.Ss[n - 1] }, 0.45, `第 ${n}/9 點：S = S_0 + (${i * g}, ${j * g}) mm`).shot([k + 1], `拍照，記錄 S_${n} 與像素 u_${n}`, 0.45);
         }
         tl.go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
@@ -243,7 +252,7 @@
       <p class="lead">求上相機的像素 → 平台座標轉換：上相機1 用平台1 的 XY 校，上相機2 用平台2 的 XY 校，得到兩組 Â_top、Ĉ_top。相機要用「它實際服務的那個平台」來校，因為結果同時包含相機角度和該平台 XY 軸的方向。</p>
       <h4>動作</h4><ol>
         <li>單點玻璃 Mark 吸在吸盤上，θ = 0、Z = Z_cam。</li>
-        <li>平台1 移到上相機1 下方（平台2 對上相機2），讓 Mark 在影像中心，記這個位置 S_0。之後步驟 3 用的 S_c 是「吸盤中心在相機下方」的位置。</li>
+        <li>平台1 移到上相機1 下方（平台2 對上相機2）。視野只有 ${M0.top[0].fov[0]}×${M0.top[0].fov[1]} mm，設計位置不一定看得到 Mark：看不到就以「視野扣掉 Mark 後的 90%」為步距螺旋搜尋，找到後用方向表點動，讓 Mark 在影像中心，記這個位置 S_0（下相機九點、上下連結、量 SPB Mark 也一樣先找再拍）。之後步驟 3 用的 S_c 是「吸盤中心在相機下方」的位置。</li>
         <li>XY 走 3×3，間距 ${M0.top[0].grid} mm（約視野 ${f1(M0.top[0].fov[0])}×${f1(M0.top[0].fov[1])} mm 的 1/3；相機2 為 ${M0.top[1].grid} mm）。每點停穩 200 ms 以上再拍，同一點拍 3 次取平均。</li>
         <li>記錄 S_i（光學尺實際值）與 Mark 像素 u_i。平台2／上相機2 重做。</li></ol>
       <h4>公式</h4>
@@ -301,10 +310,11 @@ R̂ = c − S_c
     build() {
       const tl = TL();
       [[3, 0, 'A'], [4, 1, 'D']].forEach(([j, k, key]) => {
-        const S0 = SvT(j, M0.fidT[key]);
-        tl.go(k, { S: S0 }, 1.8, `相機${j} 移到平台3 的 SPB Mark ${key} 下方`);
+        const eb = EST.b[j];
+        tl.go(k, { S: SvT(j, M0.fidT[key]) }, 1.8, `相機${j} 移到平台3 的 SPB Mark ${key} 下方（設計位置）`);
+        seek(tl, k, eb.search, `下相機${j}`).go(k, { S: eb.S0 }, 0.6, `找到 Mark，點動對到畫面中心 → S_0`);
         let n = 0;
-        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; const g = M0.bcam[j].grid; tl.go(k, { S: V.add(S0, [i * g, jj * g]) }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * g}, ${jj * g}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
+        for (let jj = -1; jj <= 1; jj++) for (let i = -1; i <= 1; i++) { n++; const g = M0.bcam[j].grid; tl.go(k, { S: eb.Ss[n - 1] }, 0.35, `相機${j} 第 ${n}/9 點：平台走 (${i * g}, ${jj * g}) mm`).shot([j], `拍照，Mark 在畫面中反向移動`, 0.4); }
         tl.go(k, { S: [0, 0] }, 1.4);
       });
       return tl;
@@ -336,12 +346,18 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       [0, 1].forEach(k => {
         const t = CAL.linkPocket(M0, k), Sp = SpT(k, t);
         tl.set(c => { c.chuck[k] = Object.assign({}, JIG); }, `平台${k + 1}：雙 Mark 玻璃治具放上吸盤`);
-        tl.go(k, { S: V.add(Sc(k), M0.jig.mv) }, 1.8, `① 平台移動，治具左 Mark 到上相機${k + 1} 下方`).shot([k + 1], '拍左 Mark → q̂_L')
-          .go(k, { S: V.sub(Sc(k), M0.jig.mv) }, 0.9, `平台移動，右 Mark 到上相機${k + 1} 下方`).shot([k + 1], '拍右 Mark → q̂_R');
+        const L = EST.link[k], lt = L.tops;
+        tl.go(k, { S: V.add(Sc(k), M0.jig.mv) }, 1.8, `① 平台移動，治具左 Mark 到上相機${k + 1} 下方`);
+        seek(tl, k, lt[0].search, `上相機${k + 1}`).go(k, { S: lt[0].S }, 0.4).shot([k + 1], '拍左 Mark → q̂_L');
+        tl.go(k, { S: V.sub(Sc(k), M0.jig.mv) }, 0.9, `平台移動，右 Mark 到上相機${k + 1} 下方`);
+        seek(tl, k, lt[1].search, `上相機${k + 1}`).go(k, { S: lt[1].S }, 0.4).shot([k + 1], '拍右 Mark → q̂_R');
         tl.go(k, { S: Sp }, 2, '② 移到放料位置 S_p（θ = 0）').go(k, { h: M0.hCal }, 1, 'Z 上升到治具行程').set(release(k, JIG), '治具交給平台3（破真空、平台3 吸附）').go(k, { h: 0 }, 0.8, 'Z 下降');
         const j = k + 3;
-        tl.go(k, { S: SvT(j, V.sub(t, M0.jig.mv)) }, 1.2, `③ 下相機${j} 對治具左 Mark`).shot([j], `拍 → D${j}`);
-        tl.go(k, { S: SvT(j, V.add(t, M0.jig.mv)) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
+        const sh = L.shots;
+        tl.go(k, { S: SvT(j, V.sub(t, M0.jig.mv)) }, 1.2, `③ 下相機${j} 對治具左 Mark`);
+        seek(tl, k, sh[0].search, `下相機${j}`).go(k, { S: sh[0].Sv }, 0.4).shot([j], `拍 → D${j}`);
+        tl.go(k, { S: SvT(j, V.add(t, M0.jig.mv)) }, 0.9, `下相機${j} 移到右 Mark（檢查點）`);
+        seek(tl, k, sh[1].search, `下相機${j}`).go(k, { S: sh[1].Sv }, 0.4).shot([j], '預測 vs 實測：檢查間距與 X 軸偏擺');
         tl.go(k, { S: Sp }, 1.1, '④ 回到 S_p 把治具取回').go(k, { h: M0.hCal }, 0.8).set(c => { c.plate.pop(); c.chuck[k] = Object.assign({}, JIG); }, '吸盤吸回治具').go(k, { h: 0 }, 0.7).go(k, { S: [0, 0] }, 1.5).set(c => { c.chuck[k] = null; });
       });
       return tl;
@@ -375,11 +391,12 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
     id: 'tray', title: '料盤座標對應', sub: '平台3 料盤 ↔ 平台1、平台2',
     build() {
       const tl = TL();
-      tl.go(0, { S: SvT(3, M0.fidT.A) }, 1.8, '左平台：下相機3 量 SPB Mark A（左上）').shot([3], 'P_A');
-      tl.go(0, { S: SvT(3, M0.fidT.B) }, 1.8, '下相機3 量 SPB Mark B（中上，6 欄側）').shot([3], 'P_B → 左平台的料盤角度');
+      const T0 = EST.tray[0].pts, T1 = EST.tray[1].pts;
+      tl.go(0, { S: SvT(3, M0.fidT.A) }, 1.8, '左平台：下相機3 量 SPB Mark A（左上）'); seek(tl, 0, T0[0].search, '下相機3').go(0, { S: T0[0].Sv }, 0.3).shot([3], 'P_A');
+      tl.go(0, { S: SvT(3, M0.fidT.B) }, 1.8, '下相機3 量 SPB Mark B（中上，6 欄側）'); seek(tl, 0, T0[1] && T0[1].search, '下相機3').go(0, { S: T0[1] ? T0[1].Sv : SvT(3, M0.fidT.B) }, 0.3).shot([3], 'P_B → 左平台的料盤角度');
       tl.go(0, { S: [0, 0] }, 1.4);
-      tl.go(1, { S: SvT(4, M0.fidT.C) }, 1.8, '右平台：下相機4 量 SPB Mark C（中上，7 欄側）').shot([4], 'P_C');
-      tl.go(1, { S: SvT(4, M0.fidT.D) }, 1.8, '下相機4 量 SPB Mark D（右上）').shot([4], 'P_D → 右平台的料盤角度');
+      tl.go(1, { S: SvT(4, M0.fidT.C) }, 1.8, '右平台：下相機4 量 SPB Mark C（中上，7 欄側）'); seek(tl, 1, T1[0].search, '下相機4').go(1, { S: T1[0].Sv }, 0.3).shot([4], 'P_C');
+      tl.go(1, { S: SvT(4, M0.fidT.D) }, 1.8, '下相機4 量 SPB Mark D（右上）'); seek(tl, 1, T1[1] && T1[1].search, '下相機4').go(1, { S: T1[1] ? T1[1].Sv : SvT(4, M0.fidT.D) }, 0.3).shot([4], 'P_D → 右平台的料盤角度');
       tl.go(1, { S: [0, 0] }, 1.4);
       return tl;
     },
@@ -439,7 +456,9 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：人工把料放上吸盤（每片位置、角度都不同）`);
         const j = k + 3;
         M0.part.corners.forEach((cq, i) => {
-          tl.go(k, { S: V.sub(Sc(k), cq) }, i ? 0.8 : 1.8, `1. 平台移動，料的第 ${i + 1} 顆角 Mark（${CORNER_NAMES[i]}）到上相機${k + 1} 下方`).shot([k + 1], i < 3 ? `拍角 Mark ${i + 1} → q̂_${i + 1}` : `四點擬合：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°，殘差 ${um(res.cornerMax)} µm`, 0.55);
+          const ts = res.tops[i];
+          tl.go(k, { S: ts.search.length ? ts.search[0] : ts.S }, i ? 0.8 : 1.8, `1. 平台移動，料的第 ${i + 1} 顆角 Mark（${CORNER_NAMES[i]}）到上相機${k + 1} 下方${i ? '（用前面找到的角 Mark 修正預估位置）' : ''}`);
+          seek(tl, k, ts.search.slice(1), `上相機${k + 1}`).go(k, { S: ts.S }, 0.3).shot([k + 1], i < 3 ? `拍角 Mark ${i + 1} → q̂_${i + 1}` : `四點擬合：φ̂ = ${(res.phiHat * R2D).toFixed(3)}°，殘差 ${um(res.cornerMax)} µm`, 0.55);
         });
         tl.wait(0.9, `2. 穴位 ${res.pocket.ri + 1}-${res.pocket.ci + 1} 的位置：用第一次量的 SPB Mark ${k ? 'C、D' : 'A、B'}＋設計間距推算（下相機不再拍）ψ̂ = ${(res.psiHat * R2D).toFixed(3)}°`);
         tl.go(k, { S: res.Sp, th: res.dth }, 1.3, `3. 移到 S_p、DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°`);
@@ -454,7 +473,9 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
       <p class="lead">把前面所有參數串起來，就是生產時每一片料的計算。平台1、2 都是<b>人工放料</b>到吸盤上，每片的位置和角度都不同，所以每一片都要重新用上相機拍四角；穴位位置則用<b>第一次量的 SPB Mark A–D</b>（步驟 6）加設計間距推算，之後不再拍。偏移排查時，請拿機台的 log 逐項對照這幾個中間值。</p>
       <h4>流程與公式</h4>
       <pre>1. 料放上吸盤（θ = 0），上相機（平台1→相機1、平台2→相機2）一次拍一顆：
-   平台依序移到 S_i = S_c − R̂ − c_i，讓第 i 顆角 Mark 到相機下方（i = 1…4）
+   平台依序移到 S_i = Ĉ_top − R̂ − ĉ_i，讓第 i 顆角 Mark 到畫面中心（i = 1…4）
+   ĉ_1 = c_1；ĉ_2 = c_2 ＋ 第 1 顆的偏移；ĉ_3、ĉ_4 用前面找到的角 Mark 擬合預估
+   （看不到就螺旋搜尋，找到後用實際拍照的 S_i 算）
    （c_i：第 i 顆角 Mark 的設計位置，相對料中心）
    q̂_i = Â_top·u_i + Ĉ_top − S_i − R̂
    四點擬合 q̂_i ≈ ŵ + Rot(φ̂)·c_i  →  料中心 ŵ、料角度 φ̂、殘差
@@ -471,6 +492,7 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
 4. 平台移到 S_p，DD 轉 Δθ，Z 上升 h，破真空放料，Z 下降</pre>
       <h4>注意</h4><ul>
         <li>第 3 步的 Rot(Δθ)·ŵ：料不在旋轉中心上，轉 Δθ 時料中心會跟著移動，平台要一起補。</li>
+        <li><b>小視野找角 Mark</b>：手動放料的偏差可能比上相機半視野（約 ±${(Math.min(...M0.top[0].fov) / 2 - M0.markDia / 2).toFixed(2)} mm）大。第 1 顆角 Mark 看不到就螺旋搜尋；找到後，第 2 顆用第 1 顆的偏移修正預估位置，第 3、4 顆用前兩顆擬合的位置與角度預估，通常第一張就拍到。「機台參數」檢查表會算出最壞每片要多拍幾張。</li>
         <li><b>上相機四角都是移動平台拍的</b>：q̂_i 一定要用「拍這一張時」的平台位置 S_i 去算，不能四張都用同一個 S_c。用錯的話四點會擠在同一點附近，φ̂ 和 ŵ 都是錯的。</li>
         <li><b>四點擬合殘差</b>是很好用的健康指標：正常應 &lt; 5 µm。殘差大表示某顆角 Mark 辨識錯、料變形，或平台在四個點之間走得不準（XY 比例、直交度）。擬合出來的比例若和設計差超過 200 ppm，先查 XY 軸比例或料的實際尺寸。</li>
         <li><b>SPB Mark 只在第一次量</b>：之後每一片的穴位位置都靠那一次的 P_A–P_D。量完以後料盤若被碰到、換盤、或溫度變化（鋁料盤 1 °C ≈ 23 ppm，離中點 390 mm 就是 9 µm），所有穴位會一起偏，而且機台自己看不出來。建議換料盤、開機熱機後、每隔固定時間重量一次 A–D，並把前後兩次的差記下來。</li>
@@ -496,7 +518,10 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         const it = { type: 'wp', q: wp.qc, ang: wp.phi }, detail = i < 2, mv = detail ? 0.8 : 0.22, sh = detail ? 0.45 : 0.16;
         tl.set(c => { c.chuck[k] = it; }, `平台${k + 1}：人工放料到吸盤${again ? '（同一穴位重放）' : ''}，料故意轉 ${(wp.phi * R2D).toFixed(1)}°`, detail ? 0.6 : 0.2);
         M0.part.corners.forEach((cq, n) => {
-          tl.go(k, { S: V.sub(Sc(k), cq) }, n ? mv : (detail ? 1.4 : 0.5), `上相機${k + 1} 重新對位：拍角 Mark ${n + 1}/4`).shot([k + 1], n < 3 ? `角 Mark ${n + 1}` : `四點擬合 φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`, sh);
+          const ts = res.tops[n];
+          tl.go(k, { S: ts.search.length ? ts.search[0] : ts.S, th: 0 }, n ? mv : (detail ? 1.4 : 0.5), `上相機${k + 1} 重新對位：拍角 Mark ${n + 1}/4`);
+          if (detail) seek(tl, k, ts.search.slice(1), `上相機${k + 1}`); else ts.search.slice(1).forEach(S => tl.go(k, { S }, 0.08));
+          tl.go(k, { S: ts.S }, 0.12).shot([k + 1], n < 3 ? `角 Mark ${n + 1}` : `四點擬合 φ̂ = ${(res.phiHat * R2D).toFixed(3)}°`, sh);
         });
         tl.go(k, { S: res.Sp, th: res.dth }, detail ? 1.3 : 0.7, `平台${k + 1} 放 ${ri + 1}-${ci + 1}：DD 轉 Δθ = ${(res.dth * R2D).toFixed(3)}°${ci === h - 1 || ci === h ? '　← 交界' : ''}`)
           .go(k, { h: M0.hPlace }, 0.3).set(release(k, it), null, 0.15).go(k, { h: 0 }, 0.25)

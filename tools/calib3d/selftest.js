@@ -211,6 +211,18 @@
       const a6 = CAL.rcFromPoints(mk(sc.map(a => a * 1.001), 1, 0, 'mark'), sc);
       ok('旋轉中心計算：DD 角度比例 1.001 能被量出', Math.abs(a6.ang.k - 1.001) < 1e-6, `k ${a6.ang.k.toFixed(6)}`);
     }
+
+    // 小視野找 Mark：設計位置看不到時螺旋搜尋＋對中
+    {
+      const cam = { fov: [2.8152, 2.346], w: 2448, h: 2040, mmpp: 0.00115 }, mm = { markDia: 0.3 };
+      const truth = [1.9, -2.3], uF = S => [(S[0] - truth[0]) / cam.mmpp, -(S[1] - truth[1]) / cam.mmpp];
+      const f = CAL.findMark(mm, cam, uF, [0, 0]);
+      ok('小視野找 Mark：偏 3 mm 時螺旋搜尋找到並對中', f.found && V.len(V.sub(f.S, truth)) < 1e-6 && f.n > 0 && f.n <= 24, `搜尋 ${f.n} 格，對中誤差 ${um(V.len(V.sub(f.S, truth)))}`);
+      const f2 = CAL.findMark(mm, cam, uF, V.add(truth, [0.3, 0.2]));
+      ok('小視野找 Mark：第一張就看得到時不多拍、不移動', f2.found && f2.n === 0 && V.len(V.sub(f2.S, V.add(truth, [0.3, 0.2]))) < 1e-12, `搜尋 ${f2.n} 格`);
+      const f3 = CAL.findMark(mm, cam, uF, [20, 20]);
+      ok('小視野找 Mark：超出搜尋範圍回報找不到', !f3.found, `搜尋 ${f3.n} 格後放棄`);
+    }
     return T;
   }
   G.selfTest = selfTest;
