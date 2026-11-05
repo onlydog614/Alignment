@@ -260,13 +260,15 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
   });
   // 3 旋轉中心
   STEPS.push({
-    id: 'rc', title: 'DD 旋轉中心', sub: '上相機看 Mark，DD 轉整圈',
+    id: 'rc', title: 'DD 旋轉中心', sub: 'DD 每轉一格，XY 把 Mark 移回上相機畫面',
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 ${M0.rcR} mm`);
-        tl.go(k, { S: Sc(k), th: 0 }, 1.8, `平台${k + 1} 到 S_c，XY 之後不動`);
-        for (let a = 0; a < 360; a += 45) tl.go(k, { th: a * D2R }, 0.55, `θ = ${a}°（同一方向轉到位）`).shot([k + 1], `拍照：θ = ${a}°`, 0.45);
+        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 0], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離 DD 中心約 ${M0.rcR} mm`);
+        M0.rcAngles.forEach((a, i) => {
+          const S = CAL.rcFollowS(M0, Sc(k), a);
+          tl.go(k, { th: a, S }, i ? 0.9 : 1.8, `θ = ${(a * R2D).toFixed(0)}°：DD 轉到位，XY 同時移到 S_${i + 1}，Mark 回到上相機${k + 1} 畫面`).shot([k + 1], `拍照：記錄 θ_${i + 1}、S_${i + 1}、u_${i + 1}`, 0.45);
+        });
         tl.go(k, { th: 0 }, 1.2, '轉回 0°').go(k, { S: [0, 0] }, 1.4).set(c => { c.chuck[k] = null; });
       });
       return tl;
@@ -277,16 +279,16 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
       <p class="lead">求 DD 旋轉中心 R̂（平台在 S = 0 時的位置，平台座標）。料轉 Δθ 時，平台要用 R̂ 才知道料會被轉到哪裡。</p>
       ${FIG.rc}
       <h4>動作</h4><ol>
-        <li>玻璃 Mark 放在離吸盤中心約 ${M0.rcR} mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
-        <li>平台停在 S_c，XY 不動。θ = 0°、45° … 315° 共 8 點，每點都從同一方向轉到位（消背隙），拍照。</li>
+        <li>玻璃 Mark（或料上的一顆角 Mark）放在離 DD 中心約 ${M0.rcR} mm。上相機視野只有 ${M0.top[0].fov[0]}×${M0.top[0].fov[1]} mm，DD 轉整圈時 Mark 會走直徑 ${2 * M0.rcR} mm 的圓，<b>一定會出畫面</b>，所以不能讓 XY 停著不動。</li>
+        <li>每個角度 θ_i（${M0.rcSpan >= 360 ? `整圈 ${M0.rcAngles.length} 點，每 ${(360 / M0.rcAngles.length).toFixed(0)}°` : `±${M0.rcSpan / 2}° 內 ${M0.rcAngles.length} 點`}）：DD 從同一方向轉到位（消背隙），XY 同時移到 S_i = S_c − Rot(θ_i)·(r, 0)，讓 Mark 回到上相機畫面中心附近，拍照並記錄 θ_i、S_i（光學尺實際值）、u_i。</li>
         <li>重做 3 次，比較 R̂。</li></ol>
       <h4>公式（已知指令角度擬合，線性）</h4>
-      <pre>P_i = Â_top·u_i + Ĉ_top
+      <pre>P_i = Â_top·u_i + Ĉ_top − (S_i − S_c)    （把 XY 移動量扣回去：「平台停在 S_c 時」Mark 的位置）
 P_i = c + Rot(θ_i)·v          → 解 c、v（4 個未知數）
 R̂ = c − S_c
 吸盤上任一點：P = S + R̂ + Rot(θ)·q
-圓心精度 1σ ≈ σ_P·√(2/N)      （σ_P = 像素雜訊 × mm/px）</pre>
-      <p>只能轉小角度 ±α 時，圓心誤差約放大成 σ_P ÷ α（α 用弧度，與半徑無關），所以 DD 能轉整圈就轉整圈。</p>
+圓心精度 1σ ≈ σ_P·√(2/N)      （σ_P = √(像素雜訊² × (mm/px)² + 平台重複性²)）</pre>
+      <p>因為 Mark 位置是「XY 光學尺＋影像」一起算的，XY 的比例與直交度要先準（上相機九點已經用同一組軸校過，九點範圍外的比例誤差會進來，所以 r 不要比 XY 校過的範圍大太多）。DD 只能轉小角度 ±α 時，圓心誤差約放大成 σ_P ÷ α（α 用弧度），所以能轉整圈就轉整圈。</p>
       <h4>判定</h4><ul><li>擬合殘差 &lt; 0.5 px。</li><li>重做 3 次 R̂ 差 &lt; 5 µm。</li><li>θ 比例：轉 90° 用雙 Mark 量角度，量到 ÷ 指令 = 1 ± 0.0001。</li></ul>
       <h4>它影響多大</h4><p>放料誤差 = (Rot(Δθ) − I)·e ≈ Δθ·(−e_y, e_x)。e = 50 µm、Δθ = 1° 只有 0.9 µm；e = 1 mm、Δθ = 1° 就有 17 µm。料放上吸盤時角度越亂，這項越重要。</p>
       <h4>模擬結果</h4>${table(['平台', 'R̂（含雜訊）', 'R̂（無雜訊）', '殘差 RMS', '|v|'], rows)}

@@ -289,8 +289,9 @@
         add(`${nm} 與吸盤上料的距離`, `${dd.toFixed(0)} mm`, dd < clear ? 'warn' : 'ok', dd < clear ? `小於料對角線一半＋10 mm（${clear.toFixed(0)} mm），DD 轉動時料可能撞到或擋住相機` : '');
       }
     });
-    const sR = 0.1 / Math.sqrt(3) * M0.top[0].mmpp * Math.sqrt(2 / 8);
-    add('DD 旋轉中心：校正片 Mark 半徑', `${M0.rcR} mm`, 'ok', `整圈在上相機視野內；預估圓心精度 1σ ≈ ${(sR * 1000).toFixed(1)} µm`);
+    // 旋轉中心：XY 跟著移，所以不受視野限制；精度用 Monte-Carlo（含 1 µm 平台重複性）估
+    const rcSd = (() => { const r = [], th = M0.rcAngles; for (let s2 = 1; s2 <= 120; s2++) { const N = CAL.noiseCtx({ px: 0.1 / Math.sqrt(3), rep: 1, seed: s2 * 7 }); const P = th.map(t => [M0.rcR * Math.cos(t) + N.g() * Math.hypot(N.px * M0.top[0].mmpp, N.rep), M0.rcR * Math.sin(t) + N.g() * Math.hypot(N.px * M0.top[0].mmpp, N.rep)]); r.push(CAL.fitRotCenter(th, P).center); } const mu = r.reduce((a, c) => V.add(a, V.mul(c, 1 / r.length)), [0, 0]); return Math.sqrt(r.reduce((a, c) => a + V.len(V.sub(c, mu)) ** 2, 0) / r.length / 2); })();
+    add('DD 旋轉中心：Mark 半徑與轉角', `r = ${M0.rcR} mm、${M0.rcSpan >= 360 ? '整圈' : '±' + M0.rcSpan / 2 + '°'}、${M0.rcAngles.length} 點`, rcSd > 0.005 ? 'warn' : 'ok', `每格 XY 把 Mark 移回畫面，不受視野限制；預估圓心精度 1σ ≈ ${(rcSd * 1000).toFixed(1)} µm${rcSd > 0.005 ? '（大於 5 µm：轉角範圍太小或點數太少）' : ''}`);
     // 行程：所有動畫用到的平台位置
     [0, 1].forEach(k => {
       const xs = [], ys = [], hs = [];

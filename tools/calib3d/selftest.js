@@ -91,6 +91,18 @@
     const theo = 0.1 * m.top[0].mmpp * Math.sqrt(2 / 8);
     ok('旋轉中心精度（0.1 px 雜訊、8 角度 Monte-Carlo）接近理論 σ·√(2/N)', sdx < theo * 2.2, `模擬 1σ ${um(sdx)}；理論（不含九點誤差）${um(theo)}`);
 
+    // 9b. 旋轉中心：Mark 離中心 30 mm、轉整圈，XY 每格跟著移 → 每張 Mark 都在上相機畫面內
+    const rc0 = est.rc[0], maxU = Math.max(...rc0.us.map(u => Math.max(Math.abs(u[0]) / (m.top[0].w / 2), Math.abs(u[1]) / (m.top[0].h / 2))));
+    ok(`旋轉中心：Mark 半徑 ${m.rcR} mm、${m.rcAngles.length} 點，XY 跟著把 Mark 移回畫面 → 每張都在視野內`, maxU < 0.5, `Mark 最遠在半視野的 ${(maxU * 100).toFixed(1)}%（不跟著移的話 Mark 會走 ${(2 * m.rcR).toFixed(0)} mm 的圓）`);
+    const mSp = CAL.defaultMachine(Object.assign({}, CAL.loadParams(), { rc_span_deg: 90, rc_steps: 7 }));
+    const eSp = CAL.calibrateAll(mSp, { px: 0 });
+    ok('旋轉中心：DD 只能轉 ±45° 時（7 點）也解得出來（無雜訊誤差 ≈ 0）', V.len(V.sub(V.sub(eSp.R[0], est.R[0]), [0, 0])) < 1e-6 && eSp.rc[0].rms < 1e-9, `與整圈結果差 ${um(V.len(V.sub(eSp.R[0], est.R[0])))}`);
+    const simsA = [];
+    for (let s2 = 1; s2 <= 150; s2++) { const Nn = CAL.noiseCtx({ px: 0.1, rep: 1, seed: s2 * 13 }); const c1 = CAL.calibTop(mSp, 0, Nn); simsA.push(CAL.calibRC(mSp, 0, c1, Nn).R); }
+    const muA = simsA.reduce((a2, r) => V.add(a2, V.mul(r, 1 / simsA.length)), [0, 0]), sdA2 = Math.sqrt(simsA.reduce((a2, r) => a2 + V.len(V.sub(r, muA)) ** 2, 0) / simsA.length / 2);
+    const sims360 = []; for (let s2 = 1; s2 <= 150; s2++) { const Nn = CAL.noiseCtx({ px: 0.1, rep: 1, seed: s2 * 13 }); const c1 = CAL.calibTop(m, 0, Nn); sims360.push(CAL.calibRC(m, 0, c1, Nn).R); }
+    const mu3 = sims360.reduce((a2, r) => V.add(a2, V.mul(r, 1 / sims360.length)), [0, 0]), sd3 = Math.sqrt(sims360.reduce((a2, r) => a2 + V.len(V.sub(r, mu3)) ** 2, 0) / sims360.length / 2);
+    ok('旋轉中心精度：只轉 ±45° 比轉整圈差（含 1 µm 平台重複性）', sdA2 > sd3, `整圈 1σ ${um(sd3)}；±45° 1σ ${um(sdA2)}`);
     // 11. 推測規則：理想機台（只有雜訊）不應出現高風險推測；Δθ 正負相反要被抓到
     const rowsK = (pr, k) => pr.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr }));
     const estN = CAL.calibrateAll(m, { px: 0.1, rep: 1, thRep: 2, seed: 11 });

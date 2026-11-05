@@ -431,6 +431,9 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
     ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
     ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
+    ['rc_mark_r', 'Mark', 'DD 旋轉中心校正：Mark 離 DD 中心距離', 30, 'mm', '越遠越準；每轉一格 XY 會把 Mark 移回上相機畫面，不受視野限制'],
+    ['rc_span_deg', 'Mark', 'DD 旋轉中心校正：DD 可轉角度範圍', 360, '°', '能轉整圈填 360；管線限制時填實際可轉範圍（例如 90）'],
+    ['rc_steps', 'Mark', 'DD 旋轉中心校正：取點數', 8, '點', ''],
     ['jig_mark_dx', '校正片', '治具兩 Mark 間距（沿治具長邊）', 60, 'mm', '左 Mark→右 Mark 的長邊分量；建議與料相同'],
     ['jig_mark_dy', '校正片', '治具兩 Mark 間距（沿治具短邊）', 0, 'mm', 'Mark 在同一條長邊中心線上填 0；斜對角填短邊分量'],
     ['jig_len', '校正片', '治具長（長邊）', 80, 'mm', '治具長邊沿 X 放'],
@@ -525,7 +528,9 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => V.rot([a * P.part_mark_dx / 2, b * P.part_mark_dy / 2], orient)); // 料四角 Mark（上相機逐顆拍）
     const ext = (l, w, a) => [Math.abs(Math.cos(a)) * l / 2 + Math.abs(Math.sin(a)) * w / 2, Math.abs(Math.sin(a)) * l / 2 + Math.abs(Math.cos(a)) * w / 2];
     const t0 = top(0), t1 = top(1);
-    const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
+    const rcR = Math.max(1, P.rc_mark_r), rcN = Math.max(3, Math.round(P.rc_steps)), rcSpan = Math.min(360, Math.max(5, P.rc_span_deg));
+    // 取點角度：整圈平均分佈；只能轉一段時，從 −span/2 到 +span/2
+    const rcAngles = [...Array(rcN)].map((_, i) => (rcSpan >= 360 ? i * 360 / rcN : -rcSpan / 2 + i * rcSpan / (rcN - 1)) * D2R);
     return {
       P,
       // 上相機（固定、往下看）：相機1 拍平台1，相機2 拍平台2
@@ -543,7 +548,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
       fidOf: [['A', 'B'], ['C', 'D']],
       jig: { mv: [P.jig_mark_dx / 2, P.jig_mark_dy / 2], half: Math.hypot(P.jig_mark_dx, P.jig_mark_dy) / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick, ext: ext(P.jig_len, P.jig_wid, 0) },
       part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2], corners, pocketLocal: [P.pocket_mark_dx / 2, P.pocket_mark_dy / 2] },
-      markDia: P.mark_dia, rcR,
+      markDia: P.mark_dia, rcR, rcAngles, rcSpan,
       hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
       hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
       zPlate: 100 + P.chuck_to_plate             // 平台3 下表面高度（吸盤面在 100）
@@ -624,16 +629,18 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const f = fitAffine(us, Ss);
     return Object.assign(f, { Sc, info: describeG(f.G), us, Ss, step, q0 });
   }
-  // 步驟2：DD 旋轉中心（上相機看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
+  // 步驟2：DD 旋轉中心（Mark 離中心 rcR，轉一格就用 XY 把 Mark 移回上相機畫面中心附近）
+  // 平台在 S_i = S_c − Rot(θ_i)·q 拍照；P_i = Â·u_i + Ĉ − (S_i − S_c) 是「平台停在 S_c 時」Mark 的位置
+  function rcFollowS(m, Sc, th) { return V.sub(Sc, V.rot([m.rcR, 0], th)); }
   function calibRC(m, k, est, N) {
-    const Sc = est.Sc, q = [m.rcR, 1.5], ths = [], Ps = [], us = [];
-    for (let a = 0; a < 360; a += 45) {
-      const t = a * D2R + N.g() * N.th;
-      const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), t, 0, q)));
-      us.push(u); ths.push(a * D2R); Ps.push(V.add(M.ap(est.G, u), est.c));
-    }
+    const Sc = est.Sc, q = [m.rcR, 0], ths = [], Ps = [], us = [], Ss = [];
+    m.rcAngles.forEach(a => {
+      const t = a + N.g() * N.th, S = rcFollowS(m, Sc, a);
+      const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), t, 0, q)));
+      us.push(u); ths.push(a); Ss.push(S); Ps.push(V.sub(V.add(M.ap(est.G, u), est.c), V.sub(S, Sc)));
+    });
     const f = fitRotCenter(ths, Ps);
-    return Object.assign(f, { R: V.sub(f.center, Sc), ths, us, Ps });
+    return Object.assign(f, { R: V.sub(f.center, Sc), ths, us, Ps, Ss });
   }
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
@@ -892,7 +899,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     return out;
   }
 
-  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -990,6 +997,18 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
     const theo = 0.1 * m.top[0].mmpp * Math.sqrt(2 / 8);
     ok('旋轉中心精度（0.1 px 雜訊、8 角度 Monte-Carlo）接近理論 σ·√(2/N)', sdx < theo * 2.2, `模擬 1σ ${um(sdx)}；理論（不含九點誤差）${um(theo)}`);
 
+    // 9b. 旋轉中心：Mark 離中心 30 mm、轉整圈，XY 每格跟著移 → 每張 Mark 都在上相機畫面內
+    const rc0 = est.rc[0], maxU = Math.max(...rc0.us.map(u => Math.max(Math.abs(u[0]) / (m.top[0].w / 2), Math.abs(u[1]) / (m.top[0].h / 2))));
+    ok(`旋轉中心：Mark 半徑 ${m.rcR} mm、${m.rcAngles.length} 點，XY 跟著把 Mark 移回畫面 → 每張都在視野內`, maxU < 0.5, `Mark 最遠在半視野的 ${(maxU * 100).toFixed(1)}%（不跟著移的話 Mark 會走 ${(2 * m.rcR).toFixed(0)} mm 的圓）`);
+    const mSp = CAL.defaultMachine(Object.assign({}, CAL.loadParams(), { rc_span_deg: 90, rc_steps: 7 }));
+    const eSp = CAL.calibrateAll(mSp, { px: 0 });
+    ok('旋轉中心：DD 只能轉 ±45° 時（7 點）也解得出來（無雜訊誤差 ≈ 0）', V.len(V.sub(V.sub(eSp.R[0], est.R[0]), [0, 0])) < 1e-6 && eSp.rc[0].rms < 1e-9, `與整圈結果差 ${um(V.len(V.sub(eSp.R[0], est.R[0])))}`);
+    const simsA = [];
+    for (let s2 = 1; s2 <= 150; s2++) { const Nn = CAL.noiseCtx({ px: 0.1, rep: 1, seed: s2 * 13 }); const c1 = CAL.calibTop(mSp, 0, Nn); simsA.push(CAL.calibRC(mSp, 0, c1, Nn).R); }
+    const muA = simsA.reduce((a2, r) => V.add(a2, V.mul(r, 1 / simsA.length)), [0, 0]), sdA2 = Math.sqrt(simsA.reduce((a2, r) => a2 + V.len(V.sub(r, muA)) ** 2, 0) / simsA.length / 2);
+    const sims360 = []; for (let s2 = 1; s2 <= 150; s2++) { const Nn = CAL.noiseCtx({ px: 0.1, rep: 1, seed: s2 * 13 }); const c1 = CAL.calibTop(m, 0, Nn); sims360.push(CAL.calibRC(m, 0, c1, Nn).R); }
+    const mu3 = sims360.reduce((a2, r) => V.add(a2, V.mul(r, 1 / sims360.length)), [0, 0]), sd3 = Math.sqrt(sims360.reduce((a2, r) => a2 + V.len(V.sub(r, mu3)) ** 2, 0) / sims360.length / 2);
+    ok('旋轉中心精度：只轉 ±45° 比轉整圈差（含 1 µm 平台重複性）', sdA2 > sd3, `整圈 1σ ${um(sd3)}；±45° 1σ ${um(sdA2)}`);
     // 11. 推測規則：理想機台（只有雜訊）不應出現高風險推測；Δθ 正負相反要被抓到
     const rowsK = (pr, k) => pr.filter(r => r.k === k).map(r => ({ x: r.pt[0], y: r.pt[1], dth: r.dth, dx: r.err[0], dy: r.err[1], dang: r.angErr }));
     const estN = CAL.calibrateAll(m, { px: 0.1, rep: 1, thRep: 2, seed: 11 });
@@ -1538,13 +1557,15 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
   });
   // 3 旋轉中心
   STEPS.push({
-    id: 'rc', title: 'DD 旋轉中心', sub: '上相機看 Mark，DD 轉整圈',
+    id: 'rc', title: 'DD 旋轉中心', sub: 'DD 每轉一格，XY 把 Mark 移回上相機畫面',
     build() {
       const tl = TL();
       [0, 1].forEach(k => {
-        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 1.5], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離中心約 ${M0.rcR} mm`);
-        tl.go(k, { S: Sc(k), th: 0 }, 1.8, `平台${k + 1} 到 S_c，XY 之後不動`);
-        for (let a = 0; a < 360; a += 45) tl.go(k, { th: a * D2R }, 0.55, `θ = ${a}°（同一方向轉到位）`).shot([k + 1], `拍照：θ = ${a}°`, 0.45);
+        tl.set(c => { c.chuck[k] = { type: 'rcmark', q: [M0.rcR, 0], ang: 0 }; }, `平台${k + 1}：玻璃 Mark 放在離 DD 中心約 ${M0.rcR} mm`);
+        M0.rcAngles.forEach((a, i) => {
+          const S = CAL.rcFollowS(M0, Sc(k), a);
+          tl.go(k, { th: a, S }, i ? 0.9 : 1.8, `θ = ${(a * R2D).toFixed(0)}°：DD 轉到位，XY 同時移到 S_${i + 1}，Mark 回到上相機${k + 1} 畫面`).shot([k + 1], `拍照：記錄 θ_${i + 1}、S_${i + 1}、u_${i + 1}`, 0.45);
+        });
         tl.go(k, { th: 0 }, 1.2, '轉回 0°').go(k, { S: [0, 0] }, 1.4).set(c => { c.chuck[k] = null; });
       });
       return tl;
@@ -1555,16 +1576,16 @@ mm/px = √|det G|，相機角度 = atan2(G₂₁, G₁₁)
       <p class="lead">求 DD 旋轉中心 R̂（平台在 S = 0 時的位置，平台座標）。料轉 Δθ 時，平台要用 R̂ 才知道料會被轉到哪裡。</p>
       ${FIG.rc}
       <h4>動作</h4><ol>
-        <li>玻璃 Mark 放在離吸盤中心約 ${M0.rcR} mm（越遠越準，但整圈都要在上相機視野內；平台1 用相機1、平台2 用相機2）。</li>
-        <li>平台停在 S_c，XY 不動。θ = 0°、45° … 315° 共 8 點，每點都從同一方向轉到位（消背隙），拍照。</li>
+        <li>玻璃 Mark（或料上的一顆角 Mark）放在離 DD 中心約 ${M0.rcR} mm。上相機視野只有 ${M0.top[0].fov[0]}×${M0.top[0].fov[1]} mm，DD 轉整圈時 Mark 會走直徑 ${2 * M0.rcR} mm 的圓，<b>一定會出畫面</b>，所以不能讓 XY 停著不動。</li>
+        <li>每個角度 θ_i（${M0.rcSpan >= 360 ? `整圈 ${M0.rcAngles.length} 點，每 ${(360 / M0.rcAngles.length).toFixed(0)}°` : `±${M0.rcSpan / 2}° 內 ${M0.rcAngles.length} 點`}）：DD 從同一方向轉到位（消背隙），XY 同時移到 S_i = S_c − Rot(θ_i)·(r, 0)，讓 Mark 回到上相機畫面中心附近，拍照並記錄 θ_i、S_i（光學尺實際值）、u_i。</li>
         <li>重做 3 次，比較 R̂。</li></ol>
       <h4>公式（已知指令角度擬合，線性）</h4>
-      <pre>P_i = Â_top·u_i + Ĉ_top
+      <pre>P_i = Â_top·u_i + Ĉ_top − (S_i − S_c)    （把 XY 移動量扣回去：「平台停在 S_c 時」Mark 的位置）
 P_i = c + Rot(θ_i)·v          → 解 c、v（4 個未知數）
 R̂ = c − S_c
 吸盤上任一點：P = S + R̂ + Rot(θ)·q
-圓心精度 1σ ≈ σ_P·√(2/N)      （σ_P = 像素雜訊 × mm/px）</pre>
-      <p>只能轉小角度 ±α 時，圓心誤差約放大成 σ_P ÷ α（α 用弧度，與半徑無關），所以 DD 能轉整圈就轉整圈。</p>
+圓心精度 1σ ≈ σ_P·√(2/N)      （σ_P = √(像素雜訊² × (mm/px)² + 平台重複性²)）</pre>
+      <p>因為 Mark 位置是「XY 光學尺＋影像」一起算的，XY 的比例與直交度要先準（上相機九點已經用同一組軸校過，九點範圍外的比例誤差會進來，所以 r 不要比 XY 校過的範圍大太多）。DD 只能轉小角度 ±α 時，圓心誤差約放大成 σ_P ÷ α（α 用弧度），所以能轉整圈就轉整圈。</p>
       <h4>判定</h4><ul><li>擬合殘差 &lt; 0.5 px。</li><li>重做 3 次 R̂ 差 &lt; 5 µm。</li><li>θ 比例：轉 90° 用雙 Mark 量角度，量到 ÷ 指令 = 1 ± 0.0001。</li></ul>
       <h4>它影響多大</h4><p>放料誤差 = (Rot(Δθ) − I)·e ≈ Δθ·(−e_y, e_x)。e = 50 µm、Δθ = 1° 只有 0.9 µm；e = 1 mm、Δθ = 1° 就有 17 µm。料放上吸盤時角度越亂，這項越重要。</p>
       <h4>模擬結果</h4>${table(['平台', 'R̂（含雜訊）', 'R̂（無雜訊）', '殘差 RMS', '|v|'], rows)}
@@ -2107,8 +2128,9 @@ c = P_Mark − D_j（D_j 在步驟 5 才分開）</pre>
         add(`${nm} 與吸盤上料的距離`, `${dd.toFixed(0)} mm`, dd < clear ? 'warn' : 'ok', dd < clear ? `小於料對角線一半＋10 mm（${clear.toFixed(0)} mm），DD 轉動時料可能撞到或擋住相機` : '');
       }
     });
-    const sR = 0.1 / Math.sqrt(3) * M0.top[0].mmpp * Math.sqrt(2 / 8);
-    add('DD 旋轉中心：校正片 Mark 半徑', `${M0.rcR} mm`, 'ok', `整圈在上相機視野內；預估圓心精度 1σ ≈ ${(sR * 1000).toFixed(1)} µm`);
+    // 旋轉中心：XY 跟著移，所以不受視野限制；精度用 Monte-Carlo（含 1 µm 平台重複性）估
+    const rcSd = (() => { const r = [], th = M0.rcAngles; for (let s2 = 1; s2 <= 120; s2++) { const N = CAL.noiseCtx({ px: 0.1 / Math.sqrt(3), rep: 1, seed: s2 * 7 }); const P = th.map(t => [M0.rcR * Math.cos(t) + N.g() * Math.hypot(N.px * M0.top[0].mmpp, N.rep), M0.rcR * Math.sin(t) + N.g() * Math.hypot(N.px * M0.top[0].mmpp, N.rep)]); r.push(CAL.fitRotCenter(th, P).center); } const mu = r.reduce((a, c) => V.add(a, V.mul(c, 1 / r.length)), [0, 0]); return Math.sqrt(r.reduce((a, c) => a + V.len(V.sub(c, mu)) ** 2, 0) / r.length / 2); })();
+    add('DD 旋轉中心：Mark 半徑與轉角', `r = ${M0.rcR} mm、${M0.rcSpan >= 360 ? '整圈' : '±' + M0.rcSpan / 2 + '°'}、${M0.rcAngles.length} 點`, rcSd > 0.005 ? 'warn' : 'ok', `每格 XY 把 Mark 移回畫面，不受視野限制；預估圓心精度 1σ ≈ ${(rcSd * 1000).toFixed(1)} µm${rcSd > 0.005 ? '（大於 5 µm：轉角範圍太小或點數太少）' : ''}`);
     // 行程：所有動畫用到的平台位置
     [0, 1].forEach(k => {
       const xs = [], ys = [], hs = [];

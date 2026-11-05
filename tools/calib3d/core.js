@@ -117,6 +117,9 @@
     ['p2_z_stroke', '平台', '平台2 Z 可移動範圍', 50, 'mm', ''],
     ['chuck_to_plate', '平台', '吸盤面到平台3 下表面距離', 40, 'mm', 'Z 在取像高度時量'],
     ['mark_dia', 'Mark', 'Mark 直徑', 1.0, 'mm', '料、治具、穴位、基準 Mark 共用'],
+    ['rc_mark_r', 'Mark', 'DD 旋轉中心校正：Mark 離 DD 中心距離', 30, 'mm', '越遠越準；每轉一格 XY 會把 Mark 移回上相機畫面，不受視野限制'],
+    ['rc_span_deg', 'Mark', 'DD 旋轉中心校正：DD 可轉角度範圍', 360, '°', '能轉整圈填 360；管線限制時填實際可轉範圍（例如 90）'],
+    ['rc_steps', 'Mark', 'DD 旋轉中心校正：取點數', 8, '點', ''],
     ['jig_mark_dx', '校正片', '治具兩 Mark 間距（沿治具長邊）', 60, 'mm', '左 Mark→右 Mark 的長邊分量；建議與料相同'],
     ['jig_mark_dy', '校正片', '治具兩 Mark 間距（沿治具短邊）', 0, 'mm', 'Mark 在同一條長邊中心線上填 0；斜對角填短邊分量'],
     ['jig_len', '校正片', '治具長（長邊）', 80, 'mm', '治具長邊沿 X 放'],
@@ -211,7 +214,9 @@
     const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => V.rot([a * P.part_mark_dx / 2, b * P.part_mark_dy / 2], orient)); // 料四角 Mark（上相機逐顆拍）
     const ext = (l, w, a) => [Math.abs(Math.cos(a)) * l / 2 + Math.abs(Math.sin(a)) * w / 2, Math.abs(Math.sin(a)) * l / 2 + Math.abs(Math.cos(a)) * w / 2];
     const t0 = top(0), t1 = top(1);
-    const rcR = Math.max(1, Math.round(Math.min(20, 0.32 * Math.min(...t0.fov, ...t1.fov)) * 2) / 2);
+    const rcR = Math.max(1, P.rc_mark_r), rcN = Math.max(3, Math.round(P.rc_steps)), rcSpan = Math.min(360, Math.max(5, P.rc_span_deg));
+    // 取點角度：整圈平均分佈；只能轉一段時，從 −span/2 到 +span/2
+    const rcAngles = [...Array(rcN)].map((_, i) => (rcSpan >= 360 ? i * 360 / rcN : -rcSpan / 2 + i * rcSpan / (rcN - 1)) * D2R);
     return {
       P,
       // 上相機（固定、往下看）：相機1 拍平台1，相機2 拍平台2
@@ -229,7 +234,7 @@
       fidOf: [['A', 'B'], ['C', 'D']],
       jig: { mv: [P.jig_mark_dx / 2, P.jig_mark_dy / 2], half: Math.hypot(P.jig_mark_dx, P.jig_mark_dy) / 2, len: P.jig_len, wid: P.jig_wid, thick: P.jig_thick, ext: ext(P.jig_len, P.jig_wid, 0) },
       part: { len: P.part_len, wid: P.part_wid, thick: P.part_thick, orient, ext: ext(P.part_len, P.part_wid, orient), markLocal: [P.part_mark_dx / 2, P.part_mark_dy / 2], corners, pocketLocal: [P.pocket_mark_dx / 2, P.pocket_mark_dy / 2] },
-      markDia: P.mark_dia, rcR,
+      markDia: P.mark_dia, rcR, rcAngles, rcSpan,
       hPlace: P.chuck_to_plate - P.part_thick,   // 生產放料 Z 行程
       hCal: P.chuck_to_plate - P.jig_thick,      // 治具轉移（步驟 5）Z 行程
       zPlate: 100 + P.chuck_to_plate             // 平台3 下表面高度（吸盤面在 100）
@@ -310,16 +315,18 @@
     const f = fitAffine(us, Ss);
     return Object.assign(f, { Sc, info: describeG(f.G), us, Ss, step, q0 });
   }
-  // 步驟2：DD 旋轉中心（上相機看半徑約 20 mm 的 Mark，轉 0,45,...,315°）
+  // 步驟2：DD 旋轉中心（Mark 離中心 rcR，轉一格就用 XY 把 Mark 移回上相機畫面中心附近）
+  // 平台在 S_i = S_c − Rot(θ_i)·q 拍照；P_i = Â·u_i + Ĉ − (S_i − S_c) 是「平台停在 S_c 時」Mark 的位置
+  function rcFollowS(m, Sc, th) { return V.sub(Sc, V.rot([m.rcR, 0], th)); }
   function calibRC(m, k, est, N) {
-    const Sc = est.Sc, q = [m.rcR, 1.5], ths = [], Ps = [], us = [];
-    for (let a = 0; a < 360; a += 45) {
-      const t = a * D2R + N.g() * N.th;
-      const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, Sc), t, 0, q)));
-      us.push(u); ths.push(a * D2R); Ps.push(V.add(M.ap(est.G, u), est.c));
-    }
+    const Sc = est.Sc, q = [m.rcR, 0], ths = [], Ps = [], us = [], Ss = [];
+    m.rcAngles.forEach(a => {
+      const t = a + N.g() * N.th, S = rcFollowS(m, Sc, a);
+      const u = npx(N, pixTop(m, k, chuckPt(m, k, nS(N, S), t, 0, q)));
+      us.push(u); ths.push(a); Ss.push(S); Ps.push(V.sub(V.add(M.ap(est.G, u), est.c), V.sub(S, Sc)));
+    });
     const f = fitRotCenter(ths, Ps);
-    return Object.assign(f, { R: V.sub(f.center, Sc), ths, us, Ps });
+    return Object.assign(f, { R: V.sub(f.center, Sc), ths, us, Ps, Ss });
   }
   // 步驟3：下相機九點（相機隨平台移動，看平台3 固定 Mark）→ A = −G
   function calibBottom(m, j, N, g, noFlip) {
@@ -578,5 +585,5 @@
     return out;
   }
 
-  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
+  G.CAL = { PARAMS, PKEY, defaultParams, loadParams, saveParams, clearParams, paramsToCSV, parseParamsCSV, D2R, R2D, V, M, rng, gaussFn, lstsq, fitAffine, describeG, fitRotCenter, fitSimilarity, defaultMachine, trayW, trayNom, trayMarkT, partMarks, topShots, fitCorners, pocketT, pocketPlat, pocketName, linkPocket, boundaryStep, carriage, rcWorld, chuckPt, camLocalA, bcamPose, pixTop, pixB, inImage, nomSc, nomSv, nomSp, noiseCtx, jigMarks, JIG, calibTop, calibRC, rcFollowS, calibBottom, calibLink, measureTray, calibrateAll, placeOne, applyDrift, runProduction, analyze, diagnose, clone };
 })(typeof window !== 'undefined' ? window : globalThis);
