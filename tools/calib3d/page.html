@@ -1,0 +1,825 @@
+<title>雙平台放料校正手順</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 版面：電腦版左側 3D 機台與四台相機畫面（捲動時固定），右側步驟內容；手機版由 html[data-layout="mobile"] 控制（可用標題右邊的切換鈕手動切換），不用螢幕寬度的 media query，強制電腦版時在手機上才會整頁縮小顯示 */
+:root{
+  --bg:#eef1f0; --panel:#ffffff; --ink:#17201f; --muted:#56635f; --line:#d3dbd8; --soft:#e4e9e7;
+  --accent:#1f6f78; --accent-ink:#ffffff;
+  --p1:#2f6db5; --p2:#cf7a22; --p3:#7f9a90; --p3-line:#4f6d63; --cam:#6a4fbd; --hot:#e0457b; --err:#b8326b; --fidc:#1d4f6e;
+  --mark:#1c2423; --wp:#3e8a5c; --glass:#9fd3d8;
+  --m-table:#d9dfdd; --m-steel:#a9b3b1; --m-dark:#4a5452;
+  --stage:#e3e8e6; --label-bg:rgba(255,255,255,.92);
+  --img-bg:#151a1a; --img-grid:rgba(120,220,200,.35); --img-mark:#f2f5f4; --img-jig:#7fe0e8; --img-wp:#9fe6b4;
+  --ok:#2c7a4b; --ok-bg:#e1f2e7; --warn:#9a6a00; --warn-bg:#fbf0d6; --bad:#b3263c; --bad-bg:#fbe3e6;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111615; --panel:#192120; --ink:#e3eae8; --muted:#9aa8a4; --line:#2c3735; --soft:#212b29;
+  --accent:#4fb3bd; --accent-ink:#0d1413;
+  --p1:#5b93d8; --p2:#e39446; --p3:#5d7a70; --p3-line:#9cc0b3; --cam:#9b83e6; --hot:#ff6b9a; --err:#ff7aa6; --fidc:#3d7fa8;
+  --mark:#0d1111; --wp:#56a874; --glass:#5aa7ad;
+  --m-table:#2a3331; --m-steel:#5f6b69; --m-dark:#323b3a;
+  --stage:#0e1312; --label-bg:rgba(25,33,32,.92);
+  --ok:#6fd39a; --ok-bg:#163223; --warn:#e6bb55; --warn-bg:#352a10; --bad:#ff8c9c; --bad-bg:#3a1a20;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111615; --panel:#192120; --ink:#e3eae8; --muted:#9aa8a4; --line:#2c3735; --soft:#212b29;
+  --accent:#4fb3bd; --accent-ink:#0d1413;
+  --p1:#5b93d8; --p2:#e39446; --p3:#5d7a70; --p3-line:#9cc0b3; --cam:#9b83e6; --hot:#ff6b9a; --err:#ff7aa6; --fidc:#3d7fa8;
+  --mark:#0d1111; --wp:#56a874; --glass:#5aa7ad;
+  --m-table:#2a3331; --m-steel:#5f6b69; --m-dark:#323b3a;
+  --stage:#0e1312; --label-bg:rgba(25,33,32,.92);
+  --ok:#6fd39a; --ok-bg:#163223; --warn:#e6bb55; --warn-bg:#352a10; --bad:#ff8c9c; --bad-bg:#3a1a20;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;margin:0}
+.wrap{max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+header.top h1{font-size:1.65rem;line-height:1.25;margin:0;letter-spacing:.02em;text-wrap:balance}
+header.top p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{appearance:none;border:0;background:none;color:var(--muted);font:500 .95rem var(--f-body);padding:9px 14px;border-bottom:3px solid transparent;cursor:pointer}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+.viewer{position:sticky;top:calc(env(safe-area-inset-top,0px) + 58px);display:flex;flex-direction:column;gap:10px;min-width:0}
+#three{position:relative;width:100%;aspect-ratio:4/3;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#three canvas{display:block;touch-action:none}
+.fallback{padding:24px;color:var(--muted)}
+.caption{position:absolute;left:10px;right:10px;bottom:10px;background:var(--label-bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.88rem;pointer-events:none}
+.viewbtns{position:absolute;top:8px;right:8px;display:flex;gap:4px}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 .88rem var(--f-body);padding:6px 12px;border-radius:7px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:3px 8px;font-size:.78rem}
+#scrub{flex:1 1 160px;min-width:120px;accent-color:var(--accent)}
+select,input[type=number],.rctbl input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.readout{font:.74rem/1.4 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;overflow-x:auto;white-space:nowrap}
+.cams{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.camv{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px;min-width:0;transition:border-color .2s}
+.camv.hot{border-color:var(--hot);box-shadow:0 0 0 2px color-mix(in srgb,var(--hot) 35%,transparent)}
+.camv canvas{width:100%;height:auto;display:block;border-radius:4px}
+.camv .h{display:flex;justify-content:space-between;gap:6px;font-size:.76rem;margin-bottom:3px}
+.camv .h b{font-weight:600}.camv .h span{color:var(--muted)}
+.camv .uv{font:.7rem var(--f-mono);color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.content{min-width:0}
+.steplist{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.stepbtn{appearance:none;display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px 6px 6px;cursor:pointer;font:inherit;flex:1 1 200px;min-width:0}
+.stepbtn .num{flex:none;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:var(--soft);font:600 .85rem var(--f-mono)}
+.stepbtn .st{display:flex;flex-direction:column;min-width:0}.stepbtn b{font-size:.88rem;font-weight:600}.stepbtn small{font-size:.74rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepbtn[aria-current="step"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.stepbtn[aria-current="step"] .num{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.stephead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px}
+.eyebrow{font:500 .74rem var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+h3{font-size:1.3rem;margin:2px 0 0;line-height:1.3;text-wrap:balance}
+h4{font-size:1rem;margin:20px 0 6px;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0}
+.lead{font-size:1.02rem}
+p,li{max-width:72ch}
+ol,ul{padding-left:1.3em;margin:6px 0}li{margin:3px 0}
+pre{font:.82rem/1.6 var(--f-mono);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre;font-variant-numeric:tabular-nums}
+.note{font-size:.86rem;color:var(--muted)}
+.tbl{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;font-size:.85rem;min-width:100%;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.78rem;white-space:nowrap}
+td{white-space:normal}
+.stepnav{display:flex;justify-content:space-between;gap:8px;margin-top:18px}
+/* 圖解 */
+.fig{width:100%;max-width:640px;height:auto;display:block;margin:10px 0}
+.fig text,.vec text{font-family:var(--f-body);font-size:13px;fill:var(--ink)}
+.t-c{text-anchor:middle}.t-s{font-size:11.5px!important}.t-m{fill:var(--muted)!important}.t-e{fill:var(--err)!important}
+.f-cam{fill:color-mix(in srgb,var(--cam) 16%,var(--panel));stroke:var(--cam);stroke-width:1.5}
+.f-calc{fill:var(--soft);stroke:var(--accent);stroke-width:1.5}
+.f-p1{fill:color-mix(in srgb,var(--p1) 18%,var(--panel));stroke:var(--p1);stroke-width:1.5}
+.f-p3{fill:color-mix(in srgb,var(--p3) 35%,var(--panel));stroke:var(--p3-line)}
+.f-glass{fill:var(--glass);stroke:var(--accent)}
+.f-img{fill:var(--img-bg)}.f-dot{fill:var(--img-mark)}
+.fig .f-dot{fill:var(--ink)}.fig .f-img + .f-dot,.fig .f-img ~ .f-dot{fill:var(--img-mark)}
+.o-25{opacity:.3}.o-60{opacity:.55}
+.f-ink{fill:var(--ink)}.f-err{fill:var(--err)}
+.l-ink{stroke:var(--ink);stroke-width:1.6;fill:none}.l-err{stroke:var(--err);stroke-width:2;fill:none}
+.l-dash{stroke:var(--muted);stroke-dasharray:4 4;fill:none}.l-cam{stroke:var(--cam);stroke-dasharray:3 3;fill:none}
+.l-p1{stroke:var(--p1);stroke-width:2}.l-p2{stroke:var(--p2);stroke-width:2}
+.f-tray{fill:color-mix(in srgb,var(--p3) 14%,var(--panel));stroke:var(--p3-line)}
+.f-pocket{fill:none;stroke:var(--p3-line);stroke-opacity:.6}
+.f-p2{fill:color-mix(in srgb,var(--p2) 16%,var(--panel));stroke:var(--p2);stroke-width:1.5}
+.f-bz{fill:color-mix(in srgb,var(--err) 10%,transparent);stroke:var(--err);stroke-dasharray:5 4}
+.f-fid{fill:var(--cam)}
+.f-fidc{fill:var(--fidc);stroke:var(--panel);stroke-width:2}
+.fig text.f-fidt{fill:#fff;font-weight:700;font-size:13px}
+.vec{width:100%;min-width:560px;height:auto;display:block}
+/* 偏移排查 */
+.cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:18px;align-items:start}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;padding:8px 12px 10px}
+legend{font-weight:600;font-size:.86rem;padding:0 4px}
+.fld{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.84rem;margin:5px 0}
+.fld>span:first-child{min-width:0}
+.inp{display:flex;align-items:center;gap:4px;flex:none}.inp input{width:84px;text-align:right}.inp i{font-style:normal;color:var(--muted);font-size:.76rem;width:30px}
+.chk{display:flex;gap:6px;align-items:flex-start;font-size:.84rem;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.chip{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:4px 11px;font:500 .8rem var(--f-body);cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.diag{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:8px}
+.diag li{max-width:none;border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;background:var(--panel)}
+.diag li span{color:var(--muted);font-size:.86rem}
+.lv-hi{border-left-color:var(--bad)!important}.lv-mid{border-left-color:var(--warn)!important}.lv-lo{border-left-color:var(--accent)!important}.lv-ok{border-left-color:var(--ok)!important}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.warnp{background:var(--warn-bg);color:var(--warn)}
+.pill+.pill{margin-left:6px}
+.muted{color:var(--muted);font-size:.86rem;margin-left:10px}
+textarea{width:100%;min-height:220px;font:.8rem/1.5 var(--f-mono);resize:vertical}
+.sig td:first-child{font-weight:600;min-width:12em}
+.order li{margin:8px 0}
+.order b{display:block}
+.ptbl input{width:96px;text-align:right}
+.ptbl td{vertical-align:middle}
+.ptbl tr.changed td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.grp td{font-weight:600;color:var(--muted);background:var(--soft)}
+label.btn{display:inline-block}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+/* 旋轉中心計算 */
+#rc3d{position:relative;width:100%;aspect-ratio:4/3;max-height:56vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#rc3d canvas{display:block;touch-action:none}
+#rc3d .caption{position:absolute;left:10px;right:10px;bottom:8px;font-size:.84rem;background:var(--label-bg);border-radius:8px;padding:5px 10px;pointer-events:none}
+#rcin{min-height:140px}
+.rctbl{min-width:0}
+.rctbl td{padding:3px 4px;vertical-align:middle}
+.rctbl td:first-child{color:var(--muted);text-align:right;width:2em}
+.rctbl input{width:100%;min-width:58px;box-sizing:border-box;text-align:right;font-size:.86rem;padding:4px 5px;font-variant-numeric:tabular-nums}
+.rctbl td:nth-child(2),.rctbl td:nth-child(3){width:34%}
+#rcpaste{margin:4px 0 10px}
+.rctbl input[aria-invalid="true"]{border-color:var(--bad);background:var(--bad-bg)}
+.rctbl .del{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:1rem;line-height:1}
+.rctbl .del:hover{border-color:var(--bad);color:var(--bad)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+#rcmode{min-width:0;max-width:100%;flex:1 1 auto}
+.rcsum td:first-child{color:var(--muted);white-space:nowrap}
+.rcplot{width:100%;max-width:520px;height:auto;display:block;margin:6px 0}
+.rcplot text{font-family:var(--f-body);font-size:12px;fill:var(--ink)}
+.rcplot .c-fit{fill:none;stroke:var(--accent);stroke-width:1.5}
+.rcplot .c-pt{fill:var(--p1);stroke:var(--panel);stroke-width:1.5}
+.rcplot .c-res{stroke:var(--err);stroke-width:2}
+.rcplot .c-ax{stroke:var(--line);stroke-width:1}
+.rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
+.rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
+/* ===== 機構調校 ===== */
+.mkintro p{margin:6px 0}
+.mkflow{display:flex;flex-wrap:wrap;gap:6px 18px;padding-left:1.3em;margin:8px 0 12px;font-size:.9rem}
+.mkflow li{margin:0;max-width:none}
+.mksub{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.mksb{appearance:none;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0}
+.mksb span{font-weight:600;font-size:.92rem}.mksb small{font-size:.74rem;color:var(--muted)}
+.mksb:hover{border-color:var(--accent)}
+.mksb[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mksb[aria-selected="true"] small{color:inherit;opacity:.85}
+#view-mech>.card,#view-mech .vk>.card,#view-mech .vkgrid{margin-bottom:14px}
+#mk-dial{margin-top:2px}
+.vksymc summary{cursor:pointer}
+.vksymt{width:100%;margin-top:8px}
+.linkbtn{appearance:none;border:0;background:none;padding:0;color:var(--accent);font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.vkgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.vkl{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkr{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkc{padding:12px 14px}
+.vkc h4{margin:0 0 6px;font-size:.86rem;color:var(--muted);font-weight:600}
+.vkc h4+canvas,.vkc h4+svg{margin-top:2px}
+.vklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.vkbtn{appearance:none;display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px 6px 6px;cursor:pointer;font:inherit;min-width:0}
+.vkbtn .num{flex:none;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:var(--soft);font:600 .85rem var(--f-mono)}
+.vkbtn .st{display:flex;flex-direction:column;min-width:0}.vkbtn b{font-size:.86rem;font-weight:600}.vkbtn small{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vkbtn[aria-current]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.vkbtn[aria-current] .num{background:var(--accent);color:var(--accent-ink)}
+#vk3d{position:relative;width:100%;aspect-ratio:16/10;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#vk3d canvas{display:block;touch-action:none}
+#vk3d .caption{bottom:30px}
+.vkhint{position:absolute;left:10px;bottom:6px;font-size:.72rem;color:var(--muted);background:var(--label-bg);padding:0 6px;border-radius:4px}
+#vklabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.vklbl{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;font-weight:500;padding:2px 7px;border-radius:5px;background:var(--label-bg);color:var(--ink);border:1px solid var(--line)}
+.vklbl.c{color:var(--cam);border-color:var(--cam)}.vklbl.a{color:var(--accent);border-color:var(--accent)}.vklbl.b{color:var(--p2);border-color:var(--p2)}
+.vkctrl input[type=range]{flex:1;min-width:120px}
+.vksevbox{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--p2) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--p2) 35%,var(--line))}
+.vksevh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.86rem}.vksevh span{color:var(--p2);font-weight:600}
+.vksevbox input{width:100%;accent-color:var(--p2)}
+.vkends{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+#vkimg{display:block;width:100%;border-radius:6px}
+.vkchart{display:block;width:100%;height:auto}
+.vkchart .vk-t{font:10px var(--f-mono);fill:var(--muted)}
+.vkchart .vk-ax{stroke:var(--line);stroke-width:.7}.vkchart .vk-ax0{stroke:var(--muted);stroke-width:1}
+.vkchart .vk-band{fill:var(--ok-bg)}
+.vkchart .vk-vl{stroke-width:1.2;stroke-dasharray:4 3}
+.vkchart .vk-ln{fill:none;stroke-width:2;stroke-linejoin:round}
+.vkchart .vk-fit{stroke:var(--hot);stroke-width:1.4;stroke-dasharray:5 3;transition:opacity .3s}
+.vklive{font-size:.84rem;margin:0;line-height:1.6;min-height:3.2em}
+.vkres{margin:0;font-size:.88rem;line-height:1.55}
+#vkdoc .two{margin-top:6px}
+#vkdoc h4:first-child{margin-top:8px}
+html[data-layout="mobile"] .mksub{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html[data-layout="mobile"] .mkflow{display:block}
+html[data-layout="mobile"] .vkgrid{grid-template-columns:minmax(0,1fr)}
+html[data-layout="mobile"] .vklist{display:flex;overflow-x:auto;margin:0 -14px;padding:2px 14px 6px;scrollbar-width:none;scroll-snap-type:x proximity}
+html[data-layout="mobile"] .vklist::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .vkbtn{flex:0 0 auto;max-width:230px;scroll-snap-align:start}
+html[data-layout="mobile"] .vkbtn small{display:none}
+html[data-layout="mobile"] #vk3d{aspect-ratio:4/3;max-height:46vh}
+html[data-layout="mobile"] .vkr{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+html[data-layout="mobile"] #vkimg{max-width:300px;margin:0 auto}
+.zcsvg{display:block;width:100%;max-width:460px;margin-left:auto;margin-right:auto;height:auto;background:var(--stage);border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.zcsvg .zc-t{font:11px var(--f-body);fill:var(--ink)}
+.zcsvg .zc-d{fill:var(--accent);font-weight:600}.zcsvg .zc-pt{fill:var(--hot);font-weight:600}
+.zcsvg .zc-part{fill:color-mix(in srgb,var(--p1) 22%,var(--panel));stroke:var(--p1);stroke-width:1.5}
+.zcsvg .zc-rot{fill:none;stroke:var(--accent);stroke-width:1.8;stroke-dasharray:5 3}
+.zcsvg .zc-cn{stroke:var(--ink);stroke-width:1}
+.zcsvg .zc-piv{fill:none;stroke:var(--hot);stroke-width:2.2}
+.zcsvg .zc-arr{stroke:var(--hot);stroke-width:2}.zcsvg .zc-ah{fill:var(--hot)}
+.zcsvg .zc-tray{fill:var(--m-steel);opacity:.7}.zcsvg .zc-chuck{fill:var(--m-dark);opacity:.85}
+.zctbl{width:100%}.zctbl tr.zc-h td{font-weight:700;background:var(--soft)}
+.zctbl td:nth-child(2){font:.8rem var(--f-mono);color:var(--muted)}
+html[data-layout="mobile"] .mksub{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html[data-layout="mobile"] .mksb:last-child{grid-column:1/-1}
+/* 千分表架設示範（移植） */
+.mk{--surface:var(--panel);--fg:var(--ink);--accent-soft:color-mix(in srgb,var(--accent) 16%,var(--panel));--warn:var(--p2);--warn-soft:color-mix(in srgb,var(--p2) 16%,var(--panel));--font-body:var(--f-body);--font-mono:var(--f-mono);font-size:15px;line-height:1.6}
+.mk h2,.mk h3{letter-spacing:normal}
+html[data-layout="mobile"] .mk-stage{height:46vh;min-height:280px}
+html[data-layout="mobile"] .mk-gauge svg{max-width:110px}
+.mk-wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.mk-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.mk-tab {
+  font: inherit; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer;
+}
+.mk-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk button:focus-visible, .mk input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mk-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+html[data-layout="mobile"] .mk-main { grid-template-columns: minmax(0, 1fr); }
+.mk-stage {
+  position: relative; background: var(--stage); border-radius: 12px; overflow: hidden;
+  height: min(64vh, 620px); min-height: 340px; border: 1px solid var(--line);
+}
+.mk-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.mk-lbl {
+  position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap;
+  font-size: 12px; font-weight: 500; padding: 2px 7px; border-radius: 5px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--fg); border: 1px solid var(--line);
+}
+.mk-lbl.mk-a { color: var(--accent); border-color: var(--accent); }
+.mk-lbl.mk-b { color: var(--warn); border-color: var(--warn); }
+.mk-stage-hint {
+  position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 2px 8px; border-radius: 5px;
+}
+.mk-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.mk-card h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+.mk-controls { display: flex; flex-direction: column; gap: 10px; }
+.mk-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-btn {
+  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.mk-segb { font: inherit; font-weight: 500; padding: 6px 16px; border: 0; background: var(--bg); color: var(--fg); cursor: pointer; }
+.mk-segb[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.mk-adj-note { font-size: 12px; color: var(--muted); }
+.mk-adjbox { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); }
+.mk-adjhead { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 700; }
+.mk-adjhead b { color: var(--warn); font-size: 15px; }
+.mk-adjbox input[type="range"] { width: 100%; accent-color: var(--warn); }
+.mk-adjends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.mk-chip {
+  font: inherit; font-family: var(--font-mono); font-weight: 600; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chip[aria-current="step"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.mk-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mk-xpos { font-size: 13px; color: var(--muted); }
+.mk-xpos b { color: var(--fg); font-size: 15px; }
+label.mk-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.mk-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mk-gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mk-gauge svg { width: 100%; max-width: 132px; height: auto; }
+.mk-gauge .mk-name { font-size: 13px; font-weight: 700; }
+.mk-gauge.mk-a .mk-name { color: var(--accent); }
+.mk-gauge.mk-b .mk-name { color: var(--warn); }
+.mk-gauge .mk-val { font-size: 15px; }
+.mk-calc { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 0; }
+.mk-calc dt { color: var(--muted); }
+.mk-calc dd { margin: 0; text-align: right; }
+.mk-calc .mk-big { font-size: 18px; font-weight: 600; color: var(--accent); }
+.mk-formula { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.mk-trace svg, .mk-change svg { width: 100%; height: auto; display: block; }
+.mk-note { font-size: 12px; color: var(--muted); }
+.mk-step-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+.mk-step-body { font-size: 14px; margin: 0; }
+.mk-step-live { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg); font-size: 13px; }
+.mk-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.mk-legend span::before { content: ""; display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+.mk-legend .mk-l0::before { border-top-style: dashed; border-color: var(--muted); }
+.mk-legend .mk-l1::before { border-color: var(--accent); }
+.mk-legend .mk-l2::before { border-color: var(--warn); }
+.mk-guide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+html[data-layout="mobile"] .mk-guide { grid-template-columns: minmax(0, 1fr); }
+.mk-guide h3 { font-size: 17px; margin: 0 0 10px; }
+.mk-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 10px; }
+.mk-steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.mk-steps li::before {
+  content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px; display: grid; place-items: center; margin-top: 1px;
+}
+.mk-steps b { font-weight: 700; }
+.mk-judge { display: flex; flex-direction: column; gap: 10px; }
+.mk-judge div { padding: 10px 12px; border-radius: 8px; background: var(--bg); font-size: 14px; }
+.mk-judge div.mk-hit { background: var(--warn-soft); }
+.mk-judge strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.mk-tips { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.mk-tips b { color: var(--fg); }
+.mk-span2 { grid-column: 1 / -1; }
+
+/* ===== 更新紀錄 ===== */
+.changelog{background:color-mix(in srgb,var(--accent) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:var(--r);padding:8px 12px;margin:0 0 12px;font-size:.86rem}
+.changelog summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.changelog summary::-webkit-details-marker{display:none}
+.changelog summary b{color:var(--accent)}
+.changelog summary .more{color:var(--accent);font-size:.8rem;margin-left:auto;white-space:nowrap}
+.changelog[open] summary .more::after{content:"（收起）"}
+.changelog ol{list-style:none;padding:0;margin:8px 0 2px;display:flex;flex-direction:column;gap:6px}
+.changelog li{max-width:none;display:grid;grid-template-columns:7.2em minmax(0,1fr);gap:8px;border-top:1px solid var(--line);padding-top:6px}
+.changelog time{font:500 .78rem var(--f-mono);color:var(--muted)}
+.mob-only{display:none}
+.tabbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabbar nav.tabs{flex:1 1 auto;min-width:0;border-bottom:0;margin-bottom:0}
+.laybtn{appearance:none;flex:none;display:inline-flex;align-items:center;gap:5px;margin:0;padding:6px 12px;border:2px solid var(--accent);border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 .84rem var(--f-body);cursor:pointer;white-space:nowrap;min-height:38px}
+html[data-layout="desktop"] header.top{position:relative}
+html[data-layout="desktop"] .laybtn{position:absolute;top:0;right:0}
+.ttl{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+.laybtn:hover{filter:brightness(1.08)}
+.laybtn svg{width:16px;height:16px;flex:none}
+html[data-layout="desktop"] .laybtn .ic-d,html[data-layout="mobile"] .laybtn .ic-m{display:none}
+html[data-zoomed] .laybtn{zoom:var(--unzoom,1);position:static}
+html[data-layout="mobile"] .mob-only{display:revert}
+html[data-layout="mobile"] .desk-only{display:none}
+/* 強制手機版但螢幕很寬：模擬手機寬度置中 */
+html[data-layout="mobile"][data-wide] body{background:color-mix(in srgb,var(--ink) 12%,var(--bg))}
+html[data-layout="mobile"][data-wide] .wrap{max-width:440px;background:var(--bg);min-height:100vh;box-shadow:0 0 0 1px var(--line),0 10px 40px rgba(0,0,0,.15)}
+/* 強制電腦版但螢幕很窄：整頁照電腦版寬度排，再縮小到螢幕寬 */
+html[data-layout="desktop"][data-zoomed] .wrap{width:1240px;max-width:none}
+
+/* ===== 手機版 ===== */
+html[data-layout="mobile"] .wrap{padding-top:10px;padding-bottom:110px}
+html[data-layout="mobile"] header.top{gap:8px;margin-bottom:8px;align-items:flex-start}
+html[data-layout="mobile"] header.top h1{font-size:1.3rem}
+html[data-layout="mobile"] header.top p{font-size:.84rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+html[data-layout="mobile"] header.top p.open{display:block}
+html[data-layout="mobile"] .legend{font-size:.74rem;gap:2px 10px}
+html[data-layout="mobile"] .changelog{font-size:.82rem;padding:8px 10px}
+html[data-layout="mobile"] .changelog li{grid-template-columns:minmax(0,1fr);gap:0}
+html[data-layout="mobile"] .tabbar{margin:0 -16px 12px}
+html[data-layout="mobile"] nav.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:0 6px 0 10px}
+html[data-layout="mobile"] .ttl{flex-wrap:nowrap}
+html[data-layout="mobile"] .laybtn{padding:6px 12px;font-size:.84rem;min-height:40px}
+html[data-layout="mobile"] nav.tabs::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .tab{flex:none;padding:12px 11px;font-size:.92rem}
+html[data-layout="mobile"] .grid{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+html[data-layout="mobile"] .grid>*,html[data-layout="mobile"] .steplist{min-width:0}
+html[data-layout="mobile"] .content{display:contents}
+html[data-layout="mobile"] .steplist{order:1;flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:2px 16px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
+html[data-layout="mobile"] .steplist::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .stepbtn{flex:0 0 auto;max-width:210px;scroll-snap-align:start;padding:7px 12px 7px 7px}
+html[data-layout="mobile"] .stepbtn small{display:none}
+html[data-layout="mobile"] .viewer{order:2;position:static;gap:8px}
+html[data-layout="mobile"] .grid article.card{order:3}
+html[data-layout="mobile"] #three{max-height:46vh}
+html[data-layout="mobile"] .caption{font-size:.8rem;padding:4px 8px;left:6px;right:6px;bottom:6px;line-height:1.45}
+html[data-layout="mobile"] .viewbtns{top:6px;right:6px}
+html[data-layout="mobile"] .cams{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+html[data-layout="mobile"] .camv{padding:3px}
+html[data-layout="mobile"] .camv .h{font-size:.7rem;margin-bottom:2px}
+html[data-layout="mobile"] .camv .h span,html[data-layout="mobile"] .camv .uv{display:none}
+html[data-layout="mobile"] .readout{font-size:.66rem}
+html[data-layout="mobile"] #speed{min-height:40px}
+html[data-layout="mobile"] .card{padding:14px}
+html[data-layout="mobile"] h3{font-size:1.15rem}
+html[data-layout="mobile"] .lead{font-size:.98rem}
+html[data-layout="mobile"] pre{font-size:.72rem;padding:8px 10px}
+html[data-layout="mobile"] .stepnav{position:sticky;bottom:0;z-index:5;margin:16px -14px -14px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);border-radius:0 0 var(--r) var(--r)}
+html[data-layout="mobile"] .stepnav .btn{flex:1;min-height:46px;font-size:1rem}
+html[data-layout="mobile"] .btn{min-height:40px;padding:8px 14px}
+html[data-layout="mobile"] .btn.sm{min-height:0;padding:4px 8px}
+html[data-layout="mobile"] .chip{padding:7px 12px;font-size:.84rem}
+html[data-layout="mobile"] input,html[data-layout="mobile"] select,html[data-layout="mobile"] textarea{font-size:16px}
+html[data-layout="mobile"] .inp input{width:100px}
+html[data-layout="mobile"] .cols,html[data-layout="mobile"] .two{grid-template-columns:minmax(0,1fr)}
+html[data-layout="mobile"] .fld{font-size:.86rem}
+html[data-layout="mobile"] .vec{min-width:0}
+html[data-layout="mobile"] .fig{max-width:100%}
+html[data-layout="mobile"] #rc3d{max-height:46vh}
+html[data-layout="mobile"] .rctbl input{font-size:16px;padding:6px 4px;min-width:0}
+html[data-layout="mobile"] .rctbl td{padding:3px 2px}
+html[data-layout="mobile"] .rctbl .del{width:32px;height:36px}
+/* 手機版：參數表改成一列一張卡 */
+html[data-layout="mobile"] .ptbl{min-width:0}
+html[data-layout="mobile"] .ptbl thead{display:none}
+html[data-layout="mobile"] .ptbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto 2.4em;gap:2px 8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+html[data-layout="mobile"] .ptbl tr.grp{display:block;padding:0}
+html[data-layout="mobile"] .ptbl td{border:0;padding:0}
+html[data-layout="mobile"] .ptbl tr.grp td{display:block;padding:6px 8px}
+html[data-layout="mobile"] .ptbl td:nth-child(4){grid-column:1/-1;font-size:.7rem}
+html[data-layout="mobile"] .ptbl input{width:112px}
+/* 手機版：一般表格每列疊成一張卡（標題在左、值在右） */
+html[data-layout="mobile"] table.stk{min-width:0}
+html[data-layout="mobile"] table.stk thead{display:none}
+html[data-layout="mobile"] table.stk tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}
+html[data-layout="mobile"] table.stk td{display:grid;grid-template-columns:minmax(5.5em,36%) minmax(0,1fr);gap:8px;border:0;padding:2px 0}
+html[data-layout="mobile"] table.stk td::before{content:attr(data-label);color:var(--muted);font-size:.78rem;line-height:1.5}
+html[data-layout="mobile"] table.stk td:first-child{display:block;font-weight:600;padding-bottom:4px}
+html[data-layout="mobile"] table.stk td:first-child::before{content:none}
+html[data-layout="mobile"] .sig td:first-child{min-width:0}
+html[data-layout="mobile"] table.stk{width:100%}
+html[data-layout="mobile"] table.cmp{font-size:.78rem}
+html[data-layout="mobile"] table.cmp th,html[data-layout="mobile"] table.cmp td{padding:5px 6px;white-space:nowrap}
+html[data-layout="mobile"] #scrub{min-width:90px}
+/* 手機版：檢查表／驗證表（狀態＋項目一行，數值與說明在下面） */
+html[data-layout="mobile"] .vtbl{min-width:0;width:100%}
+html[data-layout="mobile"] .vtbl thead{display:none}
+html[data-layout="mobile"] .vtbl tr{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:start}
+html[data-layout="mobile"] .vtbl td{border:0;padding:0}
+html[data-layout="mobile"] .vtbl td:nth-child(n+3){grid-column:2;color:var(--muted);font-size:.8rem}
+html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+<script>
+// 版面：先決定手機版／電腦版（避免閃一下）。cal-layout = auto | desktop | mobile
+(function () {
+  var pref = 'auto'; try { pref = localStorage.getItem('cal-layout') || 'auto'; } catch (e) { /* 無儲存空間 */ }
+  if (['auto', 'desktop', 'mobile'].indexOf(pref) < 0) pref = 'auto';
+  var w = window.innerWidth || document.documentElement.clientWidth;
+  document.documentElement.setAttribute('data-layout', pref === 'auto' ? (w < 900 ? 'mobile' : 'desktop') : pref);
+  document.documentElement.setAttribute('data-layout-pref', pref);
+})();
+</script>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="ttl"><h1>雙平台放料校正手順</h1><button type="button" class="laybtn" id="laybtn" title="切換電腦版／手機版版面（會記住）"><svg class="ic-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><svg class="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="lb-t">電腦版</span></button></div>
+      <p>上相機1、上相機2 固定往下看（各拍平台1、平台2）；下相機3 隨平台1、下相機4 隨平台2 移動往上看；平台1、平台2（XY＋DD＋Z）把料放進上方固定平台3 的料盤。每一步都有 3D 動作、相機畫面、公式、判定標準與模擬驗證。</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <div class="legend" aria-label="顏色說明"><span><i style="background:var(--p1)"></i>平台1</span><span><i style="background:var(--p2)"></i>平台2</span><span><i style="background:var(--p3)"></i>平台3／料盤</span><span><i style="background:var(--cam)"></i>相機</span><span><i style="background:var(--hot)"></i>正在拍照</span></div>
+    </div>
+  </header>
+  <details class="changelog" id="changelog"></details>
+  <div class="tabbar">
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="steps" id="tab-steps">校正手順</button>
+    <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
+    <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
+    <button class="tab" role="tab" data-tab="rccalc" id="tab-rccalc">旋轉中心計算</button>
+    <button class="tab" role="tab" data-tab="mech" id="tab-mech">機構調校</button>
+    <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
+    <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
+  </nav>
+  </div>
+
+  <section class="view" id="view-steps">
+    <div class="grid">
+      <div class="viewer">
+        <div id="three"><div class="viewbtns"><button class="btn sm" id="viewreset">斜視</button><button class="btn sm" id="viewtop">俯視</button><button class="btn sm" id="viewbelow">從下方看</button></div><div class="caption" id="caption">載入中…</div></div>
+        <div class="ctrl">
+          <button class="btn primary" id="play" aria-pressed="true">暫停</button>
+          <button class="btn" id="restart">重播</button>
+          <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          <label class="note desk-only" for="speed">速度</label>
+          <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+        </div>
+        <div class="readout" id="readout"></div>
+        <div class="cams">
+          <div class="camv"><div class="h"><b>相機1</b><span>上・拍平台1</span></div><canvas id="cv1" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機2</b><span>上・拍平台2</span></div><canvas id="cv2" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機3</b><span>下・隨平台1</span></div><canvas id="cv3" width="256" height="192"></canvas><div class="uv"></div></div>
+          <div class="camv"><div class="h"><b>相機4</b><span>下・隨平台2</span></div><canvas id="cv4" width="256" height="192"></canvas><div class="uv"></div></div>
+        </div>
+        <p class="note"><span class="desk-only">拖曳旋轉、滾輪縮放、右鍵平移。</span><span class="mob-only">單指拖曳旋轉、雙指縮放與平移。</span>相機畫面是用同一套公式算出的像素位置（距中心最近的 Mark 座標顯示在下方），可以用來確認影像移動方向。</p>
+      </div>
+      <div class="content">
+        <div class="steplist" id="steplist"></div>
+        <article class="card">
+          <div class="stephead"><div id="stephead"></div></div>
+          <div id="stepbody"></div>
+          <div class="stepnav"><button class="btn" id="prevstep">← 上一步</button><button class="btn primary" id="nextstep">下一步 →</button></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-trouble" hidden>
+    <div class="card">
+      <h3>放料偏移：看偏移的樣子找原因</h3>
+      <p class="lead">先把偏移畫在料盤圖上，看它是「每片都一樣」、「跟著料的角度變」、「跟著穴位位置變」還是「每片亂跳」。不同的樣子對應不同的校正參數。</p>
+      <div class="tbl"><table class="sig"><thead><tr><th>偏移的樣子</th><th>最可能的原因</th><th>怎麼確認</th></tr></thead><tbody>
+        <tr><td>兩個平台、所有穴位都往同一方向偏一樣多</td><td>兩平台的相機各自獨立，共用的只有料、料盤與校正治具：料的 Mark 與外形不一致；雙 Mark 治具偏心（兩平台的步驟 5 都用它）；量偏移的基準和機台不同</td><td>換一批料比較；治具轉 180° 重做步驟 5，看 D 是否跟著變</td></tr>
+        <tr><td>只有一個平台固定偏移，而且就在上相機換過或碰過之後</td><td>該平台的上相機（相機1 或相機2）移動後沒重校</td><td>在上相機下重拍九點的中心那一點，和校正時的像素比</td></tr>
+        <tr><td>只有一個平台固定偏移</td><td>該平台下相機鬆動；步驟 5 的 D 沒重做；換了料厚或 Z 行程（Z 軸傾斜 × 行程）；破真空、吹氣、下壓讓料滑</td><td>重做步驟 5 比較 D；同一片料改行程（墊片）比較；把破真空延遲、吹氣壓力調低比較</td></tr>
+        <tr><td>同一穴位，料轉越多偏越多</td><td>旋轉中心 R̂ 錯（DD 或吸盤換過、撞機）；Δθ 正負相反；θ 比例不對</td><td>同一片料故意轉 −1°、−0.5°、0、+0.5°、+1° 放同一穴位：斜率 dX/dθ = −e_y、dY/dθ = e_x（θ 用弧度）</td></tr>
+        <tr><td>偏移隨穴位位置線性變大（越往兩端、離 A–B／C–D 中點越遠越大）</td><td>穴位是用 SPB Mark＋設計間距推算（方式 B）：軸比例、溫度、料盤實際間距不等於設計；料盤角度量錯（Mark A–D 的設計座標不對或辨識誤差）。力臂約 390 mm 時 1″ 就是 1.9 µm</td><td>改成每個穴位都拍（方式 A）比較；量兩個基準 Mark 的距離算 ppm</td></tr>
+        <tr><td>每片不同，約是「拍照時 Mark 離畫面中心距離」的 2 倍</td><td>下相機九點沒取負號（A = +G）；上相機或下相機的影像翻轉設定與校正時不同</td><td>讓平台故意偏 +0.3 mm 去拍穴位：算出的穴位位置應該不變。若跟著偏 0.6 mm，就是符號錯</td></tr>
+        <tr><td>角度固定偏一點，或某個平台角度比較差</td><td>下相機左右兩次拍照之間 X 軸偏擺或直線度；上、下相機的角度零點不一致</td><td>步驟 5 的右 Mark 檢查點；用下相機拍料盤上一排 Mark 看直線度</td></tr>
+        <tr><td>一開始放得準，放到後面或換料盤後整批一起偏</td><td>SPB Mark A–D 只在第一次量：量完後料盤移動、溫度變化（熱漲縮）、換盤後沒重量</td><td>整盤放完再量一次 A–D 和第一次比較；把偏移依放料順序畫出來，看是不是隨時間變大</td></tr>
+        <tr><td>同一片料每次重放偏移都不一樣，換一個人放料就變</td><td>人工放料位置或角度太偏，角 Mark 接近畫面邊緣、辨識變差；或放料後料還在吸盤上滑動（真空還沒建立就拍照）</td><td>看每片四點擬合殘差與角 Mark 在畫面中的位置；放料後等真空穩定再拍</td></tr>
+        <tr><td>只有交界兩側（1-6／2-6 與 1-7／2-7）對不齊，其他穴位都好</td><td>兩平台各自的固定偏移方向不同（各自的下相機、D_j、Z 傾斜），在交界碰頭時變成落差；或兩平台用的料盤座標不一致（方式 B）</td><td>分平台算平均偏移：落差 ≈ 右平台平均 − 左平台平均。先把兩邊各自的固定偏移修到 0，落差就會消失</td></tr>
+        <tr><td>某些料四點擬合殘差特別大，或擬合比例和設計差很多</td><td>某顆角 Mark 辨識錯（毛邊、反光）；料變形；平台在四個角 Mark 之間走得不準（XY 比例、直交度）；四張照片用了同一個平台位置去算</td><td>看每片料的四角殘差 log；同一片料轉 90° 再量，殘差跟著料走是料的問題，留在同一個位置是平台的問題</td></tr>
+        <tr><td>同設定，只換一片料就跳</td><td>料的 Mark 與實際圖案偏移、料翹曲、吸附不平</td><td>兩片料對調穴位；同一片料同穴位重放 10 次</td></tr>
+        <tr><td>同一片料重放也每次不同</td><td>真空、整定時間不足、拍照時抓指令位置、相機或光源鬆動、辨識不穩</td><td>不動連拍 20 次（影像雜訊）；加長整定時間比較；改用光學尺實際位置</td></tr>
+      </tbody></table></div>
+      <div class="two">
+        <div>
+          <h4>建議檢查順序（由快到慢）</h4>
+          <ol class="order">
+            <li><b>符號與單位（5 分鐘）</b>對照步驟 7 的公式看程式：Δθ = ψ̂ − φ̂ 不要反；sin、cos 用弧度；下相機 A = −G；平台1 用上相機1 的 Â_top、平台2 用上相機2 的，不要拿錯。</li>
+            <li><b>不動連拍 20 次</b>每台相機各一次，σ 應 &lt; 0.1 px。太大先處理光源、對焦、辨識參數。</li>
+            <li><b>同料同穴重放 10 次</b>得到機構＋放料的重複性。這個數字是後面所有判斷的雜訊門檻。</li>
+            <li><b>平台故意偏移測試</b>下相機拍穴位前，平台故意偏 ±0.3 mm，算出的穴位位置應不變（檢查 A 的符號與比例）。</li>
+            <li><b>角度掃描</b>同料同穴，料轉 −1° 到 +1° 共 5 次，看偏移是否隨角度變（旋轉中心）。</li>
+            <li><b>全盤放料＋兩平台比較</b>步驟 8 的資料貼到「實測資料分析」，拆出固定偏移、比例、旋轉中心誤差。</li>
+            <li><b>改 Z 行程</b>用不同厚度的料或墊片放同一穴位，偏移若隨行程變，就是 Z 軸傾斜，要在實際行程重做步驟 5。</li>
+          </ol>
+        </div>
+        <div>
+          <h4>和 11/3 SPB 拼接數據的對照</h4>
+          <p>如果這台就是 11/3 量四角偏差的機台：當時扣掉角度後還有約 (+0.29, +0.33) mm 的共同偏移，以及 X 約 +300 ppm、Y 約 +600 ppm 的比例。用這裡的模型看：</p>
+          <ul>
+            <li><b>共同偏移</b>屬於「固定偏移」：先查步驟 5 的 D（平台座標中的下相機位置）與放料轉移量，其次是該平台上相機的位置。</li>
+            <li><b>比例</b>只有在穴位用「基準 Mark＋設計間距」推算時才會出現：查軸比例（光學尺、溫度）和料盤實際間距。若每個穴位都有拍，比例應該接近 0。</li>
+          </ul>
+          <p class="note">這是依模型推測，需要用「建議檢查順序」的第 4、6 項確認。</p>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>誤差注入模擬</h3>
+      <p>在模擬機台上先照手順校正，然後改變一個條件（例如相機鬆動），再把整盤每個穴位各放 3 次，看偏移長什麼樣子。下方按鈕是常見情況。</p>
+      <div class="chips" id="presets"></div>
+      <div class="cols">
+        <form id="simform" onsubmit="return false"></form>
+        <div id="simout"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-analysis" hidden>
+    <div class="card">
+      <h3>實測資料分析</h3>
+      <p>貼上放料後量到的偏移，每行一片：<code>平台(1或2)　穴位X(mm)　穴位Y(mm)　Δθ(°)　dX(mm)　dY(mm)　角度誤差(°，可省略)</code>，空白、Tab、逗號分隔都可以，# 開頭是註解。穴位座標用料盤座標（中心為 0），Δθ 是機台 log 裡那一片 DD 轉的角度。每個平台會擬合：</p>
+      <pre>dX = a₀ + a₁·X + a₂·Y + a₃·Δθ
+dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
+固定偏移 = (a₀, b₀)；比例 = a₁、b₂；旋轉 = (b₁ − a₂)/2；旋轉中心誤差 e = (b₃, −a₃)
+角度誤差 = c₀ + c₁·Δθ            （Δθ 用 log 裡 DD 實際轉的角度；c₁ ≈ 2：Δθ 正負相反；c₀：上下相機角度零點不一致）</pre>
+      <p class="note">只有在統計上顯著（超過 3 倍標準誤差）而且影響超過門檻（預設 10 µm）的項目才會列入推測，避免把雜訊當成原因。</p>
+      <p class="note">片數不夠或某一項沒有變化（例如所有片 Δθ 都一樣）時，那一項會自動不擬合，表格顯示「–」。</p>
+      <div class="ctrl" style="margin:8px 0"><button class="btn" id="datasample">載入範例</button><button class="btn" id="dataclear">清空</button><label class="note" for="thr">推測門檻</label><span class="inp"><input type="number" id="thr" value="10" min="0" step="any"><i>µm</i></span><span class="note" id="datamsg"></span></div>
+      <textarea id="datain" wrap="off" spellcheck="false" aria-label="實測資料"></textarea>
+      <div id="dataout"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-rccalc" hidden>
+    <div class="card">
+      <h3>旋轉中心計算（手動輸入多點機械座標）</h3>
+      <p>把 DD 轉到幾個不同角度時記下的機械座標填進表格，算出 DD 旋轉中心。可以逐格手動填、匯入 CSV 檔，或從 Excel 複製多列直接貼到表格任一格。CSV 每行一點：<code>X(mm), Y(mm), DD 角度(°，可省略)</code>，第一行可以是標題，# 開頭是註解；按「下載 CSV」可拿到範本。</p>
+      <div class="two">
+        <div>
+          <label class="fld"><span>座標是什麼</span><select id="rcmode">
+            <option value="follow">XY 跟隨：Mark 對到上相機十字時的平台 XY（光學尺讀值）</option>
+            <option value="mark">XY 不動：相機換算出的 Mark 機械座標</option></select></label>
+          <div class="chips" id="rcsamples"></div>
+          <div class="ctrl" style="margin:6px 0">
+            <label class="btn" for="rcfile">匯入 CSV 檔</label><input type="file" id="rcfile" accept=".csv,text/csv,.txt" hidden>
+            <button class="btn" id="rcdl">下載 CSV</button>
+            <button class="btn" id="rccopy">複製 CSV</button>
+            <button class="btn" id="rcadd">＋ 新增一列</button>
+            <button class="btn" id="rcclear">清空</button>
+          </div>
+          <div class="tbl"><table class="rctbl"><thead><tr><th>#</th><th>X (mm)</th><th>Y (mm)</th><th>DD 角度 (°)</th><th><span class="sr">刪除</span></th></tr></thead><tbody id="rcrows"></tbody></table></div>
+          <p class="note" id="rcmsg" role="status" style="margin:4px 0"></p>
+          <details id="rcpaste"><summary class="note">貼上文字（從 Excel 複製多列）</summary>
+            <textarea id="rcin" spellcheck="false" aria-label="貼上量測點" placeholder="X　Y　DD角度，每行一點"></textarea>
+            <div class="ctrl" style="margin-top:6px"><button class="btn" id="rcparse">讀入（取代表格）</button></div>
+          </details>
+          <fieldset><legend id="rcreflg">換算成 R̂（可省略）</legend>
+            <p class="note" id="rcrefnote" style="margin:0 0 4px"></p>
+            <label class="fld"><span id="rcreflx">X</span><span class="inp"><input type="number" step="any" id="rcrefx"><i>mm</i></span></label>
+            <label class="fld"><span id="rcrefly">Y</span><span class="inp"><input type="number" step="any" id="rcrefy"><i>mm</i></span></label>
+          </fieldset>
+          <label class="fld"><span>殘差門檻（建議 0.5 px × 上相機 mm/px）</span><span class="inp"><input type="number" step="any" id="rcthr" min="0"><i>µm</i></span></label>
+        </div>
+        <div>
+          <div id="rc3d"><div class="caption" id="rccap">—</div></div>
+          <div class="ctrl" style="margin-top:6px">
+            <button class="btn primary" id="rcplay" aria-pressed="false">播放</button>
+            <button class="btn" id="rcrestart">重播</button>
+            <input type="range" id="rcscrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          </div>
+        </div>
+      </div>
+      <div id="rcout" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-mech" hidden>
+    <div class="card mkintro">
+      <h3>機構調校</h3>
+      <p>校正算得再準，機構會晃、會歪、會跑，放料還是會偏。這裡分兩部分：<b>視覺機構檢查</b>用相機本身找出問題出在哪個機構；<b>千分錶量測與導軌調整</b>直接量導軌與滑座，再把它調好。</p>
+      <ol class="mkflow"><li><b>視覺機構檢查</b>：照症狀對照表挑項目做，找出嫌疑的機構</li><li><b>千分錶確認</b>：量嫌疑的軸（X 軸偏擺、Y 滑座耦合）</li><li><b>導軌調整</b>：靠邊、鎖緊、調平行度，再用千分錶驗證</li><li><b>重做校正</b>：回「校正手順」從步驟 1 做起</li></ol>
+      <div class="mksub" id="mksub" role="tablist" aria-label="機構調校項目">
+        <button class="mksb" role="tab" data-sub="vis" aria-selected="true"><span>視覺機構檢查</span><small>8 項，用相機找問題</small></button>
+        <button class="mksb" role="tab" data-sub="dial1" aria-selected="false"><span>千分錶：X 軸偏擺與直線度</span><small>兩支表頂直規</small></button>
+        <button class="mksb" role="tab" data-sub="dial2" aria-selected="false"><span>千分錶：Y 滑座重心耦合</span><small>X 移動時 Y 滑座會不會轉</small></button>
+        <button class="mksb" role="tab" data-sub="dial3" aria-selected="false"><span>導軌調整</span><small>靠邊、鎖緊、平行度</small></button>
+        <button class="mksb" role="tab" data-sub="zcalc" aria-selected="false"><span>Z 四角高低差 → 貼附誤差</span><small>公式計算＋圖解</small></button>
+      </div>
+    </div>
+    <div id="vk" class="vk">
+      <details class="card vksymc" open><summary><b>症狀對照：放料時看到哪種狀況，先做哪一項</b></summary><div id="vksym" class="tbl"></div></details>
+      <div class="vkgrid" id="vkmain">
+        <div class="vkl">
+          <div class="vklist" id="vklist"></div>
+          <div id="vk3d"><div id="vklabels"></div><div class="caption" id="vkcap">—</div><div class="vkhint">示意圖，未依比例；誤差已放大顯示</div></div>
+          <div class="ctrl vkctrl">
+            <button class="btn primary" id="vkplay" aria-pressed="true">暫停</button>
+            <button class="btn" id="vkrestart">重播</button>
+            <input type="range" id="vkscrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          </div>
+          <label class="vksevbox"><span class="vksevh"><b>模擬問題程度</b><span id="vksevt"></span></span>
+            <input type="range" id="vksev" min="0" max="100" value="60" aria-label="模擬問題程度">
+            <span class="vkends"><span>0（正常機台）</span><span>100（問題明顯）</span></span></label>
+        </div>
+        <div class="vkr">
+          <div class="card vkc"><h4 id="vkimgt">上相機1 畫面</h4><canvas id="vkimg" aria-label="相機畫面"></canvas></div>
+          <div class="card vkc"><h4>量測曲線</h4><svg id="vkchart" class="vkchart" viewBox="0 0 340 200" role="img" aria-label="量測曲線"></svg></div>
+          <div class="card vkc"><h4>即時讀值</h4><p class="vklive mono" id="vklive"></p><h4>判定</h4><p id="vkres" class="vkres"></p></div>
+        </div>
+      </div>
+      <article class="card" id="vkdoc"></article>
+    </div>
+    <div id="zc" class="zc" hidden>
+      <div class="card">
+        <h3>Z 四角高低差會造成多少貼附誤差</h3>
+        <p>吸盤（或貼附面）四個角高低不同時，料不會同時碰到貼附面：<b>最高的角先碰到</b>，被摩擦卡住變成支點。Z 繼續往上走時，只要 Z 軸不是完全垂直，平台就會跟著橫移一點點，料就繞著這個支點轉。高低差本身造成的平移很小，真正的放大器是「單角先接觸＋Z 斜行」。</p>
+        <div class="two">
+          <div>
+            <div class="chips" id="zcpresets"></div>
+            <div id="zcin"></div>
+          </div>
+          <div>
+            <svg id="zctop" class="zcsvg" viewBox="0 0 340 250" role="img" aria-label="俯視圖：四角高度、支點與轉動"></svg>
+            <svg id="zcside" class="zcsvg" viewBox="0 0 340 190" role="img" aria-label="側視圖：先接觸與 Z 斜行"></svg>
+            <p class="note" id="zccap" style="margin:4px 0">—</p>
+            <div class="ctrl"><button class="btn primary" id="zcplay" aria-pressed="false">播放</button><input type="range" id="zcz" min="0" max="1000" value="1000" aria-label="Z 行程" style="flex:1;min-width:120px"></div>
+          </div>
+        </div>
+        <p class="lead" id="zcsum" style="margin-top:14px"></p>
+        <div class="tbl" id="zcres"></div>
+        <h4>公式</h4>
+<pre>四角高度 h左上、h右上、h左下、h右下（µm，越大越先碰到）
+左右傾斜 αx = [(h右上 + h右下) − (h左上 + h左下)] ÷ (2·Lx)
+前後傾斜 αy = [(h左上 + h右上) − (h左下 + h右下)] ÷ (2·Ly)
+扭曲     w  = [(h左上 + h右下) − (h右上 + h左下)] ÷ 2
+行程差   g  = h最高 − h最低
+
+① 傾斜造成 Mark 平移   Δ = t · α          （t = Mark 到接觸面的高度）
+② Mark 間距縮短        ΔL = L · α² ÷ 2
+③ 單角先接觸＋Z 斜行：
+   接觸後 Z 還要走      z = g + p          （p = 貼平後再壓的量）
+   平台橫移             s = z · (Z 每 mm 的 XY 偏移)
+   以最高角為支點轉動   θz = (r × s) ÷ |r|²  （r = 料中心 − 支點）
+   角落位移             δ = θz · 角落到支點的距離
+反推：θ實測 · |r| = 需要的橫移 → ÷ z 得到需要的 Z 斜度</pre>
+        <p class="note">③ 假設先接觸的角被摩擦卡住不滑、其餘部分跟著平台走（最壞情況）。實際摩擦較小時轉動會比較少；貼附面若有彈性墊，下壓量 p 要用墊子的壓縮量。</p>
+      </div>
+    </div>
+<div class="mk" id="mk-dial">
+      <div class="mk-tabs" role="tablist" hidden>
+        <button class="mk-tab" role="tab" id="mk-tab1" aria-selected="true">測試一:X 軸偏擺與直線度</button>
+        <button class="mk-tab" role="tab" id="mk-tab2" aria-selected="false">測試二:Y 滑座重心耦合</button>
+        <button class="mk-tab" role="tab" id="mk-tab3" aria-selected="false">導軌調整</button>
+      </div>
+    
+      <div class="mk-main">
+        <div class="mk-stage" id="mk-stage">
+          <div id="mk-labels"></div>
+          <div class="mk-stage-hint">示意圖,未依比例;誤差已放大顯示</div>
+        </div>
+    
+        <div class="mk-panel">
+          <div class="mk-card mk-controls">
+            <div class="mk-row">
+              <button class="mk-btn" id="mk-play">暫停</button>
+              <button class="mk-btn" id="mk-resetView">重設視角</button>
+              <label class="mk-chk"><input type="checkbox" id="mk-exag" checked> <span id="mk-exagLbl">誤差放大 ×150</span></label>
+            </div>
+            <div class="mk-row" id="mk-sliderRow">
+              <input type="range" id="mk-xpos" min="100" max="750" step="1" value="100" aria-label="X 位置">
+            </div>
+            <div class="mk-chips" id="mk-chips" hidden></div>
+            <div class="mk-adjbox" id="mk-adjSeg">
+              <div class="mk-adjhead"><label for="mk-adjK" id="mk-adjLbl">基準軌偏移</label><b class="mk-mono" id="mk-adjVal">40 µm</b></div>
+              <input type="range" id="mk-adjK" min="0" max="100" step="1" value="100">
+              <div class="mk-adjends"><span>0(完全調好)</span><span id="mk-adjMax">40 µm(目前)</span></div>
+            </div>
+            <div class="mk-adj-note" id="mk-adjNote"></div>
+            <div class="mk-xpos" id="mk-xposLine">X 位置 <b class="mk-mono" id="mk-xval">100</b> mm</div>
+          </div>
+    
+          <div class="mk-card" id="mk-cStep" hidden>
+            <h2 id="mk-stepNo">步驟 1 / 5</h2>
+            <p class="mk-step-title" id="mk-stepTitle"></p>
+            <p class="mk-step-body" id="mk-stepBody"></p>
+            <div class="mk-step-live mk-mono" id="mk-stepLive"></div>
+          </div>
+    
+          <div class="mk-card mk-change" id="mk-cChange" hidden>
+            <h2>導軌直線度變化(µm)</h2>
+            <svg viewBox="0 0 320 170" id="mk-chg" role="img" aria-label="基準軌與從動軌直線度，調整前與目前"></svg>
+            <div class="mk-legend"><span class="mk-l0">基準軌 調整前</span><span class="mk-l1">基準軌 目前</span><span class="mk-l2">從動軌 目前</span></div>
+            <dl class="mk-calc" style="margin-top:8px">
+              <dt>基準軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppRef">40.0 µm</dd>
+              <dt>從動軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppFol">25.0 µm</dd>
+            </dl>
+          </div>
+    
+          <div class="mk-card" id="mk-cGauge">
+            <h2>千分表讀數(mm)</h2>
+            <div class="mk-gauges">
+              <div class="mk-gauge mk-a"><svg viewBox="0 0 120 120" id="mk-gA"></svg><span class="mk-name">表 A</span><span class="mk-val mk-mono" id="mk-vA">0.000</span></div>
+              <div class="mk-gauge mk-b"><svg viewBox="0 0 120 120" id="mk-gB"></svg><span class="mk-name">表 B</span><span class="mk-val mk-mono" id="mk-vB">0.000</span></div>
+            </div>
+          </div>
+    
+          <div class="mk-card" id="mk-cCalc">
+            <h2>即時計算</h2>
+            <dl class="mk-calc">
+              <dt id="mk-c1n">偏擺角</dt><dd class="mk-mono mk-big" id="mk-c1">0.0″</dd>
+              <dt></dt><dd class="mk-mono" id="mk-c1b">0.00000°</dd>
+              <dt id="mk-c2n">直線度 (A+B)/2</dt><dd class="mk-mono" id="mk-c2">0.000 mm</dd>
+              <dt>全行程偏擺 峰-峰</dt><dd class="mk-mono" id="mk-ppYaw">—</dd>
+            </dl>
+            <div class="mk-formula" id="mk-formula">偏擺角 = (A − B) ÷ L,L = 120 mm;rad × 206265 = 角秒</div>
+          </div>
+    
+          <div class="mk-card mk-trace" id="mk-cTrace">
+            <h2 id="mk-tTitle">偏擺角對 X 位置(″)</h2>
+            <svg viewBox="0 0 320 170" id="mk-trace" role="img" aria-label="偏擺角隨 X 位置的記錄曲線"></svg>
+            <div class="mk-legend" id="mk-traceLegend" hidden><span class="mk-l0">調整前</span><span class="mk-l1" id="mk-lgNow">調整後</span></div>
+            <div class="mk-note">動畫數值為模擬示意，用來說明讀表和計算方式，不是你的實測數據。</div>
+          </div>
+        </div>
+      </div>
+    
+      <section class="mk-card mk-guide" id="mk-guide"></section>
+    </div>
+  </section>
+
+  <section class="view" id="view-params" hidden>
+    <div class="card">
+      <h3>機台參數</h3>
+      <p>相機視野、XY 可移動範圍、Mark 尺寸、校正片與產品尺寸都可以在這裡改，或匯入 CSV（Excel 存成「CSV UTF-8」即可）。按「套用並重新計算」後，整頁的 3D 動作、九點間距、旋轉中心半徑、相機畫面、模擬與驗證都會用新數值重算，下面的檢查表會告訴你哪些數值會讓校正做不起來。</p>
+      <div class="ctrl" style="margin:10px 0">
+        <label class="btn" for="pfile">匯入 CSV 檔</label><input type="file" id="pfile" accept=".csv,text/csv,.txt" hidden>
+        <button class="btn primary" id="papply">套用並重新計算</button>
+        <button class="btn" id="pcopy">複製 CSV</button>
+        <button class="btn" id="preset">還原預設</button>
+        <span class="note" id="pmsg" role="status"></span>
+      </div>
+      <details id="ppaste"><summary class="note">貼上 CSV 內容</summary>
+        <textarea id="pcsv" spellcheck="false" aria-label="CSV 內容" style="min-height:160px"></textarea>
+        <div class="ctrl" style="margin-top:6px"><button class="btn" id="pparse">讀入貼上的內容</button></div>
+      </details>
+      <div class="two" style="margin-top:12px">
+        <div><h4>參數</h4><div id="ptable"></div></div>
+        <div><h4>檢查結果（目前套用的參數）</h4><div id="pchecks"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-verify" hidden>
+    <div class="card">
+      <h3>驗證</h3>
+      <p>用頁面裡同一套公式，在已知真值的模擬機台上跑完整校正與放料，檢查每個公式算回來的值和真值一致、注入已知誤差時能被正確反推，並檢查每段動畫的拍照位置都看得到目標。</p>
+      <div id="verifysum" style="margin:10px 0"></div>
+      <div id="verifylist"></div>
+    </div>
+  </section>
+</div>
