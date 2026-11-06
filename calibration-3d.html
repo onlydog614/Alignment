@@ -177,6 +177,167 @@ label.btn{display:inline-block}
 .rcplot .c-ax{stroke:var(--line);stroke-width:1}
 .rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
 .rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
+/* ===== 機構調校 ===== */
+.mkintro p{margin:6px 0}
+.mkflow{display:flex;flex-wrap:wrap;gap:6px 18px;padding-left:1.3em;margin:8px 0 12px;font-size:.9rem}
+.mkflow li{margin:0;max-width:none}
+.mksub{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mksb{appearance:none;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0}
+.mksb span{font-weight:600;font-size:.92rem}.mksb small{font-size:.74rem;color:var(--muted)}
+.mksb:hover{border-color:var(--accent)}
+.mksb[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mksb[aria-selected="true"] small{color:inherit;opacity:.85}
+#view-mech>.card,#view-mech .vk>.card,#view-mech .vkgrid{margin-bottom:14px}
+#mk-dial{margin-top:2px}
+.vksymc summary{cursor:pointer}
+.vksymt{width:100%;margin-top:8px}
+.linkbtn{appearance:none;border:0;background:none;padding:0;color:var(--accent);font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.vkgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.vkl{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkr{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkc{padding:12px 14px}
+.vkc h4{margin:0 0 6px;font-size:.86rem;color:var(--muted);font-weight:600}
+.vkc h4+canvas,.vkc h4+svg{margin-top:2px}
+.vklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.vkbtn{appearance:none;display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px 6px 6px;cursor:pointer;font:inherit;min-width:0}
+.vkbtn .num{flex:none;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:var(--soft);font:600 .85rem var(--f-mono)}
+.vkbtn .st{display:flex;flex-direction:column;min-width:0}.vkbtn b{font-size:.86rem;font-weight:600}.vkbtn small{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vkbtn[aria-current]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.vkbtn[aria-current] .num{background:var(--accent);color:var(--accent-ink)}
+#vk3d{position:relative;width:100%;aspect-ratio:16/10;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#vk3d canvas{display:block;touch-action:none}
+#vk3d .caption{bottom:30px}
+.vkhint{position:absolute;left:10px;bottom:6px;font-size:.72rem;color:var(--muted);background:var(--label-bg);padding:0 6px;border-radius:4px}
+#vklabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.vklbl{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;font-weight:500;padding:2px 7px;border-radius:5px;background:var(--label-bg);color:var(--ink);border:1px solid var(--line)}
+.vklbl.c{color:var(--cam);border-color:var(--cam)}.vklbl.a{color:var(--accent);border-color:var(--accent)}.vklbl.b{color:var(--p2);border-color:var(--p2)}
+.vkctrl input[type=range]{flex:1;min-width:120px}
+.vksevbox{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--p2) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--p2) 35%,var(--line))}
+.vksevh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.86rem}.vksevh span{color:var(--p2);font-weight:600}
+.vksevbox input{width:100%;accent-color:var(--p2)}
+.vkends{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+#vkimg{display:block;width:100%;border-radius:6px}
+.vkchart{display:block;width:100%;height:auto}
+.vkchart .vk-t{font:10px var(--f-mono);fill:var(--muted)}
+.vkchart .vk-ax{stroke:var(--line);stroke-width:.7}.vkchart .vk-ax0{stroke:var(--muted);stroke-width:1}
+.vkchart .vk-band{fill:var(--ok-bg)}
+.vkchart .vk-vl{stroke-width:1.2;stroke-dasharray:4 3}
+.vkchart .vk-ln{fill:none;stroke-width:2;stroke-linejoin:round}
+.vkchart .vk-fit{stroke:var(--hot);stroke-width:1.4;stroke-dasharray:5 3;transition:opacity .3s}
+.vklive{font-size:.84rem;margin:0;line-height:1.6;min-height:3.2em}
+.vkres{margin:0;font-size:.88rem;line-height:1.55}
+#vkdoc .two{margin-top:6px}
+#vkdoc h4:first-child{margin-top:8px}
+html[data-layout="mobile"] .mksub{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html[data-layout="mobile"] .mkflow{display:block}
+html[data-layout="mobile"] .vkgrid{grid-template-columns:minmax(0,1fr)}
+html[data-layout="mobile"] .vklist{display:flex;overflow-x:auto;margin:0 -14px;padding:2px 14px 6px;scrollbar-width:none;scroll-snap-type:x proximity}
+html[data-layout="mobile"] .vklist::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .vkbtn{flex:0 0 auto;max-width:230px;scroll-snap-align:start}
+html[data-layout="mobile"] .vkbtn small{display:none}
+html[data-layout="mobile"] #vk3d{aspect-ratio:4/3;max-height:46vh}
+html[data-layout="mobile"] .vkr{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+html[data-layout="mobile"] #vkimg{max-width:300px;margin:0 auto}
+/* 千分表架設示範（移植） */
+.mk{--surface:var(--panel);--fg:var(--ink);--accent-soft:color-mix(in srgb,var(--accent) 16%,var(--panel));--warn:var(--p2);--warn-soft:color-mix(in srgb,var(--p2) 16%,var(--panel));--font-body:var(--f-body);--font-mono:var(--f-mono);font-size:15px;line-height:1.6}
+.mk h2,.mk h3{letter-spacing:normal}
+html[data-layout="mobile"] .mk-stage{height:46vh;min-height:280px}
+html[data-layout="mobile"] .mk-gauge svg{max-width:110px}
+.mk-wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.mk-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.mk-tab {
+  font: inherit; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer;
+}
+.mk-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk button:focus-visible, .mk input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mk-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+html[data-layout="mobile"] .mk-main { grid-template-columns: minmax(0, 1fr); }
+.mk-stage {
+  position: relative; background: var(--stage); border-radius: 12px; overflow: hidden;
+  height: min(64vh, 620px); min-height: 340px; border: 1px solid var(--line);
+}
+.mk-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.mk-lbl {
+  position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap;
+  font-size: 12px; font-weight: 500; padding: 2px 7px; border-radius: 5px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--fg); border: 1px solid var(--line);
+}
+.mk-lbl.mk-a { color: var(--accent); border-color: var(--accent); }
+.mk-lbl.mk-b { color: var(--warn); border-color: var(--warn); }
+.mk-stage-hint {
+  position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 2px 8px; border-radius: 5px;
+}
+.mk-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.mk-card h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+.mk-controls { display: flex; flex-direction: column; gap: 10px; }
+.mk-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-btn {
+  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.mk-segb { font: inherit; font-weight: 500; padding: 6px 16px; border: 0; background: var(--bg); color: var(--fg); cursor: pointer; }
+.mk-segb[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.mk-adj-note { font-size: 12px; color: var(--muted); }
+.mk-adjbox { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); }
+.mk-adjhead { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 700; }
+.mk-adjhead b { color: var(--warn); font-size: 15px; }
+.mk-adjbox input[type="range"] { width: 100%; accent-color: var(--warn); }
+.mk-adjends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.mk-chip {
+  font: inherit; font-family: var(--font-mono); font-weight: 600; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chip[aria-current="step"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.mk-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mk-xpos { font-size: 13px; color: var(--muted); }
+.mk-xpos b { color: var(--fg); font-size: 15px; }
+label.mk-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.mk-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mk-gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mk-gauge svg { width: 100%; max-width: 132px; height: auto; }
+.mk-gauge .mk-name { font-size: 13px; font-weight: 700; }
+.mk-gauge.mk-a .mk-name { color: var(--accent); }
+.mk-gauge.mk-b .mk-name { color: var(--warn); }
+.mk-gauge .mk-val { font-size: 15px; }
+.mk-calc { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 0; }
+.mk-calc dt { color: var(--muted); }
+.mk-calc dd { margin: 0; text-align: right; }
+.mk-calc .mk-big { font-size: 18px; font-weight: 600; color: var(--accent); }
+.mk-formula { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.mk-trace svg, .mk-change svg { width: 100%; height: auto; display: block; }
+.mk-note { font-size: 12px; color: var(--muted); }
+.mk-step-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+.mk-step-body { font-size: 14px; margin: 0; }
+.mk-step-live { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg); font-size: 13px; }
+.mk-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.mk-legend span::before { content: ""; display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+.mk-legend .mk-l0::before { border-top-style: dashed; border-color: var(--muted); }
+.mk-legend .mk-l1::before { border-color: var(--accent); }
+.mk-legend .mk-l2::before { border-color: var(--warn); }
+.mk-guide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+html[data-layout="mobile"] .mk-guide { grid-template-columns: minmax(0, 1fr); }
+.mk-guide h3 { font-size: 17px; margin: 0 0 10px; }
+.mk-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 10px; }
+.mk-steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.mk-steps li::before {
+  content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px; display: grid; place-items: center; margin-top: 1px;
+}
+.mk-steps b { font-weight: 700; }
+.mk-judge { display: flex; flex-direction: column; gap: 10px; }
+.mk-judge div { padding: 10px 12px; border-radius: 8px; background: var(--bg); font-size: 14px; }
+.mk-judge div.mk-hit { background: var(--warn-soft); }
+.mk-judge strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.mk-tips { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.mk-tips b { color: var(--fg); }
+.mk-span2 { grid-column: 1 / -1; }
+
 /* ===== 更新紀錄 ===== */
 .changelog{background:color-mix(in srgb,var(--accent) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:var(--r);padding:8px 12px;margin:0 0 12px;font-size:.86rem}
 .changelog summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
@@ -317,6 +478,7 @@ html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
     <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
     <button class="tab" role="tab" data-tab="rccalc" id="tab-rccalc">旋轉中心計算</button>
+    <button class="tab" role="tab" data-tab="mech" id="tab-mech">機構調校</button>
     <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
@@ -463,6 +625,123 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
         </div>
       </div>
       <div id="rcout" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-mech" hidden>
+    <div class="card mkintro">
+      <h3>機構調校</h3>
+      <p>校正算得再準，機構會晃、會歪、會跑，放料還是會偏。這裡分兩部分：<b>視覺機構檢查</b>用相機本身找出問題出在哪個機構；<b>千分錶量測與導軌調整</b>直接量導軌與滑座，再把它調好。</p>
+      <ol class="mkflow"><li><b>視覺機構檢查</b>：照症狀對照表挑項目做，找出嫌疑的機構</li><li><b>千分錶確認</b>：量嫌疑的軸（X 軸偏擺、Y 滑座耦合）</li><li><b>導軌調整</b>：靠邊、鎖緊、調平行度，再用千分錶驗證</li><li><b>重做校正</b>：回「校正手順」從步驟 1 做起</li></ol>
+      <div class="mksub" id="mksub" role="tablist" aria-label="機構調校項目">
+        <button class="mksb" role="tab" data-sub="vis" aria-selected="true"><span>視覺機構檢查</span><small>7 項，用相機找問題</small></button>
+        <button class="mksb" role="tab" data-sub="dial1" aria-selected="false"><span>千分錶：X 軸偏擺與直線度</span><small>兩支表頂直規</small></button>
+        <button class="mksb" role="tab" data-sub="dial2" aria-selected="false"><span>千分錶：Y 滑座重心耦合</span><small>X 移動時 Y 滑座會不會轉</small></button>
+        <button class="mksb" role="tab" data-sub="dial3" aria-selected="false"><span>導軌調整</span><small>靠邊、鎖緊、平行度</small></button>
+      </div>
+    </div>
+    <div id="vk" class="vk">
+      <details class="card vksymc" open><summary><b>症狀對照：放料時看到哪種狀況，先做哪一項</b></summary><div id="vksym" class="tbl"></div></details>
+      <div class="vkgrid" id="vkmain">
+        <div class="vkl">
+          <div class="vklist" id="vklist"></div>
+          <div id="vk3d"><div id="vklabels"></div><div class="caption" id="vkcap">—</div><div class="vkhint">示意圖，未依比例；誤差已放大顯示</div></div>
+          <div class="ctrl vkctrl">
+            <button class="btn primary" id="vkplay" aria-pressed="true">暫停</button>
+            <button class="btn" id="vkrestart">重播</button>
+            <input type="range" id="vkscrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          </div>
+          <label class="vksevbox"><span class="vksevh"><b>模擬問題程度</b><span id="vksevt"></span></span>
+            <input type="range" id="vksev" min="0" max="100" value="60" aria-label="模擬問題程度">
+            <span class="vkends"><span>0（正常機台）</span><span>100（問題明顯）</span></span></label>
+        </div>
+        <div class="vkr">
+          <div class="card vkc"><h4 id="vkimgt">上相機1 畫面</h4><canvas id="vkimg" aria-label="相機畫面"></canvas></div>
+          <div class="card vkc"><h4>量測曲線</h4><svg id="vkchart" class="vkchart" viewBox="0 0 340 200" role="img" aria-label="量測曲線"></svg></div>
+          <div class="card vkc"><h4>即時讀值</h4><p class="vklive mono" id="vklive"></p><h4>判定</h4><p id="vkres" class="vkres"></p></div>
+        </div>
+      </div>
+      <article class="card" id="vkdoc"></article>
+    </div>
+<div class="mk" id="mk-dial">
+      <div class="mk-tabs" role="tablist" hidden>
+        <button class="mk-tab" role="tab" id="mk-tab1" aria-selected="true">測試一:X 軸偏擺與直線度</button>
+        <button class="mk-tab" role="tab" id="mk-tab2" aria-selected="false">測試二:Y 滑座重心耦合</button>
+        <button class="mk-tab" role="tab" id="mk-tab3" aria-selected="false">導軌調整</button>
+      </div>
+    
+      <div class="mk-main">
+        <div class="mk-stage" id="mk-stage">
+          <div id="mk-labels"></div>
+          <div class="mk-stage-hint">示意圖,未依比例;誤差已放大顯示</div>
+        </div>
+    
+        <div class="mk-panel">
+          <div class="mk-card mk-controls">
+            <div class="mk-row">
+              <button class="mk-btn" id="mk-play">暫停</button>
+              <button class="mk-btn" id="mk-resetView">重設視角</button>
+              <label class="mk-chk"><input type="checkbox" id="mk-exag" checked> <span id="mk-exagLbl">誤差放大 ×150</span></label>
+            </div>
+            <div class="mk-row" id="mk-sliderRow">
+              <input type="range" id="mk-xpos" min="100" max="750" step="1" value="100" aria-label="X 位置">
+            </div>
+            <div class="mk-chips" id="mk-chips" hidden></div>
+            <div class="mk-adjbox" id="mk-adjSeg">
+              <div class="mk-adjhead"><label for="mk-adjK" id="mk-adjLbl">基準軌偏移</label><b class="mk-mono" id="mk-adjVal">40 µm</b></div>
+              <input type="range" id="mk-adjK" min="0" max="100" step="1" value="100">
+              <div class="mk-adjends"><span>0(完全調好)</span><span id="mk-adjMax">40 µm(目前)</span></div>
+            </div>
+            <div class="mk-adj-note" id="mk-adjNote"></div>
+            <div class="mk-xpos" id="mk-xposLine">X 位置 <b class="mk-mono" id="mk-xval">100</b> mm</div>
+          </div>
+    
+          <div class="mk-card" id="mk-cStep" hidden>
+            <h2 id="mk-stepNo">步驟 1 / 5</h2>
+            <p class="mk-step-title" id="mk-stepTitle"></p>
+            <p class="mk-step-body" id="mk-stepBody"></p>
+            <div class="mk-step-live mk-mono" id="mk-stepLive"></div>
+          </div>
+    
+          <div class="mk-card mk-change" id="mk-cChange" hidden>
+            <h2>導軌直線度變化(µm)</h2>
+            <svg viewBox="0 0 320 170" id="mk-chg" role="img" aria-label="基準軌與從動軌直線度，調整前與目前"></svg>
+            <div class="mk-legend"><span class="mk-l0">基準軌 調整前</span><span class="mk-l1">基準軌 目前</span><span class="mk-l2">從動軌 目前</span></div>
+            <dl class="mk-calc" style="margin-top:8px">
+              <dt>基準軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppRef">40.0 µm</dd>
+              <dt>從動軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppFol">25.0 µm</dd>
+            </dl>
+          </div>
+    
+          <div class="mk-card" id="mk-cGauge">
+            <h2>千分表讀數(mm)</h2>
+            <div class="mk-gauges">
+              <div class="mk-gauge mk-a"><svg viewBox="0 0 120 120" id="mk-gA"></svg><span class="mk-name">表 A</span><span class="mk-val mk-mono" id="mk-vA">0.000</span></div>
+              <div class="mk-gauge mk-b"><svg viewBox="0 0 120 120" id="mk-gB"></svg><span class="mk-name">表 B</span><span class="mk-val mk-mono" id="mk-vB">0.000</span></div>
+            </div>
+          </div>
+    
+          <div class="mk-card" id="mk-cCalc">
+            <h2>即時計算</h2>
+            <dl class="mk-calc">
+              <dt id="mk-c1n">偏擺角</dt><dd class="mk-mono mk-big" id="mk-c1">0.0″</dd>
+              <dt></dt><dd class="mk-mono" id="mk-c1b">0.00000°</dd>
+              <dt id="mk-c2n">直線度 (A+B)/2</dt><dd class="mk-mono" id="mk-c2">0.000 mm</dd>
+              <dt>全行程偏擺 峰-峰</dt><dd class="mk-mono" id="mk-ppYaw">—</dd>
+            </dl>
+            <div class="mk-formula" id="mk-formula">偏擺角 = (A − B) ÷ L,L = 120 mm;rad × 206265 = 角秒</div>
+          </div>
+    
+          <div class="mk-card mk-trace" id="mk-cTrace">
+            <h2 id="mk-tTitle">偏擺角對 X 位置(″)</h2>
+            <svg viewBox="0 0 320 170" id="mk-trace" role="img" aria-label="偏擺角隨 X 位置的記錄曲線"></svg>
+            <div class="mk-legend" id="mk-traceLegend" hidden><span class="mk-l0">調整前</span><span class="mk-l1" id="mk-lgNow">調整後</span></div>
+            <div class="mk-note">動畫數值為模擬示意，用來說明讀表和計算方式，不是你的實測數據。</div>
+          </div>
+        </div>
+      </div>
+    
+      <section class="mk-card mk-guide" id="mk-guide"></section>
     </div>
   </section>
 
@@ -2564,6 +2843,1192 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
 
 </script>
 <script>
+// ===== 機構調校：千分表架設示範（X 軸偏擺、Y 滑座重心耦合、導軌調整） =====
+// 由「千分表架設示範」頁移植；第一次打開分頁才建立 3D 場景，看不到時不算圖
+(function (G) {
+  let started = false;
+  const vis = () => { const v = document.getElementById('view-mech'), d = document.getElementById('mk-dial'); return !!(v && !v.hidden && d && !d.hidden); };
+  function init() {
+  if (started || !G.THREE) return; started = true;
+  const $ = id => document.getElementById('mk-' + id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SEC = 206264.8;
+
+  // ---------- 模擬誤差模型(示意) ----------
+  // 基準軌在 X≈585 附近有 0.04 mm 的局部偏移(沒有完全靠緊定位面)
+  const rail = x => 0.04 * Math.exp(-0.5 * Math.pow((x - 585) / 90, 2));
+  // 從動軌在 X≈300 附近有 0.025 mm 的偏移
+  const fol = x => 0.025 * Math.exp(-0.5 * Math.pow((x - 300) / 110, 2));
+  const RESID = 0.1;      // 調整後殘留比例
+  const B_HALF = 60;      // X 滑塊前後間距一半 (mm)
+  const L1 = 120;         // 測試一兩表間距 (mm)
+  function poseX(x, k = 1) {
+    const yc = k * (rail(x + B_HALF) + rail(x - B_HALF)) / 2;
+    const th = k * (rail(x + B_HALF) - rail(x - B_HALF)) / (2 * B_HALF);
+    return { yc, th };
+  }
+  const L2 = 900;         // 測試二兩表間距 (mm)
+  const thY = x => 4e-5 * (x - 425) / 325;
+  const mmOf = u => u * 10 + 425;   // 場景 x(單位)→ 機台 X (mm)
+
+  // ---------- 3D ----------
+  const stage = $('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  stage.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 2000);
+  camera.up.set(0, 1, 0);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minDistance = 15; controls.maxDistance = 400;
+
+  const VIEWS = {
+    1: { pos: [38, 42, 62], tgt: [0, 9, 3] },
+    2: { pos: [95, 85, 150], tgt: [0, 4, 6] },
+    3: { pos: [34, 40, 40], tgt: [6, 7, -6] },
+  };
+  function setView(t) {
+    const v = VIEWS[t], asp = (stage.clientWidth || 1) / (stage.clientHeight || 1), f = Math.max(1, Math.min(1.9, 1.5 / asp));   // 畫面窄（手機）時鏡頭拉遠
+    camera.position.set(...v.pos.map((p, i) => v.tgt[i] + (p - v.tgt[i]) * f)); controls.target.set(...v.tgt); controls.update();
+  }
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(60, 120, 80); scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.25); fill.position.set(-80, 40, -60); scene.add(fill);
+
+  const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.55, metalness: 0.2 }, o));
+  const M = {
+    base: mat(0x3b434a, { roughness: 0.8 }),
+    rail: mat(0xb9c2c8, { metalness: 0.7, roughness: 0.3 }),
+    railHot: mat(0xe0874a, { metalness: 0.4, roughness: 0.4 }),
+    block: mat(0x6f7b84, { metalness: 0.5 }),
+    plate: mat(0xc9d0d4, { metalness: 0.4, roughness: 0.45 }),
+    xcar: mat(0x0d7a87, { metalness: 0.3 }),
+    head: mat(0x2a3136),
+    granite: mat(0x1b1d1f, { roughness: 0.35, metalness: 0.1 }),
+    magA: mat(0x0d7a87), magB: mat(0xc8611f),
+    chrome: mat(0xd8dde0, { metalness: 0.85, roughness: 0.2 }),
+    face: mat(0xffffff, { roughness: 0.6, metalness: 0 }),
+    needle: mat(0xd2332b, { metalness: 0 }),
+    arm: mat(0x8d979e, { metalness: 0.6, roughness: 0.3 }),
+    motor: mat(0x50585f, { roughness: 0.6 }),
+    shoulder: mat(0x7d6a52, { roughness: 0.6 }),
+    bolt: mat(0x30363b, { metalness: 0.6, roughness: 0.4 }),
+    boltDone: mat(0x0d7a87, { metalness: 0.4 }),
+    screw: mat(0x9aa4ab, { metalness: 0.7, roughness: 0.3 }),
+    screwDone: mat(0x0d7a87, { metalness: 0.4 }),
+    ring: mat(0xc8611f, { emissive: 0x6a2a00, emissiveIntensity: 0.5 }),
+  };
+  function box(w, h, d, m, x = 0, y = 0, z = 0, parent) {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); (parent || scene).add(o); return o;
+  }
+
+  // 機台底座 + Y 導軌
+  box(124, 6, 260, M.base, 0, -3, 0);
+  [-48, 48].forEach(x => box(2.4, 2, 250, M.rail, x, 1, 0));
+  box(6, 1.2, 240, M.motor, 0, 0.6, 0);
+
+  // Y 滑座群組
+  const yG = new THREE.Group(); scene.add(yG);
+  [-48, 48].forEach(x => [-9, 9].forEach(z => box(4.6, 2.2, 6, M.block, x, 3.1, z, yG)));
+  const yPlate = box(112, 2.5, 30, M.plate, 0, 5.45, 0, yG);
+  const solidRef = box(84, 1.6, 2, M.rail, 0, 7.5, -10, yG);   // X 基準軌
+  const solidFol = box(84, 1.6, 2, M.rail, 0, 7.5, -2, yG);    // X 從動軌
+  box(84, 0.8, 2.4, M.motor, 0, 7.1, -5, yG);                  // X 磁軌
+  const straight = box(84, 4, 3, M.granite, 0, 8.7, 9, yG);    // 直規
+
+  // ---------- 導軌調整用物件(分頁三) ----------
+  const adj = new THREE.Group(); yG.add(adj);
+  const adjParts = new THREE.Group(); adj.add(adjParts);
+  const NSEG = 42, segX = i => -41 + 2 * i;
+  const segRef = [], segFol = [];
+  for (let i = 0; i < NSEG; i++) {
+    segRef.push(box(2.02, 1.6, 2, M.rail, segX(i), 7.5, -10, adj));
+    segFol.push(box(2.02, 1.6, 2, M.rail, segX(i), 7.5, -2, adj));
+  }
+  const shoulder = box(84, 1.4, 0.8, M.shoulder, 0, 7.4, -11.4, adj);
+  const screws = [];
+  for (let i = 0; i < 9; i++) {
+    const x = -40 + 10 * i;
+    box(1.6, 1.4, 1.6, M.arm, x, 7.4, -7.2, adjParts);
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1, 12), M.screw);
+    s.rotation.x = Math.PI / 2; adjParts.add(s);
+    screws.push({ x, mesh: s });
+  }
+  const bolts = { ref: [], fol: [] };
+  for (let j = 0; j < 14; j++) {
+    const x = -39 + 6 * j;
+    ['ref', 'fol'].forEach(k => {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 14), M.bolt);
+      b.position.set(x, 8.42, k === 'ref' ? -10 : -2); adjParts.add(b); bolts[k].push({ x, mesh: b });
+    });
+  }
+  const wrench = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.12, 8, 24), M.ring);
+  wrench.rotation.x = Math.PI / 2; adjParts.add(wrench);
+
+  // X 滑座群組
+  const xG = new THREE.Group(); yG.add(xG);
+  [-4, 4].forEach(x => [-10, -2].forEach(z => box(4, 1.8, 3, M.block, x, 9.2, z, xG)));
+  box(18, 1.6, 14, M.xcar, 0, 10.9, -5, xG);
+  box(6, 8, 6, M.head, 0, 15.7, -6, xG);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 1.2, 24), M.chrome);
+  lens.rotation.x = Math.PI / 2; lens.position.set(0, 16.5, -2.4); xG.add(lens);
+
+  // 千分表
+  function makeDial(magMat) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.9, 40), M.chrome));
+    const face = new THREE.Mesh(new THREE.CircleGeometry(1.4, 40), M.face);
+    face.rotation.x = -Math.PI / 2; face.position.y = 0.46; g.add(face);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 8, 40), magMat);
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.47; g.add(ring);
+    const piv = new THREE.Group(); piv.position.y = 0.5; g.add(piv);
+    const nd = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 1.25), M.needle); nd.position.z = -0.5; piv.add(nd);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1, 14), M.chrome);
+    stem.rotation.x = Math.PI / 2; g.add(stem);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), M.chrome); g.add(tip);
+    return { g, piv, stem, tip };
+  }
+  function setPlunger(d, len, dir) {
+    len = Math.max(0.15, len);
+    const start = 1.6 * dir;
+    d.stem.scale.y = len; d.stem.position.set(0, 0, start + dir * len / 2);
+    d.tip.position.set(0, 0, start + dir * len);
+  }
+
+  // 測試一:表座在 X 滑座上，測頭頂直規
+  const t1 = new THREE.Group(); xG.add(t1);
+  const d1 = {};
+  [['A', -6, M.magA], ['B', 6, M.magB]].forEach(([k, x, mm]) => {
+    box(3, 2.4, 3, mm, x, 12.9, 0.5, t1);
+    box(0.6, 0.6, 4.3, M.arm, x, 13.4, 2.65, t1);
+    box(0.6, 3.35, 0.6, M.arm, x, 11.7, 4.8, t1);
+    const d = makeDial(mm); d.g.position.set(x, 9.6, 4.8); t1.add(d.g); d1[k] = d;
+  });
+
+  // 測試二:表座在底座，測頭頂 Y 滑座正面
+  const t2 = new THREE.Group(); scene.add(t2);
+  const d2 = {};
+  [['A', 45, M.magA], ['B', -45, M.magB]].forEach(([k, x, mm]) => {
+    box(3, 2.4, 3, mm, x, 1.2, 24, t2);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4.8, 12), M.arm); post.position.set(x, 4.8, 24); t2.add(post);
+    box(0.6, 0.6, 6.4, M.arm, x, 7.0, 21.0, t2);
+    box(0.6, 1.2, 0.6, M.arm, x, 6.4, 18.2, t2);
+    const d = makeDial(mm); d.g.position.set(x, 5.45, 18.2); t2.add(d.g); d2[k] = d;
+  });
+
+  // 分頁三步驟四：平行度治具(滑塊在基準軌上，表頂從動軌)
+  const jig = new THREE.Group(); yG.add(jig);
+  box(3, 1.6, 2.4, M.magA, 0, 9.1, -10, jig);
+  box(0.6, 0.6, 4.4, M.arm, 0, 9.7, -7.4, jig);
+  box(0.5, 1.6, 0.5, M.arm, 0, 9.0, -5.4, jig);
+  const d3 = makeDial(M.magA); d3.g.scale.setScalar(0.75); d3.g.position.set(0, 8.0, -5.4); jig.add(d3.g);
+
+  // ---------- 3D 標籤 ----------
+  const labelBox = $('labels');
+  const LABELS = {
+    1: [
+      { t: '表 A', obj: () => d1.A.g, off: [0, 1.4, 0], c: 'a' },
+      { t: '表 B', obj: () => d1.B.g, off: [0, 1.4, 0], c: 'b' },
+      { t: '直規(固定在 Y 滑座上)', obj: () => straight, off: [30, 2.6, 0] },
+      { t: 'X 滑座', obj: () => xG, off: [0, 20.5, -6] },
+      { t: 'Y 滑座', obj: () => yPlate, off: [-46, 1.6, 10] },
+    ],
+    2: [
+      { t: '表 A(表座吸在底座)', obj: () => d2.A.g, off: [0, 2.2, 0], c: 'a' },
+      { t: '表 B', obj: () => d2.B.g, off: [0, 2.2, 0], c: 'b' },
+      { t: 'Y 滑座正面', obj: () => yPlate, off: [0, 1.6, 15] },
+      { t: 'X 滑座(移動)', obj: () => xG, off: [0, 20.5, -6] },
+      { t: 'Y 導軌', obj: () => scene, off: [48, 2.2, 60] },
+    ],
+    3: [
+      { t: '基準軌', obj: () => yPlate, off: [-30, 3.2, -10], show: s => s < 5 },
+      { t: '從動軌', obj: () => yPlate, off: [-22, 3.2, -2], show: s => s < 5 },
+      { t: '定位靠邊', obj: () => yPlate, off: [-36, 2.8, -11.6], show: s => s <= 2 },
+      { t: '偏移處(沒靠緊)', obj: () => yPlate, off: [16, 3.6, -10], c: 'b', show: s => s === 1 },
+      { t: '頂絲', obj: () => screws[1].mesh, off: [0, 1.0, 0], show: s => s === 2 },
+      { t: '固定螺絲', obj: () => wrench, off: [0, 1.0, 0], c: 'b', show: s => s === 3 },
+      { t: '平行度治具', obj: () => d3.g, off: [0, 2.0, 0], c: 'a', show: s => s === 4 },
+      { t: '表 A', obj: () => d1.A.g, off: [0, 1.4, 0], c: 'a', show: s => s === 5 },
+      { t: '表 B', obj: () => d1.B.g, off: [0, 1.4, 0], c: 'b', show: s => s === 5 },
+    ],
+  };
+  let labelEls = [];
+  function buildLabels(t) {
+    labelBox.innerHTML = '';
+    labelEls = LABELS[t].map(l => {
+      const el = document.createElement('div'); el.className = 'mk-lbl' + (l.c ? ' mk-' + l.c : ''); el.textContent = l.t;
+      labelBox.appendChild(el); return { el, l };
+    });
+  }
+  const tmp = new THREE.Vector3();
+  function placeLabels(w, h) {
+    labelEls.forEach(({ el, l }) => {
+      if (l.show && !l.show(step)) { el.hidden = true; return; }
+      const o = l.obj(); o.updateWorldMatrix(true, false);
+      tmp.set(...l.off);
+      if (o !== scene) o.localToWorld(tmp);
+      tmp.project(camera);
+      const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
+      el.hidden = !vis;
+      el.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h - 4}px) translate(-50%, -100%)`;
+    });
+  }
+
+  // ---------- SVG 小工具 ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(svg, n, a, txt) {
+    const e = document.createElementNS(NS, n);
+    for (const k in a) { const v = String(a[k]); if (v.startsWith('var(')) e.style.setProperty(k, v); else e.setAttribute(k, v); }
+    if (txt != null) e.textContent = txt;
+    svg.appendChild(e); return e;
+  }
+
+  // 儀表
+  function buildGauge(svg, colorVar) {
+    svg.innerHTML = '';
+    el(svg, 'circle', { cx: 60, cy: 60, r: 56, fill: 'var(--surface)', stroke: `var(${colorVar})`, 'stroke-width': 4 });
+    for (let i = 0; i < 100; i++) {
+      const a = i / 100 * 2 * Math.PI, long = i % 10 === 0, r1 = long ? 42 : 47, r2 = 51;
+      el(svg, 'line', { x1: 60 + r1 * Math.sin(a), y1: 60 - r1 * Math.cos(a), x2: 60 + r2 * Math.sin(a), y2: 60 - r2 * Math.cos(a),
+        stroke: 'var(--fg)', 'stroke-width': long ? 1.4 : 0.6, opacity: long ? 0.9 : 0.5 });
+      if (long) {
+        const v = i <= 50 ? i : 100 - i, rt = 34;
+        el(svg, 'text', { x: 60 + rt * Math.sin(a), y: 60 - rt * Math.cos(a) + 3, 'text-anchor': 'middle',
+          'font-size': 8, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, v);
+      }
+    }
+    el(svg, 'text', { x: 60, y: 82, 'text-anchor': 'middle', 'font-size': 7, fill: 'var(--muted)' }, '0.001 mm');
+    const nd = el(svg, 'line', { x1: 60, y1: 68, x2: 60, y2: 14, stroke: '#d2332b', 'stroke-width': 1.8, 'stroke-linecap': 'round' });
+    el(svg, 'circle', { cx: 60, cy: 60, r: 3.5, fill: 'var(--fg)' });
+    return nd;
+  }
+  const needleA = buildGauge($('gA'), '--accent');
+  const needleB = buildGauge($('gB'), '--warn');
+  const setNeedle = (nd, mm) => nd.setAttribute('transform', `rotate(${mm / 0.1 * 360} 60 60)`);
+
+  // 偏擺(角秒),k = 誤差保留比例
+  function yawSec(kind, x, k) {
+    if (kind === 2) return (thY(x) - thY(100)) * k * SEC;
+    return -(poseX(x, k).th - poseX(100, k).th) * SEC;
+  }
+  function ppOf(kind, k) {
+    let lo = Infinity, hi = -Infinity;
+    for (let x = 100; x <= 750; x += 5) { const v = yawSec(kind, x, k); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    return hi - lo;
+  }
+  const ADJ_NOTE = {
+    1: '拖動拉霸模擬把基準軌推回定位靠邊:偏移越小，X 滑座走過去的偏擺越小。',
+    2: '拖動拉霸模擬調整 Y 滑塊預壓與 Y 導軌平行度:X 移動時 Y 滑座的轉動越小。',
+  };
+  function updateAdjUI() {
+    if (test !== 3) {
+      const k = kAdj[test];
+      $('adjNote').textContent = ADJ_NOTE[test];
+      $('adjLbl').textContent = test === 1 ? '基準軌偏移' : 'Y 滑座轉動量';
+      $('adjVal').textContent = test === 1 ? `${(40 * k).toFixed(0)} µm` : `${(100 * k).toFixed(0)} %`;
+      $('adjMax').textContent = test === 1 ? '40 µm(目前)' : '100 %(目前)';
+      $('adjK').value = Math.round(k * 100);
+      const a = ppOf(test, 1), b2 = ppOf(test, k);
+      $('ppYaw').textContent = k < 1 ? `${a.toFixed(1)}″ → ${b2.toFixed(1)}″` : `${a.toFixed(1)}″`;
+    } else {
+      $('ppYaw').textContent = `${ppOf(1, 1).toFixed(1)}″ → ${ppOf(1, RESID).toFixed(1)}″`;
+    }
+  }
+
+  // 偏擺記錄曲線
+  const TR = { x0: 40, x1: 308, y0: 14, y1: 140 };
+  let traceCfg, samples = new Map();
+  const sx = x => TR.x0 + (x - 100) / 650 * (TR.x1 - TR.x0);
+  const sy = v => { const m = traceCfg.ymax; return TR.y0 + (m - Math.max(-m, Math.min(m, v))) / (2 * m) * (TR.y1 - TR.y0); };
+  function buildTrace(kind) {
+    const svg = $('trace'); svg.innerHTML = ''; samples = new Map();
+    const big = kind !== 2;
+    traceCfg = big ? { ymax: 80, ticks: [-80, -40, 0, 40, 80] } : { ymax: 12, ticks: [-12, -6, 0, 6, 12] };
+    if (big) {
+      [['1-11', 189, 306], ['1-9', 459, 576], ['1-8', 594, 711]].forEach(([n, a, b]) => {
+        el(svg, 'rect', { x: sx(a), y: TR.y0, width: sx(b) - sx(a), height: TR.y1 - TR.y0, fill: 'var(--accent-soft)', opacity: 0.7 });
+        el(svg, 'text', { x: (sx(a) + sx(b)) / 2, y: TR.y0 + 10, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }, n);
+      });
+    }
+    traceCfg.ticks.forEach(v => {
+      el(svg, 'line', { x1: TR.x0, x2: TR.x1, y1: sy(v), y2: sy(v), stroke: 'var(--line)', 'stroke-width': v === 0 ? 1.2 : 0.6 });
+      el(svg, 'text', { x: TR.x0 - 5, y: sy(v) + 3, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, v);
+    });
+    [100, 300, 500, 700].forEach(v => el(svg, 'text', { x: sx(v), y: 156, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, v));
+    el(svg, 'text', { x: TR.x1, y: 168, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)' }, 'X (mm)');
+    const k12 = kind === 3 ? 1 : kAdj[kind];
+    if (kind === 3 || k12 < 1) {
+      let d = '';
+      for (let x = 100; x <= 750; x += 5) d += (x === 100 ? 'M' : 'L') + sx(x).toFixed(1) + ' ' + sy(yawSec(kind === 2 ? 2 : 1, x, 1)).toFixed(1);
+      el(svg, 'path', { d, fill: 'none', stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+    }
+    traceCfg.path = el(svg, 'path', { d: '', fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'stroke-linejoin': 'round' });
+    traceCfg.dot = el(svg, 'circle', { r: 4, fill: 'var(--warn)', cx: -10, cy: -10 });
+    $('traceLegend').hidden = !(kind === 3 || k12 < 1);
+    $('lgNow').textContent = kind === 3 ? '調整後' : '目前';
+    if (kind !== 3) {
+      let d = '';
+      for (let x = 100; x <= 750; x += 5) d += (x === 100 ? 'M' : 'L') + sx(x).toFixed(1) + ' ' + sy(yawSec(kind, x, k12)).toFixed(1);
+      traceCfg.path.setAttribute('d', d); traceCfg.live = true;
+    }
+  }
+  function updateTrace(x, v) {
+    if (traceCfg.live) { traceCfg.dot.setAttribute('cx', sx(x)); traceCfg.dot.setAttribute('cy', sy(v)); return; }
+    samples.set(Math.round(x / 5) * 5, v);
+    const keys = [...samples.keys()].sort((a, b) => a - b);
+    traceCfg.path.setAttribute('d', keys.map((k, i) => (i ? 'L' : 'M') + sx(k).toFixed(1) + ' ' + sy(samples.get(k)).toFixed(1)).join(' '));
+    traceCfg.dot.setAttribute('cx', sx(x)); traceCfg.dot.setAttribute('cy', sy(v));
+  }
+
+  // 導軌直線度變化圖
+  const CG = { x0: 40, x1: 308, y0: 14, y1: 140, ymin: -10, ymax: 50 };
+  const cx = x => CG.x0 + (x - 25) / 800 * (CG.x1 - CG.x0);
+  const cy = v => CG.y0 + (CG.ymax - v) / (CG.ymax - CG.ymin) * (CG.y1 - CG.y0);
+  let chg = {};
+  function buildChange() {
+    const svg = $('chg'); svg.innerHTML = '';
+    [-10, 0, 10, 20, 30, 40, 50].forEach(v => {
+      el(svg, 'line', { x1: CG.x0, x2: CG.x1, y1: cy(v), y2: cy(v), stroke: 'var(--line)', 'stroke-width': v === 0 ? 1.2 : 0.6 });
+      if (v % 20 === 0 || v === -10) el(svg, 'text', { x: CG.x0 - 5, y: cy(v) + 3, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, v);
+    });
+    [100, 300, 500, 700].forEach(v => el(svg, 'text', { x: cx(v), y: 156, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, v));
+    el(svg, 'text', { x: CG.x1, y: 168, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)' }, 'X (mm)');
+    let d = '';
+    for (let i = 0; i < NSEG; i++) { const x = mmOf(segX(i)); d += (i ? 'L' : 'M') + cx(x).toFixed(1) + ' ' + cy(rail(x) * 1000).toFixed(1); }
+    el(svg, 'path', { d, fill: 'none', stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+    chg.ref = el(svg, 'path', { d: '', fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2 });
+    chg.fol = el(svg, 'path', { d: '', fill: 'none', stroke: 'var(--warn)', 'stroke-width': 2 });
+  }
+  function updateChange(refK, folK) {
+    let dr = '', df = '', rmax = 0, fmax = 0;
+    for (let i = 0; i < NSEG; i++) {
+      const x = mmOf(segX(i)), r = rail(x) * refK[i] * 1000, f = fol(x) * folK[i] * 1000;
+      rmax = Math.max(rmax, r); fmax = Math.max(fmax, f);
+      dr += (i ? 'L' : 'M') + cx(x).toFixed(1) + ' ' + cy(r).toFixed(1);
+      df += (i ? 'L' : 'M') + cx(x).toFixed(1) + ' ' + cy(f).toFixed(1);
+    }
+    chg.ref.setAttribute('d', dr); chg.fol.setAttribute('d', df);
+    $('ppRef').textContent = rmax.toFixed(1) + ' µm'; $('ppFol').textContent = fmax.toFixed(1) + ' µm';
+  }
+
+  // ---------- 文字說明 ----------
+  const STEPS = [
+    { t: '檢查現況', b: '拆下 X 滑座和上方負載，露出兩條 X 導軌。基準軌在 X≈585 附近沒有完全貼住定位靠邊，往外偏了一點(橘色段)。', dur: 6 },
+    { t: '基準軌推靠定位面', b: '把基準軌的固定螺絲鬆到可以推動。從一端開始用頂絲把導軌推向定位靠邊，一支一支往另一端推，邊推邊確認貼緊。', dur: 9 },
+    { t: '依序鎖緊基準軌', b: '頂絲維持頂住，從同一端依序鎖固定螺絲：先全部用約一半扭力預鎖，再用型錄規定扭力鎖第二輪。', dur: 8 },
+    { t: '調整從動軌平行度', b: '在基準軌滑塊上架千分表，頂住從動軌側面，沿全長移動。讀數偏大的地方用頂絲調整，調到型錄容許值內再鎖緊。', dur: 9 },
+    { t: '裝回並驗證', b: '裝回 X 滑座，用測試一的方法重量一次偏擺。虛線是調整前，實線是調整後，X≈580~600 的變號應該消失。', dur: 13 },
+  ];
+  const GUIDE = {
+    1: `
+      <div>
+        <h3>架設步驟</h3>
+        <ol class="mk-steps">
+          <li><span>把<b>直規</b>放在 Y 滑座板上，和 X 導軌大致平行，長度要涵蓋要量的 X 行程。兩端墊穩或輕夾，量測中不能動。</span></li>
+          <li><span>在 <b>X 滑座</b>上吸兩個磁性表座，沿 X 方向左右相距 <b>L</b>(例如 120 mm,距離越大越靈敏)。兩支表的測頭高度要一致。</span></li>
+          <li><span>測頭<b>垂直</b>頂在直規同一側面，壓入約 0.2~0.3 mm 預壓，兩支表都歸零。</span></li>
+          <li><span>X 走到行程兩端，看表 A 讀數差。差太多就輕敲直規一端修正，讓兩端讀數接近。不必完全為 0,之後計算時會扣掉線性部分。</span></li>
+          <li><span>X <b>低速</b>移動，每 25 或 50 mm 停一下，等表針穩定再記錄 A、B。正向走完，再反向走一次。</span></li>
+          <li><span>計算:<b>偏擺角 = (A − B) ÷ L</b>(rad,× 206265 換成角秒);<b>直線度 = (A + B) ÷ 2</b>,扣掉頭尾連線後看剩下的彎曲。</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>怎麼判讀</h3>
+        <div class="mk-judge">
+          <div class="mk-hit"><strong>偏擺在 X≈580~600 附近突然變號</strong>和 1-8 是 +、1-9 是 − 的現象一致。查那一段的 X 導軌安裝面、兩軌平行度、鎖附螺絲扭力。</div>
+          <div><strong>偏擺整段大致固定</strong>直規沒放平行，或 X 軸整體裝斜。這是線性部分，用單一角度就能補正。</div>
+          <div><strong>正向、反向曲線不重合</strong>滑塊預壓不足或有間隙，量到的值會受移動方向影響。</div>
+        </div>
+      </div>`,
+    2: `
+      <div>
+        <h3>架設步驟</h3>
+        <ol class="mk-steps">
+          <li><span>Y 停在量測時的位置(例如 Y≈1002),保持伺服鎖住。</span></li>
+          <li><span>兩個磁性表座吸在<b>機台底座</b>這種不會動的地方，不要吸在 Y 滑座或任何會跟著動的零件上。</span></li>
+          <li><span>兩支表分別頂在 <b>Y 滑座板正面</b>的左右兩端，距離越遠越好(例如 900 mm)。測頭垂直於面，預壓後歸零。</span></li>
+          <li><span>X 從一端慢慢走到另一端，每 100 mm 停一下，記錄 A、B。來回各一次。</span></li>
+          <li><span>計算:<b>Y 滑座偏擺 = (A − B) ÷ 兩表間距</b>;A、B 同方向變化，代表整個滑座前後平移。</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>怎麼判讀</h3>
+        <div class="mk-judge">
+          <div class="mk-hit"><strong>A − B 隨 X 位置明顯變化</strong>X 的重量移動讓 Y 滑座轉動，這個角度會疊加到量測結果上。要檢查 Y 滑塊預壓和 Y 滑座板剛性。</div>
+          <div><strong>A、B 幾乎不變</strong>可以排除重心耦合，問題集中在 X 軸本身或治具，回頭看測試一。</div>
+        </div>
+      </div>`,
+    3: `
+      <div>
+        <h3>調整步驟</h3>
+        <ol class="mk-steps">
+          <li><span><b>拆下 X 滑座</b>和上方的旋轉平台、負載。有鐵芯的線馬，動子和磁軌之間吸力很大，要用治具或頂出螺絲慢慢分離，避免撞到磁鐵。</span></li>
+          <li><span>鬆開<b>基準軌</b>全部固定螺絲，只鬆到能推動。用頂絲或壓板從一端開始把導軌推向<b>定位靠邊</b>,邊推邊用薄規確認沒有縫隙。</span></li>
+          <li><span>頂絲維持頂住，從同一端<b>依序鎖緊</b>:先全部用約一半扭力預鎖，再用導軌型錄規定的扭力鎖第二輪。</span></li>
+          <li><span><b>從動軌</b>:在基準軌滑塊上架千分表，頂住從動軌側面沿全長移動，用頂絲把讀數調到型錄的平行度容許值內，再依序鎖緊。</span></li>
+          <li><span>裝回 X 滑座，用<b>測試一</b>重量偏擺與直線度，和調整前的曲線比較。</span></li>
+        </ol>
+      </div>
+      <div>
+        <h3>調整後會跟著變的地方</h3>
+        <div class="mk-judge">
+          <div class="mk-hit"><strong>線馬氣隙</strong>導軌位置一動，動子和磁軌的間隙可能改變。沿全行程用塞規確認在線馬廠商規格內。</div>
+          <div><strong>光學尺讀頭</strong>讀頭和尺的間隙、平行度可能跑掉。在驅動器軟體看全行程的訊號強度。</div>
+          <div><strong>伺服參數</strong>摩擦力改變了，這時候重新自動調諧才有意義。</div>
+          <div><strong>機台座標</strong>原點、相機校正、θ 旋轉中心、角度與定位補正表都要重做。</div>
+        </div>
+      </div>
+      <div class="mk-span2">
+        <h3>怎麼判讀調整結果</h3>
+        <ul class="mk-tips">
+          <li><b>凸起消失、偏擺不再變號</b>:靠邊問題已解決。</li>
+          <li><b>剩下固定斜率</b>:整支 X 軸裝斜，用單一角度補正即可。</li>
+          <li><b>凸起還在</b>:可能是安裝面本身不平，需要研磨或加墊片，不是靠邊的問題。</li>
+        </ul>
+      </div>`,
+  };
+  const TIPS = `
+    <div class="mk-span2">
+      <h3>共通注意事項</h3>
+      <ul class="mk-tips">
+        <li>表座吸附面擦乾淨，表座臂盡量短，越長越容易晃。</li>
+        <li>測頭要垂直於量測面，斜頂會有餘弦誤差，讀數偏小。</li>
+        <li>停下後等表針完全穩定再讀，馬達維持伺服鎖定。</li>
+        <li>機台開機暖機後再量，避免熱變形影響。</li>
+      </ul>
+    </div>`;
+
+  // ---------- 狀態 ----------
+  let test = 1, playing = !reduce, t0 = performance.now(), phase = 0, xNow = 100, exagOn = true;
+  let step = 1, stepT = 0, lastNow = performance.now();
+  const kAdj = { 1: 1, 2: 1 };   // 誤差保留比例(拉霸)
+  const EXAG = { 1: 150, 2: 600, 3: 150 };
+  let zero = { A: 0, B: 0 };
+  const chipsBox = $('chips');
+  STEPS.forEach((s, i) => {
+    const b = document.createElement('button'); b.className = 'mk-chip'; b.textContent = i + 1; b.title = s.t;
+    b.onclick = () => { step = i + 1; stepT = 0; samples = new Map(); if (step === 5) buildTrace(3); renderStep(); };
+    chipsBox.appendChild(b);
+  });
+
+  function readings(x) {
+    if (test === 1) { const { yc, th } = poseX(x, kAdj[1]); return { A: yc - th * (L1 / 2), B: yc + th * (L1 / 2), yc, th }; }
+    if (test === 3) { const { yc, th } = poseX(x, RESID); return { A: yc - th * (L1 / 2), B: yc + th * (L1 / 2), yc, th }; }
+    const th = thY(x) * kAdj[2];
+    return { A: th * (L2 / 2), B: -th * (L2 / 2), th };
+  }
+
+  function show(id, on) { $(id).hidden = !on; }
+  function setTest(t) {
+    test = t;
+    ['tab1', 'tab2', 'tab3'].forEach((id, i) => $(id).setAttribute('aria-selected', t === i + 1));
+    solidRef.visible = solidFol.visible = t === 2;
+    adj.visible = t !== 2; adjParts.visible = t === 3;
+    t2.visible = t === 2;
+    $('guide').innerHTML = GUIDE[t] + TIPS;
+    $('tTitle').textContent = t === 2 ? 'Y 滑座偏擺角對 X 位置(″)' : 'X 軸偏擺角對 X 位置(″)';
+    $('c1n').textContent = t === 2 ? 'Y 滑座偏擺角' : 'X 軸偏擺角';
+    $('c2n').textContent = t === 2 ? '前後平移 (A+B)/2' : '直線度 (A+B)/2';
+    $('formula').textContent = t === 2
+      ? 'Y 滑座偏擺 = (A − B) ÷ L,L = 900 mm;rad × 206265 = 角秒'
+      : '偏擺角 = (A − B) ÷ L,L = 120 mm;rad × 206265 = 角秒';
+    $('exagLbl').textContent = '誤差放大 ×' + EXAG[t];
+    show('sliderRow', t !== 3); show('chips', t === 3); show('adjSeg', t !== 3); show('adjNote', t !== 3); show('xposLine', t !== 3 || step === 5);
+    const r0 = readings(100); zero = { A: r0.A, B: r0.B };
+    buildTrace(t); buildLabels(t); setView(t);
+    yG.rotation.y = 0; xG.position.z = 0; xG.rotation.y = 0;
+    if (t === 3) { step = 1; stepT = 0; buildChange(); }
+    renderStep(); updateAdjUI();
+  }
+
+  function renderStep() {
+    const t3 = test === 3, s5 = t3 && step === 5;
+    show('cStep', t3); show('cChange', t3);
+    show('cGauge', !t3 || s5); show('cCalc', !t3 || s5); show('cTrace', !t3 || s5);
+    show('xposLine', !t3 || s5);
+    xG.visible = !t3 || s5;
+    t1.visible = test === 1 || s5; straight.visible = test === 1 || s5;
+    jig.visible = t3 && step === 4;
+    if (t3) {
+      const s = STEPS[step - 1];
+      $('stepNo').textContent = `步驟 ${step} / 5`; $('stepTitle').textContent = s.t; $('stepBody').textContent = s.b;
+      [...chipsBox.children].forEach((c, i) => { if (i + 1 === step) c.setAttribute('aria-current', 'step'); else c.removeAttribute('aria-current'); });
+    }
+  }
+
+  const f3 = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(3);
+  function showReadings(A, B, L, x) {
+    setNeedle(needleA, A); setNeedle(needleB, B);
+    [d1, d2].forEach(d => { d.A.piv.rotation.y = -A / 0.1 * 2 * Math.PI; d.B.piv.rotation.y = -B / 0.1 * 2 * Math.PI; });
+    $('vA').textContent = f3(A); $('vB').textContent = f3(B);
+    const yaw = (A - B) / L, sec = yaw * SEC;
+    $('c1').textContent = (sec >= 0 ? '+' : '−') + Math.abs(sec).toFixed(1) + '″';
+    $('c1b').textContent = (sec >= 0 ? '+' : '−') + Math.abs(yaw * 180 / Math.PI).toFixed(5) + '°';
+    $('c2').textContent = f3((A + B) / 2) + ' mm';
+    updateTrace(x, sec);
+  }
+
+  function poseCarriageT1(x, ex) {
+    const r = readings(x);
+    xG.position.x = (x - 425) / 10;
+    xG.position.z = r.yc * ex / 10;
+    xG.rotation.y = -r.th * ex;
+    xG.updateMatrixWorld(true);
+    ['A', 'B'].forEach(k => {
+      const p = new THREE.Vector3(); d1[k].g.getWorldPosition(p);
+      setPlunger(d1[k], 7.5 - (p.z + 1.6), 1);
+    });
+    return r;
+  }
+
+  function apply(x) {
+    xNow = x;
+    $('xval').textContent = Math.round(x);
+    if (document.activeElement !== $('xpos')) $('xpos').value = Math.round(x);
+    const ex = exagOn ? EXAG[test] : 1;
+    xG.position.x = (x - 425) / 10;
+    const r = readings(x);
+    if (test === 1) {
+      yG.rotation.y = 0;
+      for (let i = 0; i < NSEG; i++) {
+        const xm = mmOf(segX(i)), v = rail(xm) * kAdj[1];
+        segRef[i].position.z = -10 + v * ex / 10; segFol[i].position.z = -2;
+        segRef[i].material = v > 0.012 ? M.railHot : M.rail; segFol[i].material = M.rail;
+      }
+      poseCarriageT1(x, ex);
+    } else {
+      xG.position.z = 0; xG.rotation.y = 0;
+      const ph = -r.th * ex; yG.rotation.y = ph;
+      [['A', 45], ['B', -45]].forEach(([k, a]) => {
+        const faceZ = 15 * Math.cos(ph) - a * Math.sin(ph);
+        setPlunger(d2[k], 16.6 - faceZ, -1);
+      });
+    }
+    showReadings(r.A - zero.A, r.B - zero.B, test === 1 ? L1 : L2, x);
+  }
+
+  // 分頁三：依步驟與進度 p 計算整個狀態
+  const refK = new Array(NSEG).fill(1), folK = new Array(NSEG).fill(1);
+  function apply3(p) {
+    const ex = exagOn ? EXAG[3] : 1;
+    const xs = -42 + 84 * p;                       // 掃過位置(場景單位)
+    for (let i = 0; i < NSEG; i++) {
+      const x = segX(i);
+      refK[i] = step < 2 ? 1 : step === 2 ? (x < xs ? RESID : 1) : RESID;
+      folK[i] = step < 4 ? 1 : step === 4 ? (x < xs ? RESID : 1) : RESID;
+      const xm = mmOf(x);
+      const or = rail(xm) * refK[i] * ex / 10, of = fol(xm) * folK[i] * ex / 10;
+      segRef[i].position.z = -10 + or; segFol[i].position.z = -2 + of;
+      const hot = step === 1 && rail(xm) > 0.012;
+      segRef[i].material = hot ? M.railHot : M.rail;
+      segFol[i].material = step === 4 && x >= xs && fol(xm) > 0.008 ? M.railHot : M.rail;
+    }
+    const railOff = x => rail(mmOf(x)) * (step < 2 ? 1 : step === 2 ? (x < xs ? RESID : 1) : RESID) * ex / 10;
+    const folOff = x => fol(mmOf(x)) * (step < 4 ? 1 : step === 4 ? (x < xs ? RESID : 1) : RESID) * ex / 10;
+    screws.forEach(s => {
+      const engaged = step > 2 || (step === 2 && s.x < xs);
+      const front = -9 + railOff(s.x);
+      const tip = engaged ? front : front + 0.6;
+      const back = -8.0;
+      const len = Math.max(0.1, back - tip);
+      s.mesh.scale.y = len; s.mesh.position.set(s.x, 7.6, tip + len / 2);
+      s.mesh.material = engaged ? M.screwDone : M.screw;
+    });
+    const nB = bolts.ref.length;
+    const cur = Math.min(nB - 1, Math.floor(p * nB));
+    bolts.ref.forEach((b, j) => {
+      const done = step > 3 || (step === 3 && j < cur);
+      b.mesh.material = done ? M.boltDone : M.bolt;
+      b.mesh.position.z = -10 + railOff(b.x);
+    });
+    bolts.fol.forEach(b => {
+      const done = step > 4 || (step === 4 && b.x < xs);
+      b.mesh.material = done ? M.boltDone : M.bolt;
+      b.mesh.position.z = -2 + folOff(b.x);
+    });
+    wrench.visible = step === 3;
+    if (step === 3) { const b = bolts.ref[cur]; wrench.position.set(b.x, 8.75, b.mesh.position.z); wrench.rotation.z = performance.now() / 300; }
+    if (step === 4) {
+      jig.position.x = xs; jig.position.z = 0;
+      const off = folOff(xs);
+      setPlunger(d3, (1.2 + off) / 0.75, 1);
+      const before = fol(mmOf(xs)), after = before * RESID;
+      $('stepLive').textContent = `X ${Math.round(mmOf(xs))} mm:量到 ${f3(before)} mm → 調整後 ${f3(after)} mm`;
+    } else if (step === 2) {
+      const xm = Math.round(mmOf(Math.max(-40, Math.min(40, xs))));
+      $('stepLive').textContent = `頂絲推到 X ${xm} mm;偏移處 X≈585 調整前 +0.040 mm`;
+    } else if (step === 3) {
+      $('stepLive').textContent = `鎖緊第 ${cur + 1} / ${nB} 支(第一輪預鎖 → 第二輪全扭力)`;
+    } else if (step === 1) {
+      $('stepLive').textContent = '基準軌偏移峰值 +0.040 mm(X≈585),從動軌 +0.025 mm(X≈300)';
+    } else {
+      $('stepLive').textContent = '調整後殘留約 10%(示意)';
+    }
+    updateChange(refK, folK);
+    if (step === 5) {
+      const x = 100 + 650 * p;
+      xNow = x; $('xval').textContent = Math.round(x);
+      yG.rotation.y = 0;
+      const r = poseCarriageT1(x, ex);
+      const r0 = readings(100);
+      showReadings(r.A - r0.A, r.B - r0.B, L1, x);
+    }
+  }
+
+  // ---------- 事件 ----------
+  $('tab1').onclick = () => { setTest(1); apply(xNow); };
+  $('tab2').onclick = () => { setTest(2); apply(xNow); };
+  $('tab3').onclick = () => { setTest(3); apply3(0); };
+  $('play').onclick = () => {
+    playing = !playing; $('play').textContent = playing ? '暫停' : '播放';
+    if (playing && test !== 3) { phase = Math.acos(1 - 2 * (xNow - 100) / 650); t0 = performance.now(); }
+  };
+  $('resetView').onclick = () => setView(test);
+  $('adjK').oninput = e => {
+    kAdj[test] = +e.target.value / 100;
+    const r0 = readings(100); zero = { A: r0.A, B: r0.B };
+    buildTrace(test); updateAdjUI(); apply(xNow);
+  };
+  $('exag').onchange = e => { exagOn = e.target.checked; if (test === 3) apply3(curP()); else apply(xNow); };
+  $('xpos').oninput = e => {
+    if (playing) { playing = false; $('play').textContent = '播放'; }
+    apply(+e.target.value);
+  };
+  $('play').textContent = playing ? '暫停' : '播放';
+
+  // ---------- 尺寸 / 主題 ----------
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage);
+  function theme() { try { renderer.setClearColor(new THREE.Color(css('--stage') || '#e4e9ec')); } catch (e) {} }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  setTest(1); resize(); theme(); apply(100);
+
+  const PERIOD = 22000;
+  const curP = () => Math.min(1, stepT / (STEPS[step - 1].dur * 0.85));
+  function loop(now) {
+    if (!vis()) { lastNow = now; requestAnimationFrame(loop); return; }
+    const dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+    if (test === 3) {
+      if (playing) {
+        stepT += dt;
+        if (stepT > STEPS[step - 1].dur) {
+          step = step % 5 + 1; stepT = 0;
+          if (step === 5) buildTrace(3);
+          renderStep();
+        }
+      }
+      apply3(curP());
+    } else if (playing) {
+      const p = phase + (now - t0) / PERIOD * 2 * Math.PI;
+      apply(100 + 650 * (0.5 - 0.5 * Math.cos(p)));
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    placeLabels(stage.clientWidth, stage.clientHeight);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  }
+  G.MECHDIAL = { init, vis, tab: n => { init(); const b = document.getElementById('mk-tab' + n); if (b) b.click(); } };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+// ===== 機構調校：視覺機構檢查（用相機本身找出是哪個機構有問題） =====
+// 每一項檢查：3D 動作示意＋相機畫面＋量測曲線＋判定。數值為模擬示意，用來說明怎麼量、怎麼判斷。
+(function (G) {
+  'use strict';
+  const D = document, $ = s => D.querySelector(s), $$ = s => [...D.querySelectorAll(s)];
+  const css = n => getComputedStyle(D.documentElement).getPropertyValue(n).trim() || '#888';
+  const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+  const f1 = v => (isFinite(v) ? v.toFixed(1) : '–'), f2 = v => (isFinite(v) ? v.toFixed(2) : '–'), f3 = v => (isFinite(v) ? v.toFixed(3) : '–');
+  const sg = (v, d) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d);
+  // 固定亂數（每次結果相同）
+  function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function gauss(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+
+  // 相機規格（跟「機台參數」一致）
+  function camSpec() {
+    const c = G.M0 && G.M0.top && G.M0.top[0];
+    const fov = c ? c.fov : [2.8152, 2.346], w = c ? c.w : 2448, h = c ? c.h : 2040;
+    return { fov, w, h, um: fov[0] / w * 1000 };   // um = 每像素幾 µm
+  }
+  // 最小二乘直線 y = a + b·x
+  function linfit(P) {
+    const n = P.length; if (n < 2) return { a: 0, b: 0 };
+    let sx = 0, sy = 0, sxx = 0, sxy = 0; P.forEach(([x, y]) => { sx += x; sy += y; sxx += x * x; sxy += x * y; });
+    const b = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1); return { a: (sy - b * sx) / n, b };
+  }
+  // 停留式時間軸：n 個點，每點「移動 mv、停留 dw」；回傳 {i, u(移動進度), dwell}
+  function stops(p, n, mv = 0.55) {
+    const s = clamp(p, 0, 0.9999) * n, i = Math.floor(s), f = s - i;
+    return { i, u: ease(f / mv), dwell: f >= mv };
+  }
+
+  // ---------- 七項檢查 ----------
+  // k = 問題程度（0 = 正常機台，1 = 問題明顯）；frame(p,k) 回傳 3D 狀態與相機畫面；data(k) 回傳曲線；res(k) 回傳判定
+  const CHECKS = [
+    {
+      id: 'settle', title: '相機支架剛性與穩定時間', sub: '平台停下後畫面晃多久', cam: 'top',
+      sev: k => `支架晃動振幅 ${f1(1 + 14 * k)} µm、衰減時間 ${Math.round(40 + 80 * k)} ms`,
+      dur: 9, exi: 8,
+      model(k) { const A = 1 + 14 * k, tau = 40 + 80 * k, f = 22, thr = 0.5 * camSpec().um; const off = t => A * Math.exp(-t / tau) * Math.cos(2 * Math.PI * f * t / 1000) + 0.15 * Math.sin(t * 0.9); const ts = A > thr ? tau * Math.log(A / thr) : 0; return { A, tau, f, thr, off, ts }; },
+      tms: p => p < 0.3 ? -1 : (p - 0.3) / 0.7 * 400,
+      frame(p, k) {
+        const m = this.model(k), t = this.tms(p);
+        if (t < 0) { const u = ease(p / 0.3); return { px: -42 * (1 - u), sway: 0, img: { u: -(1 - u) * 2600, v: 0 }, cap: '平台高速移到相機下方（加速度跟生產時一樣）' }; }
+        const o = m.off(t);
+        return { px: 0, sway: o * 0.004, img: { u: o / camSpec().um * this.exi, v: 0 }, cap: `停下後 ${Math.round(t)} ms：Mark 偏 ${sg(o, 2)} µm` };
+      },
+      data(k) { const m = this.model(k), pts = []; for (let t = 0; t <= 400; t += 4) pts.push({ x: t, y: m.off(t), tp: 0.3 + t / 400 * 0.7 }); return { pts, m }; },
+      chart(k) { const { pts, m } = this.data(k), Y = Math.max(4, Math.ceil(m.A + 1)); return { xr: [0, 400], yr: [-Y, Y], xl: '停下後時間 (ms)', yl: 'Mark 偏移 (µm)', band: [-m.thr, m.thr], bandLb: '±0.5 px', vl: [{ x: Math.min(400, m.ts), lb: `穩定 ${Math.round(m.ts)} ms`, c: '--hot' }, { x: 100, lb: '拍照延遲 100', c: '--muted' }], s: [{ pts, kind: 'line', c: '--accent' }] }; },
+      live(p, k) { const m = this.model(k), t = this.tms(p); return t < 0 ? `移動中…<br>穩定門檻 ±${f2(m.thr)} µm（0.5 px）` : `停下後 <b>${Math.round(t)} ms</b>：偏移 <b>${sg(m.off(t), 2)} µm</b>（${sg(m.off(t) / camSpec().um, 2)} px）<br>穩定門檻 ±${f2(m.thr)} µm（0.5 px）`; },
+      res(k) { const m = this.model(k), ts = Math.round(m.ts); return { c: ts <= 100 ? 'ok' : ts <= 200 ? 'warnp' : 'bad', t: `穩定時間 ${ts} ms；拍照延遲至少要 ${Math.max(20, ts + 20)} ms`, n: ts <= 100 ? '目前 100 ms 延遲足夠。' : '延遲 100 ms 時會拍到還在晃的畫面，量到的位置每次不同。' }; },
+      doc: {
+        why: '相機或支架只要會晃，平台停下來的那一刻畫面還在動，拍到的 Mark 位置就每次不一樣。九點校正、旋轉中心、放料補正全部都建立在「拍到的位置是準的」上面，所以這項要最先做。',
+        how: ['玻璃治具放在平台上，Mark 移到上相機中心。', '<b>靜止重複性</b>：平台不動，連拍 30 張，記錄 Mark 位置。', '<b>停下後穩定時間</b>：用生產時的速度與加速度從遠處移到同一點，停下後分別延遲 0、20、50、100、150、200、300 ms 拍照，每個延遲做 5 次。', '把「Mark 位置對延遲時間」畫成曲線，看多久之後才進到 ±0.5 px 內。', '上下相機都做；下相機跟著平台跑，晃動通常更明顯。'],
+        judge: ['靜止連拍 30 張：3σ ≤ 0.3 px。超過代表相機、光源或影像處理本身就不穩，先不要往下做。', '停下後穩定時間 ≤ 目前設定的拍照延遲。', '曲線是「衰減的正弦波」→ 機構在共振；頻率高（>50 Hz）多半是支架或相機座，低（10–30 Hz）多半是龍門或整台機架。'],
+        fix: ['支架懸臂太長、截面太薄：加肋或改短；相機座四顆螺絲都要鎖到規定扭力。', '龍門或機架共振：降低加速度、加 S 曲線（jerk 限制），或在拍照前加延遲。', '拍照延遲設在穩定時間＋20 ms；不要用「到位訊號一出現就拍」。'],
+        link: null
+      }
+    },
+    {
+      id: 'rot', title: '相機與平台 X 軸夾角', sub: '平台走直線，畫面裡 Mark 走斜線', cam: 'top',
+      sev: k => `相機相對 X 軸轉了 ${f2(0.15 + 2.35 * k)}°`,
+      dur: 11, exi: 1, n: 9,
+      ang: k => 0.15 + 2.35 * k,
+      pos(i) { const fx = camSpec().fov[0]; return (-0.4 + 0.8 * i / (this.n - 1)) * fx; },
+      frame(p, k) {
+        const s = stops(p, this.n), x0 = s.i ? this.pos(s.i - 1) : this.pos(0) - 0.25 * camSpec().fov[0], x = x0 + (this.pos(s.i) - x0) * s.u;
+        const a = this.ang(k) * D2R, c = camSpec();
+        return { px: x / c.fov[0] * 10, camYaw: a * 4, img: { u: x * Math.cos(a) * 1000 / c.um, v: -x * Math.sin(a) * 1000 / c.um }, trail: this.data(k).pts.filter((q, j) => j < s.i || (j === s.i && s.dwell)).map(q => [q.x, q.y]), cap: s.dwell ? `第 ${s.i + 1} 點：X = ${f3(this.pos(s.i))} mm，拍照` : '平台只走 X，Y 不動' };
+      },
+      data(k) { const a = this.ang(k) * D2R, c = camSpec(), r = rng(11), pts = []; for (let i = 0; i < this.n; i++) { const x = this.pos(i); pts.push({ x: x * Math.cos(a) * 1000 / c.um + gauss(r) * 0.3, y: -x * Math.sin(a) * 1000 / c.um + gauss(r) * 0.3, tp: (i + 0.56) / this.n }); } return { pts }; },
+      chart(k) { const { pts } = this.data(k), c = camSpec(), W = c.w / 2, H = Math.max(40, Math.ceil(Math.max(...pts.map(q => Math.abs(q.y))) / 20 + 1) * 20); const L = linfit(pts.map(q => [q.x, q.y])); return { xr: [-W, W], yr: [-H, H], xl: '影像 u (px)', yl: '影像 v (px)', s: [{ pts, kind: 'dot', c: '--accent' }], fit: L }; },
+      live(p, k) { const s = stops(p, this.n), pts = this.data(k).pts.slice(0, s.i + (s.dwell ? 1 : 0)); if (pts.length < 2) return '至少拍 2 點才能算角度'; const L = linfit(pts.map(q => [q.x, q.y])); return `已拍 ${pts.length} 點：斜率 ${f3(L.b)}<br>夾角 = atan(Δv/Δu) = <b>${f2(-Math.atan(L.b) * R2D)}°</b>`; },
+      res(k) { const a = this.ang(k); return { c: a <= 0.5 ? 'ok' : a <= 1.5 ? 'warnp' : 'bad', t: `相機相對 X 軸 ${f2(a)}°`, n: '九點校正會把這個角度算進去，所以角度本身不會讓放料偏；要注意的是<b>每次校正的角度差 > 0.05°</b>（相機座在動），或<b>換一個 Y 位置量出來角度不同</b>（X 軸本身走歪 → 做千分錶測試一）。' }; },
+      doc: {
+        why: '相機裝上去一定會有一點旋轉。九點校正會把它補掉，但如果這個角度「會變」——相機座鬆了、或 X 軸本身走的不是直線——校正完還是會偏。這項用很簡單的方法把角度量出來，並確認它穩不穩定。',
+        how: ['Mark 移到上相機畫面左側，<b>只動 X、Y 不動</b>。', '每次走固定距離（約視野的 1/10），停下等穩定後拍照，走到畫面右側，共 7–9 點。', '把 Mark 的像素座標 (u, v) 做直線擬合，夾角 = atan(Δv/Δu)。', '在 Y 行程前、中、後三個位置各做一次。', '每週或每次撞機後重做，跟上次比較。'],
+        judge: ['三個 Y 位置的角度差 ≤ 0.02°：X 軸走得直，相機座穩。', '跟上次比差 > 0.05°：相機座在動，檢查鎖附。', '直線擬合殘差 > 0.5 px：X 軸走的不是直線（直線度問題），用千分錶測試一確認。'],
+        fix: ['相機座加定位銷，鎖附後點漆做記號，下次一看就知道有沒有動。', '角度 > 1.5° 時把相機轉正再校正，畫面邊緣的鏡頭變形影響會比較小。', '不同 Y 角度不同 → X 導軌偏擺，見「千分錶：X 軸偏擺與直線度」與「導軌調整」。'],
+        link: 1
+      }
+    },
+    {
+      id: 'tilt', title: '光軸垂直度（相機歪頭）', sub: 'Z 高度一變，Mark 位置就跟著跑', cam: 'top',
+      sev: k => `光軸傾斜 ${f2(0.1 + 1.4 * k)}°`,
+      dur: 11, exi: 10, n: 9,
+      ang: k => 0.1 + 1.4 * k,
+      z: i => -1 + 2 * i / 8,
+      frame(p, k) {
+        const s = stops(p, this.n), z0 = s.i ? this.z(s.i - 1) : 0, z = z0 + (this.z(s.i) - z0) * s.u, b = this.ang(k) * D2R, du = z * 1000 * Math.tan(b);
+        return { pz: z, camTilt: b * 5, img: { u: du / camSpec().um * this.exi, v: 0 }, trail: this.data(k).pts.filter((q, j) => j < s.i || (j === s.i && s.dwell)).map(q => [q.y / camSpec().um * this.exi, 0]), cap: `Z = ${sg(z, 2)} mm：Mark 偏 ${sg(du, 2)} µm` };
+      },
+      data(k) { const b = this.ang(k) * D2R, r = rng(23), pts = []; for (let i = 0; i < this.n; i++) { const z = this.z(i); pts.push({ x: z, y: z * 1000 * Math.tan(b) + gauss(r) * 0.25, tp: (i + 0.56) / this.n }); } return { pts }; },
+      chart(k) { const { pts } = this.data(k), Y = Math.max(5, Math.ceil(Math.max(...pts.map(q => Math.abs(q.y))) / 5 + 1) * 5); return { xr: [-1.1, 1.1], yr: [-Y, Y], xl: 'Z 高度 (mm)', yl: 'Mark 偏移 (µm)', s: [{ pts, kind: 'dot', c: '--accent' }], fit: linfit(pts.map(q => [q.x, q.y])) }; },
+      live(p, k) { const s = stops(p, this.n), pts = this.data(k).pts.slice(0, s.i + (s.dwell ? 1 : 0)); if (pts.length < 2) return '至少拍 2 個高度'; const L = linfit(pts.map(q => [q.x, q.y])); return `斜率 <b>${f2(L.b)} µm/mm</b><br>傾斜角 = atan(斜率) = <b>${f2(Math.atan(L.b / 1000) * R2D)}°</b>`; },
+      res(k) { const b = this.ang(k) * D2R, e = 200 * Math.tan(b); return { c: e <= 1 ? 'ok' : e <= 3 ? 'warnp' : 'bad', t: `高度差 0.2 mm 會偏 ${f2(e)} µm`, n: '校正時 Mark 的高度跟生產時料面高度不一樣（料厚、吸嘴長度、治具厚度），就會吃到這個誤差。' }; },
+      doc: {
+        why: '相機光軸沒有垂直平台時，同一個 XY 位置、不同高度的東西，在畫面裡的位置會不一樣。校正用的玻璃治具和實際的料厚度不同，或下相機看吸嘴時吸嘴高度不同，就會產生固定偏移，而且換料號就變。',
+        how: ['玻璃治具 Mark 移到上相機中心，記下 Z。', 'Z 每次往上或往下 0.25 mm（要在景深內，影像要清楚），每個高度停下拍照，共 9 個高度。', '畫出「Mark 偏移對 Z」，直線斜率就是 tan(傾斜角)。', 'u、v 兩個方向都要看；兩個方向合起來才是完整的傾斜。', '下相機用同樣方法：吸嘴吸住治具，Z 上下走。'],
+        judge: ['料厚差（或高度差）× tan(傾斜角) ≤ 放料容許誤差的 1/5。', '常見要求：傾斜 ≤ 0.3°（每 1 mm 高度差 ≤ 5 µm）。'],
+        fix: ['相機座安裝面墊片調整，或改用可調角度的相機座。', '校正治具的 Mark 高度做成跟料面一樣（同厚度治具），誤差就不會出現。', '用遠心鏡頭可以消除「高度變 → 放大倍率變」的問題，但光軸傾斜造成的平移仍然存在。'],
+        link: null
+      }
+    },
+    {
+      id: 'focus', title: '對焦與景深', sub: '校正高度和料面高度都要拍得清楚', cam: 'top',
+      sev: k => `最佳焦點偏離校正高度 ${f2(0.05 + 0.35 * k)} mm`,
+      dur: 10, exi: 1,
+      z0: k => 0.05 + 0.35 * k, W: 0.22, hs: [[0, '校正高度'], [0.1, '料面高度']],
+      sharp(z, k) { return Math.exp(-Math.pow((z - this.z0(k)) / this.W, 2)); },
+      zp: p => -0.6 + 1.2 * clamp(p, 0, 1),
+      frame(p, k) { const z = this.zp(p), s = this.sharp(z, k); return { pz: z, img: { u: 0, v: 0, blur: 1 - s }, cap: `Z = ${sg(z, 2)} mm：清晰度 ${Math.round(s * 100)}%` }; },
+      data(k) { const pts = []; for (let i = 0; i <= 48; i++) { const z = -0.6 + 1.2 * i / 48; pts.push({ x: z, y: this.sharp(z, k) * 100, tp: i / 48 }); } return { pts }; },
+      chart(k) { return { xr: [-0.6, 0.6], yr: [0, 100], xl: 'Z 高度 (mm)', yl: '清晰度 (%)', band: [80, 100], bandLb: '景深內（≥ 80%）', vl: this.hs.map(([z, lb]) => ({ x: z, lb, c: '--p2' })), s: [{ pts: this.data(k).pts, kind: 'line', c: '--accent' }] }; },
+      live(p, k) { const z = this.zp(p); return `Z = <b>${sg(z, 2)} mm</b>，清晰度 <b>${Math.round(this.sharp(z, k) * 100)}%</b><br>` + this.hs.map(([h, lb]) => `${lb}：${Math.round(this.sharp(h, k) * 100)}%`).join('　'); },
+      res(k) { const a = this.hs.map(([h]) => this.sharp(h, k)), mn = Math.min(...a), d = this.W * Math.sqrt(Math.log(1 / 0.8)); return { c: mn >= 0.8 ? 'ok' : mn >= 0.5 ? 'warnp' : 'bad', t: `景深約 ±${f2(d)} mm；最佳焦點在 ${sg(this.z0(k), 2)} mm`, n: mn >= 0.8 ? '校正高度與料面高度都在景深內。' : '有一個高度不在景深內：影像模糊時 Mark 邊緣抓得不準，位置會飄，也容易找不到。' }; },
+      doc: {
+        why: '模糊的影像不一定找不到 Mark，但邊緣會變軟，抓到的中心會隨光線、雜訊飄動。如果最佳焦點剛好在校正高度、生產時料面卻偏出景深，校正很好看、生產卻不穩。',
+        how: ['Mark 移到相機中心，Z 從低到高每次走 0.05 mm，每個高度拍一張。', '每張算清晰度（影像軟體的 focus / contrast 分數，或 Mark 邊緣的灰階斜率）。', '畫出清晰度對 Z，找最高點（最佳焦點）和掉到 80% 的兩個高度（景深）。', '標出校正時 Mark 的高度和生產時料面的高度，兩個都要在景深內。'],
+        judge: ['兩個高度的清晰度都 ≥ 80%。', '同一高度連拍 30 張，Mark 位置 3σ ≤ 0.3 px（跟第 1 項一起做）。'],
+        fix: ['重新對焦到兩個高度的中間。', '高度差大於景深：校正用的治具做成跟料面同高，或生產時用不同的 Z 拍照高度（Z 要先確認垂直度，見第 3 項）。', '光圈縮小可以加大景深，但要補光。'],
+        link: null
+      }
+    },
+    {
+      id: 'bcam', title: '下相機隨平台：沿 X 的位置偏差', sub: '平台走到不同位置，看同一把玻璃尺', cam: 'bottom',
+      sev: k => `X≈420 mm 處導軌局部偏移 ${f1(18 * k)} µm`,
+      dur: 12, exi: 10, n: 7,
+      X: i => i * 100,
+      off(x, k) { const g = Math.exp(-Math.pow((x - 420) / 90, 2)); return { u: 4 * k * x / 600 + 0.2 * Math.sin(x / 37), v: 18 * k * g + 0.25 * Math.cos(x / 53) }; },
+      frame(p, k) {
+        const s = stops(p, this.n), x0 = s.i ? this.X(s.i - 1) : 0, x = x0 + (this.X(s.i) - x0) * s.u, o = this.off(x, k), c = camSpec();
+        return { px: -45 + 90 * x / 600, yawP: 0.0035 * o.v, bcam: true, img: { u: o.u / c.um * this.exi, v: -o.v / c.um * this.exi }, cap: s.dwell ? `X = ${this.X(s.i)} mm：玻璃尺第 ${s.i + 1} 個 Mark` : '平台帶著下相機往下一個刻線走' };
+      },
+      data(k) { const pts = [], pu = []; for (let i = 0; i < this.n; i++) { const x = this.X(i), o = this.off(x, k), tp = (i + 0.56) / this.n; pts.push({ x, y: o.v, tp }); pu.push({ x, y: o.u, tp }); } return { pts, pu }; },
+      chart(k) { const d = this.data(k), Y = Math.max(5, Math.ceil(Math.max(...d.pts.map(q => Math.abs(q.y)), ...d.pu.map(q => Math.abs(q.y))) / 5 + 1) * 5); return { xr: [0, 600], yr: [-Y, Y], xl: '平台 X (mm)', yl: '偏差 (µm)', s: [{ pts: d.pts, kind: 'line', c: '--accent', lb: 'Y 方向' }, { pts: d.pu, kind: 'line', c: '--p2', lb: 'X 方向' }] }; },
+      live(p, k) { const s = stops(p, this.n), pts = this.data(k).pts.slice(0, s.i + (s.dwell ? 1 : 0)); if (!pts.length) return '—'; const ys = pts.map(q => q.y); return `已量 ${pts.length} 個位置<br>Y 方向偏差 峰-峰 <b>${f1(Math.max(...ys) - Math.min(...ys))} µm</b>`; },
+      res(k) { const ys = this.data(k).pts.map(q => q.y), pp = Math.max(...ys) - Math.min(...ys); return { c: pp <= 3 ? 'ok' : pp <= 8 ? 'warnp' : 'bad', t: `Y 方向偏差 峰-峰 ${f1(pp)} µm（X≈400 附近凸起）`, n: '玻璃尺本身是直的，所以這條曲線就是平台走 X 時「實際走出來的路線」（直線度＋偏擺造成的相機位移）。局部凸起 → 用千分錶測試一確認是不是該段 X 導軌沒靠緊。' }; },
+      doc: {
+        why: '下相機裝在平台上跟著跑，平台走 X 時只要導軌有一段不直或偏擺，下相機就跟著偏移或轉動。光學尺只量 X 方向的位置，量不到這些，所以會變成「某些位置放料特別偏」。',
+        how: ['在平台3（固定）裝一把玻璃尺或一排 Mark（間距已知，例如 100 mm）。', '平台走到每個 Mark 下方，停下等穩定，用下相機拍。', '記錄每個位置 Mark 在畫面裡的偏差 (u, v)，減掉玻璃尺本身的已知誤差。', 'Y 方向（垂直於運動方向）的變化 = X 軸直線度＋偏擺 × 相機到旋轉中心的距離。', '來回各走一次，比較是否重合。'],
+        judge: ['Y 方向偏差 峰-峰 ≤ 3 µm。', '局部凸起（某一段特別大）→ 導軌安裝問題；整體一條斜線 → 玻璃尺沒放正，可扣掉。', '來回不重合 → 滑塊預壓不足或有間隙。'],
+        fix: ['局部凸起：用千分錶測試一量那一段的偏擺，必要時重新靠緊導軌（見「導軌調整」）。', '整體一致的彎曲：可以做成沿 X 的補正表，但要先確認每天量都一樣。'],
+        link: 1
+      }
+    },
+    {
+      id: 'dd', title: 'DD 轉動偏擺（吸盤／吸嘴跳動）', sub: 'DD 轉一圈，千分錶與相機一起看', cam: 'top',
+      sev: k => `吸盤偏心 ${f1(0.8 + 9 * k)} µm`,
+      dur: 10, exi: 20, ph: 30,
+      e: k => 0.8 + 9 * k,
+      frame(p, k) {
+        const th = 360 * clamp(p, 0, 1), e = this.e(k), r = e * Math.cos((th - this.ph) * D2R), c = camSpec();
+        return { dd: th, ecc: e, gauge: r, img: { u: e * Math.cos((th - this.ph) * D2R) / c.um * this.exi, v: -e * Math.sin((th - this.ph) * D2R) / c.um * this.exi }, trailFn: true, cap: `DD = ${Math.round(th)}°：千分錶 ${sg(r, 2)} µm` };
+      },
+      data(k) { const e = this.e(k), pts = []; for (let a = 0; a <= 360; a += 7.5) pts.push({ x: a, y: e * Math.cos((a - this.ph) * D2R), tp: a / 360 }); return { pts }; },
+      chart(k) { const e = this.e(k), Y = Math.max(3, Math.ceil(e + 1)); return { xr: [0, 360], yr: [-Y, Y], xl: 'DD 角度 (°)', yl: '千分錶讀數 (µm)', s: [{ pts: this.data(k).pts, kind: 'line', c: '--accent' }] }; },
+      live(p, k) { const th = 360 * clamp(p, 0, 1), pts = this.data(k).pts.filter(q => q.x <= th), ys = pts.map(q => q.y); return `DD = <b>${Math.round(th)}°</b>，讀數 ${sg(this.e(k) * Math.cos((th - this.ph) * D2R), 2)} µm<br>目前 TIR（最大−最小）<b>${f1(ys.length ? Math.max(...ys) - Math.min(...ys) : 0)} µm</b>`; },
+      res(k) { const t = 2 * this.e(k); return { c: t <= 3 ? 'ok' : t <= 10 ? 'warnp' : 'bad', t: `TIR ${f1(t)} µm（偏心 ${f1(t / 2)} µm）`, n: '偏心會被旋轉中心校正一起量進去，所以固定的偏心不會讓放料偏；問題在於<b>每次換吸嘴、重新鎖吸盤偏心都不同</b>，或 TIR 在不同高度不一樣（軸歪）。' }; },
+      doc: {
+        why: 'DD 轉動時如果吸盤或吸嘴不是對著轉軸中心，料在吸盤上的位置會隨角度畫圓。旋轉中心校正可以補固定的偏心，但吸嘴換過、鎖歪、錐度沾膠，偏心就變了，放料偏移會跟 DD 角度有關。',
+        how: ['千分錶表座吸在不跟 DD 轉的地方（平台本體），測頭頂吸盤或吸嘴的外圓。', 'DD 慢慢轉一圈，每 15° 停一下記錄讀數；TIR = 最大 − 最小，偏心 = TIR ÷ 2。', '測頭換到上下兩個高度各量一次：兩個高度的 TIR 不同 → 吸嘴或 DD 軸是歪的。', '相機方法：吸盤上貼 Mark，DD 轉一圈每 30° 拍一次，Mark 畫出的圓半徑就是偏心（同時也是旋轉中心校正的資料）。', '吸嘴拆下重裝 3 次，各量一次，看偏心是否變化。'],
+        judge: ['TIR ≤ 3 µm（吸嘴外圓）。', '重裝 3 次偏心變化 ≤ 2 µm；超過的話每次換吸嘴都要重做旋轉中心校正。', '上下兩個高度 TIR 差 ≤ 2 µm。'],
+        fix: ['清潔吸嘴錐度與吸盤定位面，換磨損的吸嘴。', '吸盤加定位銷或改用定心夾具。', '偏心穩定但偏大：可以接受，但旋轉中心校正要在換吸嘴後重做（見「校正手順」步驟 3、「旋轉中心計算」）。'],
+        link: null
+      }
+    },
+    {
+      id: 'rep', title: '重複定位與反向間隙', sub: '從兩個方向回到同一點各拍 5 次', cam: 'top',
+      sev: k => `反向間隙 ${f1(0.3 + 6 * k)} µm、重複性 σ ${f2(0.35 + 0.5 * k)} µm`,
+      dur: 14, exi: 30, n: 10,
+      model(k) { const b = 0.3 + 6 * k, s = 0.35 + 0.5 * k, r = rng(41), pts = []; for (let i = 0; i < this.n; i++) { const d = i % 2 ? -1 : 1; pts.push({ x: d * b / 2 + gauss(r) * s, y: gauss(r) * s * 0.8, d, tp: (i + 0.8) / this.n }); } return { b, s, pts }; },
+      frame(p, k) {
+        const m = this.model(k), s = clamp(p, 0, 0.9999) * this.n, i = Math.floor(s), f = s - i, d = i % 2 ? -1 : 1;
+        const away = f < 0.35 ? ease(f / 0.35) : f < 0.7 ? 1 - ease((f - 0.35) / 0.35) : 0, c = camSpec();
+        const q = m.pts[i], arrived = f >= 0.7;
+        const u = arrived ? q.x : d * away * 2600 * c.um / this.exi, v = arrived ? q.y : 0;
+        return { px: d * 18 * away, img: { u: u / c.um * this.exi, v: -v / c.um * this.exi }, dots: m.pts.slice(0, i + (f >= 0.8 ? 1 : 0)).map(q => [q.x / c.um * this.exi, -q.y / c.um * this.exi, q.d]), cap: `第 ${i + 1} 次：從 ${d > 0 ? '+X' : '−X'} 方向回到目標點` };
+      },
+      data(k) { const m = this.model(k); return { pts: m.pts }; },
+      chart(k) { const m = this.model(k), Y = Math.max(2, Math.ceil(m.b / 2 + 3 * m.s + 0.5)); return { xr: [-Y, Y], yr: [-Y, Y], xl: 'X 偏差 (µm)', yl: 'Y 偏差 (µm)', s: [{ pts: m.pts.filter(q => q.d > 0), kind: 'dot', c: '--accent', lb: '從 +X 回來' }, { pts: m.pts.filter(q => q.d < 0), kind: 'dot', c: '--p2', lb: '從 −X 回來' }], sq: true }; },
+      stats(pts) { const g = d => pts.filter(q => q.d === d).map(q => q.x), mean = a => a.reduce((s, v) => s + v, 0) / (a.length || 1), sd = a => Math.sqrt(a.reduce((s, v) => s + (v - mean(a)) ** 2, 0) / Math.max(1, a.length - 1)); const A = g(1), B = g(-1); return { b: mean(A) - mean(B), s3: 3 * Math.max(sd(A), sd(B)), nA: A.length, nB: B.length }; },
+      live(p, k) { const m = this.model(k), n = Math.floor(clamp(p, 0, 0.9999) * this.n + 0.2), st = this.stats(m.pts.slice(0, n)); return st.nA >= 2 && st.nB >= 2 ? `+X ${st.nA} 次、−X ${st.nB} 次<br>雙向平均差 <b>${f2(st.b)} µm</b>，單向 3σ <b>${f2(st.s3)} µm</b>` : `已拍 ${n} 次（兩個方向各 2 次以上才能算）`; },
+      res(k) { const st = this.stats(this.model(k).pts); return { c: Math.abs(st.b) <= 1 && st.s3 <= 2 ? 'ok' : Math.abs(st.b) <= 3 ? 'warnp' : 'bad', t: `雙向平均差 ${f2(st.b)} µm；單向 3σ ${f2(st.s3)} µm`, n: '雙向差大 → 反向間隙（滑塊預壓、聯軸器、光學尺讀頭鬆）；兩個方向都很散 → 停下後還在晃（回第 1 項）或伺服增益。' }; },
+      doc: {
+        why: '放料偏移忽大忽小、或跟「從哪個方向過來」有關，通常是重複定位或反向間隙。用相機量最直接：同一個點，從兩個方向各回來幾次，看拍到的位置。',
+        how: ['Mark 放在上相機中心當目標點。', '平台從 +X 方向 5 mm 外回到目標點，等穩定後拍照；再從 −X 方向 5 mm 外回來拍照。交替做，兩個方向各 5 次以上。', 'Y 方向用同樣方法再做一次。', '分兩群算：每個方向的平均與 3σ；兩個方向平均的差就是反向間隙。'],
+        judge: ['單向 3σ ≤ 2 µm。', '雙向平均差 ≤ 1 µm。', '生產時如果每次都從同一個方向進來，反向間隙影響較小，但校正時的進入方向也要一樣。'],
+        fix: ['反向間隙：檢查滑塊預壓、聯軸器、光學尺讀頭與尺的間隙與鎖附。', '單向就很散：先確認第 1 項穩定時間，再看伺服到位判定（in-position 範圍）是否太寬。', '暫時對策：校正與生產都改成「同方向進入」（最後一段固定從同一側靠近）。'],
+        link: null
+      }
+    }
+  ];
+
+  // 症狀 → 先做哪一項
+  const SYMS = [
+    ['同一點連拍，位置就在跳', 'settle', '千分錶不用；先把相機穩住'],
+    ['放料偏移忽大忽小、跟進入方向有關', 'rep', 'settle'],
+    ['每次九點校正角度都不一樣', 'rot', 'settle'],
+    ['換料號（料厚不同）就偏', 'tilt', 'focus'],
+    ['某些料盤位置特別偏（跟 X 位置有關）', 'bcam', 'dial1'],
+    ['偏移跟 DD 角度有關', 'dd', 'rot'],
+    ['平台移動時 Y 滑座整個在轉', 'dial2', 'bcam']
+  ];
+  const NAME = { dial1: '千分錶：X 軸偏擺與直線度', dial2: '千分錶：Y 滑座重心耦合', dial3: '導軌調整' };
+  CHECKS.forEach((c, i) => { NAME[c.id] = `${i + 1}. ${c.title}`; });
+
+  // ---------- 3D 場景 ----------
+  let R = null;
+  function ensure3() {
+    if (R || !G.THREE) return R;
+    const THREE = G.THREE, host = $('#vk3d');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, G.devicePixelRatio || 1));
+    host.insertBefore(renderer.domElement, host.firstChild);
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(36, 1, 0.5, 2000); cam.up.set(0, 1, 0);
+    const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true; ctl.dampingFactor = 0.12; ctl.maxPolarAngle = Math.PI * 0.62;
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x556677, 0.8));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(60, 120, 80); scene.add(dl);
+    const dl2 = new THREE.DirectionalLight(0xffffff, 0.25); dl2.position.set(-80, 40, -60); scene.add(dl2);
+    const mat = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.55, metalness: 0.2 }, o || {}));
+    const M = {
+      base: mat(0x4a5452, { roughness: 0.85 }), rail: mat(0xb9c2c8, { metalness: 0.7, roughness: 0.3 }), plat: mat(0x2f6db5), z: mat(0x5b7fae),
+      dd: mat(0x8d979e, { metalness: 0.6, roughness: 0.3 }), glass: mat(0x9fd3d8, { transparent: true, opacity: 0.55, roughness: 0.1 }), mark: mat(0x111111, { roughness: 0.9 }),
+      gantry: mat(0x7f9a90), cam: mat(0x6a4fbd), lens: mat(0xd8dde0, { metalness: 0.85, roughness: 0.2 }), nozzle: mat(0xcf7a22),
+      gauge: mat(0xd8dde0, { metalness: 0.8, roughness: 0.25 }), face: mat(0xffffff, { metalness: 0, roughness: 0.6 }), needle: mat(0xd2332b, { metalness: 0 }), magB: mat(0x1f6f78)
+    };
+    const box = (w, h, d, m, x, y, z, p) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x || 0, y || 0, z || 0); (p || scene).add(o); return o; };
+    const cyl = (r, h, m, x, y, z, p, seg) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg || 32), m); o.position.set(x || 0, y || 0, z || 0); (p || scene).add(o); return o; };
+    const lineMat = c => new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.85 });
+
+    // 底座、X 導軌
+    box(130, 4, 70, M.base, 0, -2, 0);
+    [-8, 8].forEach(z => box(120, 1.4, 2, M.rail, 0, 0.7, z));
+    // 平台（X）→ Z → DD → 吸盤/玻璃治具
+    const plat = new THREE.Group(); scene.add(plat);
+    box(26, 3, 22, M.plat, 0, 2.9, 0, plat);
+    const zG = new THREE.Group(); zG.position.y = 4.4; plat.add(zG);
+    box(10, 3, 10, M.z, 0, 1.5, 0, zG);
+    const dd = new THREE.Group(); dd.position.y = 3; zG.add(dd);
+    cyl(5.5, 1.6, M.dd, 0, 0.8, 0, dd, 40);
+    const chuck = new THREE.Group(); dd.add(chuck);
+    box(12, 0.8, 12, M.glass, 0, 2, 0, chuck);
+    cyl(0.75, 0.12, M.mark, 0, 2.46, 0, chuck, 24);
+    const nozzle = cyl(1.6, 3.2, M.nozzle, 0, 4.0, 0, chuck, 28);
+    // 下相機（裝在平台上往上看）
+    const bcam = new THREE.Group(); bcam.position.set(16, 4.4, 0); plat.add(bcam);
+    box(4, 5, 4, M.cam, 0, 2.5, 0, bcam); cyl(1.3, 2, M.lens, 0, 6, 0, bcam);
+    // 龍門與上相機
+    [-52, 52].forEach(x => box(4, 42, 4, M.gantry, x, 21, -14));
+    box(108, 4, 4, M.gantry, 0, 42, -14);
+    box(8, 6, 14, M.gantry, 0, 38, -8);
+    const camG = new THREE.Group(); camG.position.set(0, 34, 0); scene.add(camG);
+    box(6, 9, 6, M.cam, 0, 0, 0, camG); cyl(1.6, 3, M.lens, 0, -6, 0, camG);
+    // 視野框（上相機往下、下相機往上）
+    function frustum(parent, y0, y1, w, h, color) {
+      const g = new THREE.Group(), pts = [], c = [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]];
+      c.forEach(([x, z]) => { pts.push(new THREE.Vector3(0, y0, 0), new THREE.Vector3(x, y1, z)); });
+      c.forEach(([x, z], i) => { const [x2, z2] = c[(i + 1) % 4]; pts.push(new THREE.Vector3(x, y1, z), new THREE.Vector3(x2, y1, z2)); });
+      g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), lineMat(color))); parent.add(g); return g;
+    }
+    const fTop = frustum(camG, -7.5, -34 + 9.95, 10, 10 * 2040 / 2448, 0x9b83e6);
+    const RULER_Y = 26;
+    const fBot = frustum(bcam, 7, RULER_Y - 4.4 - 0.4, 6, 5, 0x9b83e6);
+    // 玻璃尺（平台3 上，給下相機看）
+    const ruler = new THREE.Group(); scene.add(ruler);
+    box(104, 0.8, 6, M.glass, 16, RULER_Y, 0, ruler);
+    for (let i = 0; i < 7; i++) cyl(0.6, 0.1, M.mark, -45 + 15 * i + 16, RULER_Y - 0.45, 0, ruler, 20);
+    [-38, 70].forEach(x => box(3, RULER_Y - 1, 3, M.gantry, x, (RULER_Y - 1) / 2, 6, ruler));
+    // 千分錶（表座吸在平台本體、測頭頂吸嘴外圓）
+    const gauge = new THREE.Group(); gauge.position.set(9, 0, 0); zG.add(gauge);
+    box(3, 2.4, 3, M.magB, 0, 4.2, 6, gauge);
+    box(0.6, 0.6, 6, M.dd, 0, 5.4, 3, gauge);
+    const gBody = new THREE.Group(); gBody.position.set(0, 7, 0); gauge.add(gBody);
+    const gc = cyl(1.6, 0.9, M.gauge, 0, 0, 0, gBody, 40);
+    const gf = new THREE.Mesh(new THREE.CircleGeometry(1.4, 40), M.face); gf.rotation.x = -Math.PI / 2; gf.position.y = 0.46; gBody.add(gf);
+    const gPiv = new THREE.Group(); gPiv.position.y = 0.5; gBody.add(gPiv);
+    const gN = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 1.25), M.needle); gN.position.z = -0.5; gPiv.add(gN);
+    const stem = cyl(0.22, 1, M.gauge, 0, 0, 0, gBody, 12); stem.rotation.z = Math.PI / 2;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), M.gauge); gBody.add(tip);
+    // 3D 標籤（DOM）
+    const lbBox = $('#vklabels');
+    const LBL = [
+      { t: '上相機', o: camG, off: [0, 6, 0], c: 'c', show: id => true },
+      { t: '平台（XY＋Z＋DD）', o: plat, off: [-10, 5, 10], show: id => true },
+      { t: '玻璃治具 Mark', o: chuck, off: [0, 3, 6], show: id => id !== 'bcam' },
+      { t: '下相機', o: bcam, off: [0, 9, 0], c: 'c', show: id => id === 'bcam' },
+      { t: '玻璃尺（平台3）', o: ruler, off: [50, RULER_Y + 2, 0], show: id => id === 'bcam' },
+      { t: '千分錶', o: gBody, off: [0, 2.2, 0], c: 'a', show: id => id === 'dd' },
+      { t: '吸嘴', o: nozzle, off: [0, 2.6, 0], c: 'b', show: id => id === 'dd' }
+    ].map(l => { const el = D.createElement('div'); el.className = 'vklbl' + (l.c ? ' ' + l.c : ''); el.textContent = l.t; lbBox.appendChild(el); return Object.assign(l, { el }); });
+    R = { THREE, renderer, scene, cam, ctl, host, plat, zG, dd, chuck, nozzle, bcam, camG, fTop, fBot, ruler, gauge, gPiv, stem, tip, LBL, v: new THREE.Vector3() };
+    new ResizeObserver(resize3).observe(host);
+    const th = () => { try { renderer.setClearColor(new THREE.Color(css('--stage'))); } catch (e) { /* 無 */ } };
+    th(); if (G.matchMedia) G.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', th);
+    new MutationObserver(th).observe(D.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    resize3(); view(); requestAnimationFrame(loop);
+    return R;
+  }
+  function resize3() { if (!R) return; const w = R.host.clientWidth || 400, h = R.host.clientHeight || 300; R.renderer.setSize(w, h, false); R.renderer.domElement.style.width = w + 'px'; R.renderer.domElement.style.height = h + 'px'; R.cam.aspect = w / h; R.cam.updateProjectionMatrix(); }
+  const VIEWS = { top: { pos: [46, 46, 70], tgt: [0, 14, 0] }, bottom: { pos: [40, 30, 78], tgt: [10, 14, 0] }, dd: { pos: [24, 26, 34], tgt: [2, 10, 0] } };
+  function view() { if (!R) return; const c = CHECKS[cur], v = VIEWS[c.id === 'dd' ? 'dd' : c.cam]; const asp = (R.host.clientWidth || 1) / (R.host.clientHeight || 1), f = Math.max(1, Math.min(1.8, 1.45 / asp)); R.cam.position.set(...v.pos.map((p, i) => v.tgt[i] + (p - v.tgt[i]) * f)); R.ctl.target.set(...v.tgt); R.ctl.update(); }
+
+  function pose(st) {
+    const c = CHECKS[cur];
+    R.plat.position.set(st.px || 0, 0, 0); R.plat.rotation.y = st.yawP || 0;
+    R.zG.position.y = 4.4 + (st.pz || 0) * 3;
+    R.dd.rotation.y = -(st.dd || 0) * D2R;
+    const e = (st.ecc || 0) * 0.12;     // 偏心放大顯示
+    R.chuck.position.set(e * Math.cos(this_ph()), 0, -e * Math.sin(this_ph()));
+    R.camG.rotation.set(0, st.camYaw || 0, (st.sway || 0) + (st.camTilt || 0));
+    R.bcam.visible = R.fBot.visible = R.ruler.visible = c.id === 'bcam';
+    R.fTop.visible = c.id !== 'bcam';
+    R.gauge.visible = c.id === 'dd'; R.nozzle.visible = c.id === 'dd';
+    if (c.id === 'dd') {
+      // 測頭頂吸嘴外圓：吸嘴中心在世界座標的 x 位置 + 半徑
+      R.chuck.updateWorldMatrix(true, false); R.nozzle.getWorldPosition(R.v);
+      R.gauge.updateWorldMatrix(true, false); const gp = R.gauge.localToWorld(new R.THREE.Vector3(0, 7, 0));
+      const len = Math.max(0.2, gp.x - (R.v.x + 1.6) - 1.6);
+      R.stem.scale.y = len; R.stem.position.set(-1.6 - len / 2, 0, 0); R.tip.position.set(-1.6 - len, 0, 0);
+      R.gPiv.rotation.y = -(st.gauge || 0) / 10 * 2 * Math.PI;
+    }
+  }
+  function this_ph() { return (CHECKS[cur].ph || 0) * D2R; }
+  function placeLabels() {
+    const w = R.host.clientWidth, h = R.host.clientHeight, id = CHECKS[cur].id;
+    R.LBL.forEach(l => {
+      if (!l.show(id)) { l.el.hidden = true; return; }
+      l.o.updateWorldMatrix(true, false); R.v.set(...l.off); l.o.localToWorld(R.v); R.v.project(R.cam);
+      const ok = R.v.z < 1 && Math.abs(R.v.x) < 1.05 && Math.abs(R.v.y) < 1.05; l.el.hidden = !ok;
+      l.el.style.transform = `translate(${(R.v.x * 0.5 + 0.5) * w}px,${(-R.v.y * 0.5 + 0.5) * h}px) translate(-50%,-100%)`;
+    });
+  }
+
+  // ---------- 相機畫面（2D） ----------
+  function drawImg(st) {
+    const cv = $('#vkimg'), c = CHECKS[cur], sp = camSpec();
+    const W = cv.clientWidth || 320, H = Math.round(W * sp.h / sp.w), dpr = Math.min(2, G.devicePixelRatio || 1);
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const s = W / sp.w, cx = W / 2, cy = H / 2;
+    g.fillStyle = css('--img-bg'); g.fillRect(0, 0, W, H);
+    g.strokeStyle = css('--img-grid'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, H); g.moveTo(0, cy); g.lineTo(W, cy); g.stroke();
+    // 0.5 px 門檻圈（放大後）
+    const rMark = 0.3 / 2 * 1000 / sp.um * s;   // Mark 直徑 0.3 mm
+    const img = st.img || { u: 0, v: 0 };
+    if (st.trail) { g.fillStyle = css('--img-jig'); st.trail.forEach(([u, v]) => { g.beginPath(); g.arc(cx + u * s, cy + v * s, 2.5, 0, 7); g.fill(); }); }
+    if (st.dots) st.dots.forEach(([u, v, d]) => { g.fillStyle = d > 0 ? css('--img-jig') : '#f0a35e'; g.beginPath(); g.arc(cx + u * s, cy + v * s, 3, 0, 7); g.fill(); });
+    if (c.id === 'dd') { const e = CHECKS[cur].e(kOf()) / sp.um * c.exi * s; g.strokeStyle = css('--img-jig'); g.setLineDash([3, 3]); g.beginPath(); g.arc(cx, cy, e, 0, 7); g.stroke(); g.setLineDash([]); }
+    if (c.id === 'rot' && st.trail && st.trail.length >= 2) { const L = linfit(st.trail); g.strokeStyle = css('--img-jig'); g.setLineDash([4, 3]); g.beginPath(); g.moveTo(0, cy + (L.a + L.b * (-W / 2 / s)) * s); g.lineTo(W, cy + (L.a + L.b * (W / 2 / s)) * s); g.stroke(); g.setLineDash([]); }
+    const mx = cx + img.u * s, my = cy + img.v * s, blur = clamp(img.blur || 0, 0, 1);
+    if (blur > 0.02) {
+      const gr = g.createRadialGradient(mx, my, Math.max(0, rMark * (1 - blur * 0.9)), mx, my, rMark * (1 + blur * 1.4));
+      gr.addColorStop(0, css('--img-mark')); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr;
+      g.beginPath(); g.arc(mx, my, rMark * (1 + blur * 1.4), 0, 7); g.fill();
+    } else { g.fillStyle = css('--img-mark'); g.beginPath(); g.arc(mx, my, rMark, 0, 7); g.fill(); }
+    g.strokeStyle = css('--hot'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(mx - 6, my); g.lineTo(mx + 6, my); g.moveTo(mx, my - 6); g.lineTo(mx, my + 6); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.font = '11px ' + css('--f-mono');
+    g.fillText(`${sp.w}×${sp.h} px`, 6, H - 6);
+    if (c.exi > 1) { const t = `位移放大 ×${c.exi}`; g.fillText(t, W - g.measureText(t).width - 6, H - 6); }
+  }
+
+  // ---------- 曲線圖（SVG） ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(p, n, a, txt) { const e = D.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; p.appendChild(e); return e; }
+  let CH = null;
+  function buildChart() {
+    const svg = $('#vkchart'); svg.innerHTML = '';
+    const c = CHECKS[cur], cfg = c.chart(kOf()), Wd = 340, Ht = cfg.sq ? 250 : 200, x0 = 44, x1 = Wd - 10, y0 = 22, y1 = Ht - 34;
+    svg.setAttribute('viewBox', `0 0 ${Wd} ${Ht}`);
+    const sx = x => x0 + (x - cfg.xr[0]) / (cfg.xr[1] - cfg.xr[0]) * (x1 - x0), sy = y => y1 - (clamp(y, cfg.yr[0], cfg.yr[1]) - cfg.yr[0]) / (cfg.yr[1] - cfg.yr[0]) * (y1 - y0);
+    const nice = (a, b, n) => { const st = Math.pow(10, Math.floor(Math.log10((b - a) / n))), m = [1, 2, 2.5, 5, 10].find(m => (b - a) / (st * m) <= n) * st, out = []; for (let v = Math.ceil(a / m) * m; v <= b + 1e-9; v += m) out.push(+v.toFixed(6)); return out; };
+    if (cfg.band) { el(svg, 'rect', { x: x0, y: sy(cfg.band[1]), width: x1 - x0, height: sy(cfg.band[0]) - sy(cfg.band[1]), class: 'vk-band' }); if (cfg.bandLb) el(svg, 'text', { x: x1 - 4, y: sy(cfg.band[1]) + 11, 'text-anchor': 'end', class: 'vk-t' }, cfg.bandLb); }
+    nice(cfg.yr[0], cfg.yr[1], 5).forEach(v => { el(svg, 'line', { x1: x0, x2: x1, y1: sy(v), y2: sy(v), class: v === 0 ? 'vk-ax0' : 'vk-ax' }); el(svg, 'text', { x: x0 - 5, y: sy(v) + 3.5, 'text-anchor': 'end', class: 'vk-t' }, v); });
+    nice(cfg.xr[0], cfg.xr[1], 6).forEach(v => el(svg, 'text', { x: sx(v), y: y1 + 14, 'text-anchor': 'middle', class: 'vk-t' }, v));
+    el(svg, 'text', { x: x1, y: Ht - 4, 'text-anchor': 'end', class: 'vk-t' }, cfg.xl);
+    el(svg, 'text', { x: 4, y: 9, class: 'vk-t' }, cfg.yl);
+    (cfg.vl || []).forEach(v => { el(svg, 'line', { x1: sx(v.x), x2: sx(v.x), y1: y0, y2: y1, style: `stroke:var(${v.c})`, class: 'vk-vl' }); el(svg, 'text', { x: sx(v.x) + 3, y: y0 + 9, class: 'vk-t', style: `fill:var(${v.c})` }, v.lb); });
+    const fit = cfg.fit ? el(svg, 'line', { class: 'vk-fit', x1: sx(cfg.xr[0]), x2: sx(cfg.xr[1]), y1: sy(cfg.fit.a + cfg.fit.b * cfg.xr[0]), y2: sy(cfg.fit.a + cfg.fit.b * cfg.xr[1]) }) : null;
+    const S = cfg.s.map(s => ({ s, path: s.kind === 'line' ? el(svg, 'path', { class: 'vk-ln', style: `stroke:var(${s.c})` }) : null, g: s.kind === 'dot' ? el(svg, 'g', { style: `fill:var(${s.c})` }) : null, n: -1 }));
+    const leg = cfg.s.filter(s => s.lb);
+    if (leg.length) leg.forEach((s, i) => { const lx = x0 + 6 + i * 92; el(svg, 'rect', { x: lx, y: y1 - 14, width: 10, height: 3, style: `fill:var(${s.c})` }); el(svg, 'text', { x: lx + 14, y: y1 - 10, class: 'vk-t' }, s.lb); });
+    CH = { S, sx, sy, fit };
+  }
+  function updChart(p) {
+    if (!CH) return;
+    let shown = 0;
+    CH.S.forEach(o => {
+      const vis = o.s.pts.filter(q => q.tp <= p + 1e-9); if (vis.length === o.n) { shown += vis.length; return; } o.n = vis.length; shown += vis.length;
+      if (o.path) o.path.setAttribute('d', vis.map((q, i) => (i ? 'L' : 'M') + CH.sx(q.x).toFixed(1) + ' ' + CH.sy(q.y).toFixed(1)).join(''));
+      if (o.g) { o.g.innerHTML = ''; vis.forEach(q => el(o.g, 'circle', { cx: CH.sx(q.x), cy: CH.sy(q.y), r: 3.6 })); }
+    });
+    if (CH.fit) CH.fit.style.opacity = p >= 0.999 ? 1 : 0;
+  }
+
+  // ---------- 狀態、播放 ----------
+  let cur = 0, t = 0, playing = true, lastTs = 0, hold = 0;
+  const K = CHECKS.map(() => 0.6);
+  const kOf = () => K[cur];
+  const reduce = G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function pOf() { return clamp(t / CHECKS[cur].dur, 0, 1); }
+  function renderList() {
+    $('#vklist').innerHTML = CHECKS.map((c, i) => `<button class="vkbtn" data-i="${i}" ${i === cur ? 'aria-current="step"' : ''}><span class="num">${i + 1}</span><span class="st"><b>${c.title}</b><small>${c.sub}</small></span></button>`).join('');
+    $$('#vklist .vkbtn').forEach(b => b.addEventListener('click', () => select(+b.dataset.i, true)));
+  }
+  function renderDoc() {
+    const c = CHECKS[cur], d = c.doc, r = c.res(kOf());
+    $('#vkdoc').innerHTML = `<h3>${cur + 1}. ${c.title}</h3>
+      <p class="lead">${d.why}</p>
+      <div class="two"><div><h4>怎麼做</h4><ol>${d.how.map(x => `<li>${x}</li>`).join('')}</ol></div>
+      <div><h4>判定標準</h4><ul>${d.judge.map(x => `<li>${x}</li>`).join('')}</ul><h4>常見原因與處理</h4><ul>${d.fix.map(x => `<li>${x}</li>`).join('')}</ul>
+      ${d.link ? `<p><button class="btn" data-goto="dial${d.link}">→ 用千分錶確認：${NAME['dial' + d.link]}</button></p>` : ''}</div></div>
+      <p class="note">動畫與曲線是模擬示意，用來說明怎麼量、怎麼判斷；實際數值請用你機台的量測結果。</p>`;
+    $$('#vkdoc [data-goto]').forEach(b => b.addEventListener('click', () => G.MECH && G.MECH.sub(b.dataset.goto)));
+    $('#vkres').innerHTML = `<span class="pill ${r.c}">${r.c === 'ok' ? '正常' : r.c === 'bad' ? '要處理' : '注意'}</span> <b>${r.t}</b><br><span class="note">${r.n}</span>`;
+  }
+  function renderSev() { const c = CHECKS[cur]; $('#vksev').value = Math.round(K[cur] * 100); $('#vksevt').textContent = c.sev(K[cur]); $('#vkimgt').textContent = c.cam === 'bottom' ? '下相機3 畫面（往上看）' : '上相機1 畫面（往下看）'; }
+  function select(i, scroll) {
+    cur = i; t = 0; hold = 0; playing = !reduce; setBtn();
+    $$('#vklist .vkbtn').forEach(b => b.toggleAttribute('aria-current', +b.dataset.i === i));
+    if (scroll) { const b = $(`#vklist .vkbtn[data-i="${i}"]`); if (b && b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    renderSev(); renderDoc(); buildChart(); view(); frame();
+  }
+  function frame() {
+    const c = CHECKS[cur], p = pOf(), st = c.frame(p, kOf());
+    if (R) pose(st);
+    drawImg(st); updChart(p);
+    $('#vkcap').textContent = st.cap || '';
+    $('#vklive').innerHTML = c.live(p, kOf());
+    $('#vkscrub').value = Math.round(p * 1000);
+  }
+  function setBtn() { const b = $('#vkplay'); if (!b) return; b.textContent = playing ? '暫停' : '播放'; b.setAttribute('aria-pressed', playing ? 'true' : 'false'); }
+  const vis = () => { const v = $('#view-mech'), d = $('#vk'); return !!(v && !v.hidden && d && !d.hidden); };
+  function loop(ts) {
+    const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0); lastTs = ts;
+    if (vis()) {
+      if (playing) { const T = CHECKS[cur].dur; if (t < T) t = Math.min(T, t + dt); else { hold += dt; if (hold > 2.5) { t = 0; hold = 0; } } }
+      frame(); R.ctl.update(); R.renderer.render(R.scene, R.cam); placeLabels();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- 初始化 ----------
+  let inited = false;
+  function init() {
+    if (inited) return; inited = true;
+    $('#vksym').innerHTML = `<table class="vksymt"><thead><tr><th>放料時看到的狀況</th><th>先做</th><th>再確認</th></tr></thead><tbody>${SYMS.map(([s, a, b]) => `<tr><td>${s}</td><td><button class="linkbtn" data-goto="${a}">${NAME[a]}</button></td><td>${NAME[b] ? `<button class="linkbtn" data-goto="${b}">${NAME[b]}</button>` : b}</td></tr>`).join('')}</tbody></table>`;
+    $$('#vksym [data-goto]').forEach(b => b.addEventListener('click', () => { const g = b.dataset.goto, i = CHECKS.findIndex(c => c.id === g); if (i >= 0) { select(i, true); const s = $('#vkmain'); if (s && s.scrollIntoView) s.scrollIntoView({ block: 'start', behavior: 'smooth' }); } else if (G.MECH) G.MECH.sub(g); }));
+    renderList();
+    $('#vkplay').addEventListener('click', () => { if (t >= CHECKS[cur].dur) { t = 0; hold = 0; } playing = !playing; setBtn(); });
+    $('#vkrestart').addEventListener('click', () => { t = 0; hold = 0; playing = true; setBtn(); });
+    $('#vkscrub').addEventListener('input', e => { t = +e.target.value / 1000 * CHECKS[cur].dur; playing = false; setBtn(); frame(); });
+    $('#vksev').addEventListener('input', e => { K[cur] = +e.target.value / 100; renderSev(); renderDoc(); buildChart(); frame(); });
+    ensure3(); select(0, false);
+  }
+  function show() { init(); resize3(); view(); frame(); }
+  G.VISCHK = { init, show, select, CHECKS, state: () => ({ cur, t, p: pOf(), k: K[cur], playing }), setK: (i, k) => { K[i] = k; if (i === cur) { renderSev(); renderDoc(); buildChart(); frame(); } }, seek: p => { t = p * CHECKS[cur].dur; playing = false; setBtn(); frame(); }, linfit };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+// ===== 機構調校分頁：子分頁切換（視覺機構檢查／千分錶三個測試） =====
+(function (G) {
+  'use strict';
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const SUBS = ['vis', 'dial1', 'dial2', 'dial3'];
+  let cur = 'vis', bound = false;
+  function sub(id, scroll) {
+    if (!SUBS.includes(id)) id = 'vis';
+    cur = id;
+    $$('#mksub [data-sub]').forEach(b => b.setAttribute('aria-selected', b.dataset.sub === id ? 'true' : 'false'));
+    $('#vk').hidden = id !== 'vis'; $('#mk-dial').hidden = id === 'vis';
+    if (id === 'vis') { if (G.VISCHK) G.VISCHK.show(); } else if (G.MECHDIAL) G.MECHDIAL.tab(+id.slice(4));
+    if (scroll !== false) { const s = $('#mksub'); if (s && s.getBoundingClientRect().top < 0 && s.scrollIntoView) s.scrollIntoView({ block: 'start' }); }
+  }
+  function show() {
+    if (!bound) { bound = true; $$('#mksub [data-sub]').forEach(b => b.addEventListener('click', () => sub(b.dataset.sub))); }
+    sub(cur, false);
+  }
+  G.MECH = { show, sub, cur: () => cur };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 // ===== 介面：分頁、動畫播放、相機畫面、偏移模擬、實測分析、驗證 =====
 (function (G) {
   'use strict';
@@ -2573,7 +4038,7 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   // ---------- 分頁 ----------
-  const TABS = ['steps', 'trouble', 'analysis', 'rccalc', 'params', 'verify'];
+  const TABS = ['steps', 'trouble', 'analysis', 'rccalc', 'mech', 'params', 'verify'];
   function showTab(id) {
     if (!TABS.includes(id)) id = 'steps';
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false'));
@@ -2582,6 +4047,7 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
     if (id === 'trouble') runSim();
     if (id === 'analysis') runAnalysis();
     if (id === 'rccalc' && G.RCT) G.RCT.show();
+    if (id === 'mech' && G.MECH) G.MECH.show();
     if (id === 'verify') runVerify();
     if (id === 'params') renderParams();
   }
@@ -2987,6 +4453,7 @@ XY 不動：圓心 = 旋轉中心，R̂ = 圓心 − S</pre>`;
 
   // 每次更新的簡要（最新的放最上面；時間為台灣時間）
   const CHANGELOG = [
+    ['2026-11-06 10:30', '新增「機構調校」分頁：整合千分表架設示範（X 軸偏擺與直線度、Y 滑座重心耦合、導軌調整），並新增 7 項視覺機構檢查（相機支架穩定時間、相機與 X 軸夾角、光軸垂直度、對焦與景深、下相機沿 X 偏差、DD 轉動偏擺、重複定位與反向間隙），每項有 3D 動畫、相機畫面、量測曲線、判定與處理方式，另附症狀對照表。'],
     ['2026-11-06 07:50', '切換鈕移到標題右邊：放在標題旁的空白處，不再蓋住分頁名稱；分頁列整條都能點、可左右滑。'],
     ['2026-11-06 07:30', '版面切換鈕整併成一顆：固定在分頁列最右邊（捲動時也看得到），手機版顯示「電腦版」、電腦版顯示「手機版」，點一下切換並記住；移除頁首與右下角重複的切換鈕，不再擋到內容。'],
     ['2026-11-06 01:30', '手機版排版：分頁列固定在上方可左右滑、步驟改成橫向選單、相機畫面四格並排、上一步／下一步固定在底部、表格改成一列一張卡、輸入框放大（iPhone 不會自動放大畫面）。加「電腦版／手機版」切換鈕，會記住你的選擇；網頁內加這份更新紀錄。'],

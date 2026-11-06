@@ -174,6 +174,167 @@ label.btn{display:inline-block}
 .rcplot .c-ax{stroke:var(--line);stroke-width:1}
 .rcplot .c-ctr{stroke:var(--hot);stroke-width:2}
 .rcplot .c-cam{fill:none;stroke:var(--cam);stroke-dasharray:3 3}
+/* ===== 機構調校 ===== */
+.mkintro p{margin:6px 0}
+.mkflow{display:flex;flex-wrap:wrap;gap:6px 18px;padding-left:1.3em;margin:8px 0 12px;font-size:.9rem}
+.mkflow li{margin:0;max-width:none}
+.mksub{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mksb{appearance:none;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0}
+.mksb span{font-weight:600;font-size:.92rem}.mksb small{font-size:.74rem;color:var(--muted)}
+.mksb:hover{border-color:var(--accent)}
+.mksb[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mksb[aria-selected="true"] small{color:inherit;opacity:.85}
+#view-mech>.card,#view-mech .vk>.card,#view-mech .vkgrid{margin-bottom:14px}
+#mk-dial{margin-top:2px}
+.vksymc summary{cursor:pointer}
+.vksymt{width:100%;margin-top:8px}
+.linkbtn{appearance:none;border:0;background:none;padding:0;color:var(--accent);font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.vkgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.vkl{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkr{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vkc{padding:12px 14px}
+.vkc h4{margin:0 0 6px;font-size:.86rem;color:var(--muted);font-weight:600}
+.vkc h4+canvas,.vkc h4+svg{margin-top:2px}
+.vklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.vkbtn{appearance:none;display:flex;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 10px 6px 6px;cursor:pointer;font:inherit;min-width:0}
+.vkbtn .num{flex:none;width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:var(--soft);font:600 .85rem var(--f-mono)}
+.vkbtn .st{display:flex;flex-direction:column;min-width:0}.vkbtn b{font-size:.86rem;font-weight:600}.vkbtn small{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vkbtn[aria-current]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.vkbtn[aria-current] .num{background:var(--accent);color:var(--accent-ink)}
+#vk3d{position:relative;width:100%;aspect-ratio:16/10;max-height:62vh;border-radius:var(--r);overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+#vk3d canvas{display:block;touch-action:none}
+#vk3d .caption{bottom:30px}
+.vkhint{position:absolute;left:10px;bottom:6px;font-size:.72rem;color:var(--muted);background:var(--label-bg);padding:0 6px;border-radius:4px}
+#vklabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.vklbl{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;font-weight:500;padding:2px 7px;border-radius:5px;background:var(--label-bg);color:var(--ink);border:1px solid var(--line)}
+.vklbl.c{color:var(--cam);border-color:var(--cam)}.vklbl.a{color:var(--accent);border-color:var(--accent)}.vklbl.b{color:var(--p2);border-color:var(--p2)}
+.vkctrl input[type=range]{flex:1;min-width:120px}
+.vksevbox{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--p2) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--p2) 35%,var(--line))}
+.vksevh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.86rem}.vksevh span{color:var(--p2);font-weight:600}
+.vksevbox input{width:100%;accent-color:var(--p2)}
+.vkends{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+#vkimg{display:block;width:100%;border-radius:6px}
+.vkchart{display:block;width:100%;height:auto}
+.vkchart .vk-t{font:10px var(--f-mono);fill:var(--muted)}
+.vkchart .vk-ax{stroke:var(--line);stroke-width:.7}.vkchart .vk-ax0{stroke:var(--muted);stroke-width:1}
+.vkchart .vk-band{fill:var(--ok-bg)}
+.vkchart .vk-vl{stroke-width:1.2;stroke-dasharray:4 3}
+.vkchart .vk-ln{fill:none;stroke-width:2;stroke-linejoin:round}
+.vkchart .vk-fit{stroke:var(--hot);stroke-width:1.4;stroke-dasharray:5 3;transition:opacity .3s}
+.vklive{font-size:.84rem;margin:0;line-height:1.6;min-height:3.2em}
+.vkres{margin:0;font-size:.88rem;line-height:1.55}
+#vkdoc .two{margin-top:6px}
+#vkdoc h4:first-child{margin-top:8px}
+html[data-layout="mobile"] .mksub{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html[data-layout="mobile"] .mkflow{display:block}
+html[data-layout="mobile"] .vkgrid{grid-template-columns:minmax(0,1fr)}
+html[data-layout="mobile"] .vklist{display:flex;overflow-x:auto;margin:0 -14px;padding:2px 14px 6px;scrollbar-width:none;scroll-snap-type:x proximity}
+html[data-layout="mobile"] .vklist::-webkit-scrollbar{display:none}
+html[data-layout="mobile"] .vkbtn{flex:0 0 auto;max-width:230px;scroll-snap-align:start}
+html[data-layout="mobile"] .vkbtn small{display:none}
+html[data-layout="mobile"] #vk3d{aspect-ratio:4/3;max-height:46vh}
+html[data-layout="mobile"] .vkr{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+html[data-layout="mobile"] #vkimg{max-width:300px;margin:0 auto}
+/* 千分表架設示範（移植） */
+.mk{--surface:var(--panel);--fg:var(--ink);--accent-soft:color-mix(in srgb,var(--accent) 16%,var(--panel));--warn:var(--p2);--warn-soft:color-mix(in srgb,var(--p2) 16%,var(--panel));--font-body:var(--f-body);--font-mono:var(--f-mono);font-size:15px;line-height:1.6}
+.mk h2,.mk h3{letter-spacing:normal}
+html[data-layout="mobile"] .mk-stage{height:46vh;min-height:280px}
+html[data-layout="mobile"] .mk-gauge svg{max-width:110px}
+.mk-wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.mk-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.mk-tab {
+  font: inherit; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); cursor: pointer;
+}
+.mk-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk button:focus-visible, .mk input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mk-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+html[data-layout="mobile"] .mk-main { grid-template-columns: minmax(0, 1fr); }
+.mk-stage {
+  position: relative; background: var(--stage); border-radius: 12px; overflow: hidden;
+  height: min(64vh, 620px); min-height: 340px; border: 1px solid var(--line);
+}
+.mk-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.mk-lbl {
+  position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap;
+  font-size: 12px; font-weight: 500; padding: 2px 7px; border-radius: 5px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--fg); border: 1px solid var(--line);
+}
+.mk-lbl.mk-a { color: var(--accent); border-color: var(--accent); }
+.mk-lbl.mk-b { color: var(--warn); border-color: var(--warn); }
+.mk-stage-hint {
+  position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 2px 8px; border-radius: 5px;
+}
+.mk-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.mk-card h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; }
+.mk-controls { display: flex; flex-direction: column; gap: 10px; }
+.mk-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mk-btn {
+  font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.mk-segb { font: inherit; font-weight: 500; padding: 6px 16px; border: 0; background: var(--bg); color: var(--fg); cursor: pointer; }
+.mk-segb[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.mk-adj-note { font-size: 12px; color: var(--muted); }
+.mk-adjbox { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); }
+.mk-adjhead { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 700; }
+.mk-adjhead b { color: var(--warn); font-size: 15px; }
+.mk-adjbox input[type="range"] { width: 100%; accent-color: var(--warn); }
+.mk-adjends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.mk-chip {
+  font: inherit; font-family: var(--font-mono); font-weight: 600; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer;
+}
+.mk-chip[aria-current="step"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.mk input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.mk-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mk-xpos { font-size: 13px; color: var(--muted); }
+.mk-xpos b { color: var(--fg); font-size: 15px; }
+label.mk-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.mk-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mk-gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mk-gauge svg { width: 100%; max-width: 132px; height: auto; }
+.mk-gauge .mk-name { font-size: 13px; font-weight: 700; }
+.mk-gauge.mk-a .mk-name { color: var(--accent); }
+.mk-gauge.mk-b .mk-name { color: var(--warn); }
+.mk-gauge .mk-val { font-size: 15px; }
+.mk-calc { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 0; }
+.mk-calc dt { color: var(--muted); }
+.mk-calc dd { margin: 0; text-align: right; }
+.mk-calc .mk-big { font-size: 18px; font-weight: 600; color: var(--accent); }
+.mk-formula { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.mk-trace svg, .mk-change svg { width: 100%; height: auto; display: block; }
+.mk-note { font-size: 12px; color: var(--muted); }
+.mk-step-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+.mk-step-body { font-size: 14px; margin: 0; }
+.mk-step-live { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg); font-size: 13px; }
+.mk-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.mk-legend span::before { content: ""; display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+.mk-legend .mk-l0::before { border-top-style: dashed; border-color: var(--muted); }
+.mk-legend .mk-l1::before { border-color: var(--accent); }
+.mk-legend .mk-l2::before { border-color: var(--warn); }
+.mk-guide { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+html[data-layout="mobile"] .mk-guide { grid-template-columns: minmax(0, 1fr); }
+.mk-guide h3 { font-size: 17px; margin: 0 0 10px; }
+.mk-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 10px; }
+.mk-steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.mk-steps li::before {
+  content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px; display: grid; place-items: center; margin-top: 1px;
+}
+.mk-steps b { font-weight: 700; }
+.mk-judge { display: flex; flex-direction: column; gap: 10px; }
+.mk-judge div { padding: 10px 12px; border-radius: 8px; background: var(--bg); font-size: 14px; }
+.mk-judge div.mk-hit { background: var(--warn-soft); }
+.mk-judge strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.mk-tips { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.mk-tips b { color: var(--fg); }
+.mk-span2 { grid-column: 1 / -1; }
+
 /* ===== 更新紀錄 ===== */
 .changelog{background:color-mix(in srgb,var(--accent) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:var(--r);padding:8px 12px;margin:0 0 12px;font-size:.86rem}
 .changelog summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
@@ -314,6 +475,7 @@ html[data-layout="mobile"] .vtbl td:nth-child(2){font-weight:500}
     <button class="tab" role="tab" data-tab="trouble" id="tab-trouble">放料偏移排查</button>
     <button class="tab" role="tab" data-tab="analysis" id="tab-analysis">實測資料分析</button>
     <button class="tab" role="tab" data-tab="rccalc" id="tab-rccalc">旋轉中心計算</button>
+    <button class="tab" role="tab" data-tab="mech" id="tab-mech">機構調校</button>
     <button class="tab" role="tab" data-tab="params" id="tab-params">機台參數<span class="pill warnp" id="pbadge" hidden style="margin-left:6px">自訂</span></button>
     <button class="tab" role="tab" data-tab="verify" id="tab-verify">驗證</button>
   </nav>
@@ -460,6 +622,123 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
         </div>
       </div>
       <div id="rcout" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-mech" hidden>
+    <div class="card mkintro">
+      <h3>機構調校</h3>
+      <p>校正算得再準，機構會晃、會歪、會跑，放料還是會偏。這裡分兩部分：<b>視覺機構檢查</b>用相機本身找出問題出在哪個機構；<b>千分錶量測與導軌調整</b>直接量導軌與滑座，再把它調好。</p>
+      <ol class="mkflow"><li><b>視覺機構檢查</b>：照症狀對照表挑項目做，找出嫌疑的機構</li><li><b>千分錶確認</b>：量嫌疑的軸（X 軸偏擺、Y 滑座耦合）</li><li><b>導軌調整</b>：靠邊、鎖緊、調平行度，再用千分錶驗證</li><li><b>重做校正</b>：回「校正手順」從步驟 1 做起</li></ol>
+      <div class="mksub" id="mksub" role="tablist" aria-label="機構調校項目">
+        <button class="mksb" role="tab" data-sub="vis" aria-selected="true"><span>視覺機構檢查</span><small>7 項，用相機找問題</small></button>
+        <button class="mksb" role="tab" data-sub="dial1" aria-selected="false"><span>千分錶：X 軸偏擺與直線度</span><small>兩支表頂直規</small></button>
+        <button class="mksb" role="tab" data-sub="dial2" aria-selected="false"><span>千分錶：Y 滑座重心耦合</span><small>X 移動時 Y 滑座會不會轉</small></button>
+        <button class="mksb" role="tab" data-sub="dial3" aria-selected="false"><span>導軌調整</span><small>靠邊、鎖緊、平行度</small></button>
+      </div>
+    </div>
+    <div id="vk" class="vk">
+      <details class="card vksymc" open><summary><b>症狀對照：放料時看到哪種狀況，先做哪一項</b></summary><div id="vksym" class="tbl"></div></details>
+      <div class="vkgrid" id="vkmain">
+        <div class="vkl">
+          <div class="vklist" id="vklist"></div>
+          <div id="vk3d"><div id="vklabels"></div><div class="caption" id="vkcap">—</div><div class="vkhint">示意圖，未依比例；誤差已放大顯示</div></div>
+          <div class="ctrl vkctrl">
+            <button class="btn primary" id="vkplay" aria-pressed="true">暫停</button>
+            <button class="btn" id="vkrestart">重播</button>
+            <input type="range" id="vkscrub" min="0" max="1000" value="0" aria-label="動畫進度">
+          </div>
+          <label class="vksevbox"><span class="vksevh"><b>模擬問題程度</b><span id="vksevt"></span></span>
+            <input type="range" id="vksev" min="0" max="100" value="60" aria-label="模擬問題程度">
+            <span class="vkends"><span>0（正常機台）</span><span>100（問題明顯）</span></span></label>
+        </div>
+        <div class="vkr">
+          <div class="card vkc"><h4 id="vkimgt">上相機1 畫面</h4><canvas id="vkimg" aria-label="相機畫面"></canvas></div>
+          <div class="card vkc"><h4>量測曲線</h4><svg id="vkchart" class="vkchart" viewBox="0 0 340 200" role="img" aria-label="量測曲線"></svg></div>
+          <div class="card vkc"><h4>即時讀值</h4><p class="vklive mono" id="vklive"></p><h4>判定</h4><p id="vkres" class="vkres"></p></div>
+        </div>
+      </div>
+      <article class="card" id="vkdoc"></article>
+    </div>
+<div class="mk" id="mk-dial">
+      <div class="mk-tabs" role="tablist" hidden>
+        <button class="mk-tab" role="tab" id="mk-tab1" aria-selected="true">測試一:X 軸偏擺與直線度</button>
+        <button class="mk-tab" role="tab" id="mk-tab2" aria-selected="false">測試二:Y 滑座重心耦合</button>
+        <button class="mk-tab" role="tab" id="mk-tab3" aria-selected="false">導軌調整</button>
+      </div>
+    
+      <div class="mk-main">
+        <div class="mk-stage" id="mk-stage">
+          <div id="mk-labels"></div>
+          <div class="mk-stage-hint">示意圖,未依比例;誤差已放大顯示</div>
+        </div>
+    
+        <div class="mk-panel">
+          <div class="mk-card mk-controls">
+            <div class="mk-row">
+              <button class="mk-btn" id="mk-play">暫停</button>
+              <button class="mk-btn" id="mk-resetView">重設視角</button>
+              <label class="mk-chk"><input type="checkbox" id="mk-exag" checked> <span id="mk-exagLbl">誤差放大 ×150</span></label>
+            </div>
+            <div class="mk-row" id="mk-sliderRow">
+              <input type="range" id="mk-xpos" min="100" max="750" step="1" value="100" aria-label="X 位置">
+            </div>
+            <div class="mk-chips" id="mk-chips" hidden></div>
+            <div class="mk-adjbox" id="mk-adjSeg">
+              <div class="mk-adjhead"><label for="mk-adjK" id="mk-adjLbl">基準軌偏移</label><b class="mk-mono" id="mk-adjVal">40 µm</b></div>
+              <input type="range" id="mk-adjK" min="0" max="100" step="1" value="100">
+              <div class="mk-adjends"><span>0(完全調好)</span><span id="mk-adjMax">40 µm(目前)</span></div>
+            </div>
+            <div class="mk-adj-note" id="mk-adjNote"></div>
+            <div class="mk-xpos" id="mk-xposLine">X 位置 <b class="mk-mono" id="mk-xval">100</b> mm</div>
+          </div>
+    
+          <div class="mk-card" id="mk-cStep" hidden>
+            <h2 id="mk-stepNo">步驟 1 / 5</h2>
+            <p class="mk-step-title" id="mk-stepTitle"></p>
+            <p class="mk-step-body" id="mk-stepBody"></p>
+            <div class="mk-step-live mk-mono" id="mk-stepLive"></div>
+          </div>
+    
+          <div class="mk-card mk-change" id="mk-cChange" hidden>
+            <h2>導軌直線度變化(µm)</h2>
+            <svg viewBox="0 0 320 170" id="mk-chg" role="img" aria-label="基準軌與從動軌直線度，調整前與目前"></svg>
+            <div class="mk-legend"><span class="mk-l0">基準軌 調整前</span><span class="mk-l1">基準軌 目前</span><span class="mk-l2">從動軌 目前</span></div>
+            <dl class="mk-calc" style="margin-top:8px">
+              <dt>基準軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppRef">40.0 µm</dd>
+              <dt>從動軌 峰-峰值</dt><dd class="mk-mono" id="mk-ppFol">25.0 µm</dd>
+            </dl>
+          </div>
+    
+          <div class="mk-card" id="mk-cGauge">
+            <h2>千分表讀數(mm)</h2>
+            <div class="mk-gauges">
+              <div class="mk-gauge mk-a"><svg viewBox="0 0 120 120" id="mk-gA"></svg><span class="mk-name">表 A</span><span class="mk-val mk-mono" id="mk-vA">0.000</span></div>
+              <div class="mk-gauge mk-b"><svg viewBox="0 0 120 120" id="mk-gB"></svg><span class="mk-name">表 B</span><span class="mk-val mk-mono" id="mk-vB">0.000</span></div>
+            </div>
+          </div>
+    
+          <div class="mk-card" id="mk-cCalc">
+            <h2>即時計算</h2>
+            <dl class="mk-calc">
+              <dt id="mk-c1n">偏擺角</dt><dd class="mk-mono mk-big" id="mk-c1">0.0″</dd>
+              <dt></dt><dd class="mk-mono" id="mk-c1b">0.00000°</dd>
+              <dt id="mk-c2n">直線度 (A+B)/2</dt><dd class="mk-mono" id="mk-c2">0.000 mm</dd>
+              <dt>全行程偏擺 峰-峰</dt><dd class="mk-mono" id="mk-ppYaw">—</dd>
+            </dl>
+            <div class="mk-formula" id="mk-formula">偏擺角 = (A − B) ÷ L,L = 120 mm;rad × 206265 = 角秒</div>
+          </div>
+    
+          <div class="mk-card mk-trace" id="mk-cTrace">
+            <h2 id="mk-tTitle">偏擺角對 X 位置(″)</h2>
+            <svg viewBox="0 0 320 170" id="mk-trace" role="img" aria-label="偏擺角隨 X 位置的記錄曲線"></svg>
+            <div class="mk-legend" id="mk-traceLegend" hidden><span class="mk-l0">調整前</span><span class="mk-l1" id="mk-lgNow">調整後</span></div>
+            <div class="mk-note">動畫數值為模擬示意，用來說明讀表和計算方式，不是你的實測數據。</div>
+          </div>
+        </div>
+      </div>
+    
+      <section class="mk-card mk-guide" id="mk-guide"></section>
     </div>
   </section>
 

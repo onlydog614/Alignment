@@ -7,7 +7,7 @@
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   // ---------- 分頁 ----------
-  const TABS = ['steps', 'trouble', 'analysis', 'rccalc', 'params', 'verify'];
+  const TABS = ['steps', 'trouble', 'analysis', 'rccalc', 'mech', 'params', 'verify'];
   function showTab(id) {
     if (!TABS.includes(id)) id = 'steps';
     $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false'));
@@ -16,6 +16,7 @@
     if (id === 'trouble') runSim();
     if (id === 'analysis') runAnalysis();
     if (id === 'rccalc' && G.RCT) G.RCT.show();
+    if (id === 'mech' && G.MECH) G.MECH.show();
     if (id === 'verify') runVerify();
     if (id === 'params') renderParams();
   }
