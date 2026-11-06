@@ -190,6 +190,33 @@
         fix: ['反向間隙：檢查滑塊預壓、聯軸器、光學尺讀頭與尺的間隙與鎖附。', '單向就很散：先確認第 1 項穩定時間，再看伺服到位判定（in-position 範圍）是否太寬。', '暫時對策：校正與生產都改成「同方向進入」（最後一段固定從同一側靠近）。'],
         link: null
       }
+    },
+    {
+      id: 'chuck', title: '吸盤平面度與料件滑移', sub: '拍完四角後，料在吸盤上有沒有跑', cam: 'top',
+      sev: k => `吸盤局部高點 ${Math.round(4 + 26 * k)} µm（孔口毛邊／異物）`,
+      dur: 16, exi: 20, n: 8, th: 30,
+      // 高點是一條稜線：料架在上面像蹺蹺板，平台往某些方向加速時往稜線兩側滑 → 只在特定方向（位置）出現、而且是兩個相反方向
+      slip(i, k) { const a = i * 45, c = Math.cos((a - this.th) * D2R), r = rng(53 + i); return k * 12 * Math.sign(c) * Math.pow(Math.abs(c), 3) + gauss(r) * 0.25; },
+      frame(p, k) {
+        const s = clamp(p, 0, 0.9999) * this.n, i = Math.floor(s), f = s - i, a = i * 45 * D2R, c = camSpec();
+        const out = f < 0.4 ? ease(f / 0.4) : f < 0.75 ? 1 - ease((f - 0.4) / 0.35) : 0;
+        const sl = this.slip(i, k) * ease(clamp(f / 0.12, 0, 1)), nx = Math.cos(this.th * D2R), ny = Math.sin(this.th * D2R);
+        const dots = []; for (let j = 0; j < i + (f >= 0.8 ? 1 : 0); j++) { const v = this.slip(j, k); dots.push([v * nx / c.um * this.exi, -v * ny / c.um * this.exi, Math.sign(v) || 1]); }
+        const shot = f >= 0.75;
+        return { px: Math.cos(a) * 26 * out, pyP: -Math.sin(a) * 18 * out, slip: [sl * nx, sl * ny], ridge: true, img: shot ? { u: sl * nx / c.um * this.exi, v: -sl * ny / c.um * this.exi } : { u: 0, v: 0, hide: !shot && out > 0.15 }, dots,
+          cap: f < 0.4 ? `第 ${i + 1} 次：拍完四角後往 ${i * 45}° 方向加速（Z 不上升、不放料）` : f < 0.75 ? '走回原位' : `回原位再拍：料滑了 ${sg(this.slip(i, k), 1)} µm` };
+      },
+      data(k) { const nx = Math.cos(this.th * D2R), pts = []; for (let i = 0; i < this.n; i++) pts.push({ x: i * 45, y: this.slip(i, k), tp: (i + 0.8) / this.n }); return { pts }; },
+      chart(k) { const { pts } = this.data(k), Y = Math.max(3, Math.ceil(Math.max(...pts.map(q => Math.abs(q.y))) + 1)); return { xr: [-20, 335], yr: [-Y, Y], xl: '加速方向 (°)', yl: '料件滑移 (µm，沿高點法線)', band: [-1, 1], bandLb: '±1 µm', s: [{ pts: pts.filter(q => q.y >= 0), kind: 'dot', c: '--accent', lb: '往 + 側滑' }, { pts: pts.filter(q => q.y < 0), kind: 'dot', c: '--p2', lb: '往 − 側滑' }] }; },
+      live(p, k) { const n = Math.floor(clamp(p, 0, 0.9999) * this.n + 0.2), ys = []; for (let j = 0; j < n; j++) ys.push(this.slip(j, k)); return ys.length ? `已測 ${ys.length} 個方向<br>最大滑移 <b>${f1(Math.max(...ys.map(Math.abs)))} µm</b>；超過 1 µm 的方向：<b>${ys.map((v, j) => Math.abs(v) > 1 ? j * 45 + '°' : '').filter(Boolean).join('、') || '無'}</b>` : '每個方向：放料 → 拍四角 → 照生產速度走出去再走回來 → 再拍'; },
+      res(k) { const ys = []; for (let j = 0; j < this.n; j++) ys.push(this.slip(j, k)); const m = Math.max(...ys.map(Math.abs)), pos = ys.filter(v => v > 1).length, neg = ys.filter(v => v < -1).length; return { c: m <= 1 ? 'ok' : m <= 3 ? 'warnp' : 'bad', t: `最大滑移 ${f1(m)} µm${pos && neg ? '，出現在兩個相反方向' : ''}`, n: m <= 1 ? '拍完到放料之間料沒有跑，偏移要往放料接觸（料盤高度、Z 垂直）找。' : '料在吸盤上滑動：只有往某些方向加速時才滑，所以只在特定位置偏、而且是兩個方向——典型是吸盤上有一條高點（孔口毛邊、異物、平面度不良），料像蹺蹺板架在上面。' }; },
+      doc: {
+        why: '吸盤靠孔洞真空吸住料件。孔口有毛邊、表面有異物或吸盤不平時，料不會完全貼平，真空也會漏，吸附力變小。上相機拍完四角以後，平台加速去放料的途中，料就可能在吸盤上滑一點點——拍照時是對的，放下去卻偏了。因為只有往某些方向加速才會滑，偏移就只出現在特定位置，而且常常是兩個相反方向（料架在高點兩側翹）。',
+        how: ['<b>滑移測試（最直接）</b>：放料、上相機拍四角記下位置；平台照生產的速度與加速度走到有問題的那個位置，<b>Z 不上升、不放料</b>；走回來再拍四角。位置變了就是料在吸盤上滑。', '每個有問題的位置、以及 8 個加速方向各做 3 次，畫出「滑移量對方向」。', '<b>吸盤平面度</b>：千分錶表座吸在 Z 軸本體，平台 XY 走格點（例如每 10 mm）掃過吸盤面，做成高度表；孔口周圍要特別量。', '<b>端面跳動</b>：千分錶頂在吸盤面靠外緣，DD 轉一圈，TIR 就是吸盤面跟轉軸的不垂直量。', '同時看真空表：有問題的位置真空度是否比較低（料沒貼平會漏氣）。'],
+        judge: ['滑移量 ≤ 1 µm（在所有方向）。', '吸盤平面度 ≤ 5 µm，孔口不能有凸起的毛邊。', '端面跳動 TIR ≤ 5 µm（在吸盤外緣量）。', '有吸料時真空度要達到規格，且各位置一樣。'],
+        fix: ['孔口毛邊：用油石輕推平、倒角，清潔吸盤面與料件背面。', '平面度不良：研磨吸盤，或加一層平整的吸附墊。', '端面跳動大：吸盤重新鎖附、清潔 DD 與吸盤接合面，必要時加墊片調整。', '真空不足：加大真空、檢查漏氣；必要時降低平台加速度或加 S 曲線，減少把料甩動的力。', '滑移測試沒有滑：問題在放料接觸，量平台3 料盤那幾個穴位的高度與 Z 軸垂直度。'],
+        link: null
+      }
     }
   ];
 
@@ -200,6 +227,8 @@
     ['每次九點校正角度都不一樣', 'rot', 'settle'],
     ['換料號（料厚不同）就偏', 'tilt', 'focus'],
     ['某些料盤位置特別偏（跟 X 位置有關）', 'bcam', 'dial1'],
+    ['角度補償只在某幾欄需要、正負號不同', 'dial2', 'chuck'],
+    ['只在特定位置偏、而且有兩個方向', 'chuck', 'dd'],
     ['偏移跟 DD 角度有關', 'dd', 'rot'],
     ['平台移動時 Y 滑座整個在轉', 'dial2', 'bcam']
   ];
@@ -244,6 +273,7 @@
     box(12, 0.8, 12, M.glass, 0, 2, 0, chuck);
     cyl(0.75, 0.12, M.mark, 0, 2.46, 0, chuck, 24);
     const nozzle = cyl(1.6, 3.2, M.nozzle, 0, 4.0, 0, chuck, 28);
+    const ridge = box(11, 0.5, 0.7, mat(0xe0457b, { emissive: 0x6a1030, emissiveIntensity: 0.4 }), 0, 1.75, 0, dd); ridge.rotation.y = -60 * D2R;
     // 下相機（裝在平台上往上看）
     const bcam = new THREE.Group(); bcam.position.set(16, 4.4, 0); plat.add(bcam);
     box(4, 5, 4, M.cam, 0, 2.5, 0, bcam); cyl(1.3, 2, M.lens, 0, 6, 0, bcam);
@@ -284,13 +314,15 @@
     const LBL = [
       { t: '上相機', o: camG, off: [0, 6, 0], c: 'c', show: id => true },
       { t: '平台（XY＋Z＋DD）', o: plat, off: [-10, 5, 10], show: id => true },
-      { t: '玻璃治具 Mark', o: chuck, off: [0, 3, 6], show: id => id !== 'bcam' },
+      { t: '玻璃治具 Mark', o: chuck, off: [0, 3, 6], show: id => id !== 'bcam' && id !== 'chuck' },
+      { t: '料件', o: chuck, off: [0, 3, 6], show: id => id === 'chuck' },
       { t: '下相機', o: bcam, off: [0, 9, 0], c: 'c', show: id => id === 'bcam' },
       { t: '玻璃尺（平台3）', o: ruler, off: [50, RULER_Y + 2, 0], show: id => id === 'bcam' },
       { t: '千分錶', o: gBody, off: [0, 2.2, 0], c: 'a', show: id => id === 'dd' },
-      { t: '吸嘴', o: nozzle, off: [0, 2.6, 0], c: 'b', show: id => id === 'dd' }
+      { t: '吸嘴', o: nozzle, off: [0, 2.6, 0], c: 'b', show: id => id === 'dd' },
+      { t: '吸盤高點（孔口毛邊／異物）', o: ridge, off: [5, 0.6, 0], c: 'b', show: id => id === 'chuck' }
     ].map(l => { const el = D.createElement('div'); el.className = 'vklbl' + (l.c ? ' ' + l.c : ''); el.textContent = l.t; lbBox.appendChild(el); return Object.assign(l, { el }); });
-    R = { THREE, renderer, scene, cam, ctl, host, plat, zG, dd, chuck, nozzle, bcam, camG, fTop, fBot, ruler, gauge, gPiv, stem, tip, LBL, v: new THREE.Vector3() };
+    R = { THREE, renderer, scene, cam, ctl, host, plat, zG, dd, chuck, nozzle, ridge, bcam, camG, fTop, fBot, ruler, gauge, gPiv, stem, tip, LBL, v: new THREE.Vector3() };
     new ResizeObserver(resize3).observe(host);
     const th = () => { try { renderer.setClearColor(new THREE.Color(css('--stage'))); } catch (e) { /* 無 */ } };
     th(); if (G.matchMedia) G.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', th);
@@ -304,11 +336,14 @@
 
   function pose(st) {
     const c = CHECKS[cur];
-    R.plat.position.set(st.px || 0, 0, 0); R.plat.rotation.y = st.yawP || 0;
+    R.plat.position.set(st.px || 0, 0, st.pyP || 0); R.plat.rotation.y = st.yawP || 0;
     R.zG.position.y = 4.4 + (st.pz || 0) * 3;
     R.dd.rotation.y = -(st.dd || 0) * D2R;
     const e = (st.ecc || 0) * 0.12;     // 偏心放大顯示
-    R.chuck.position.set(e * Math.cos(this_ph()), 0, -e * Math.sin(this_ph()));
+    const sl = st.slip || [0, 0];     // 料件滑移（µm，放大顯示）
+    R.chuck.position.set(e * Math.cos(this_ph()) + sl[0] * 0.15, st.slip ? 0.25 : 0, -e * Math.sin(this_ph()) - sl[1] * 0.15);
+    R.chuck.rotation.set(st.slip ? 0.012 : 0, 0, 0);
+    R.ridge.visible = c.id === 'chuck';
     R.camG.rotation.set(0, st.camYaw || 0, (st.sway || 0) + (st.camTilt || 0));
     R.bcam.visible = R.fBot.visible = R.ruler.visible = c.id === 'bcam';
     R.fTop.visible = c.id !== 'bcam';
@@ -350,7 +385,8 @@
     if (st.dots) st.dots.forEach(([u, v, d]) => { g.fillStyle = d > 0 ? css('--img-jig') : '#f0a35e'; g.beginPath(); g.arc(cx + u * s, cy + v * s, 3, 0, 7); g.fill(); });
     if (c.id === 'dd') { const e = CHECKS[cur].e(kOf()) / sp.um * c.exi * s; g.strokeStyle = css('--img-jig'); g.setLineDash([3, 3]); g.beginPath(); g.arc(cx, cy, e, 0, 7); g.stroke(); g.setLineDash([]); }
     if (c.id === 'rot' && st.trail && st.trail.length >= 2) { const L = linfit(st.trail); g.strokeStyle = css('--img-jig'); g.setLineDash([4, 3]); g.beginPath(); g.moveTo(0, cy + (L.a + L.b * (-W / 2 / s)) * s); g.lineTo(W, cy + (L.a + L.b * (W / 2 / s)) * s); g.stroke(); g.setLineDash([]); }
-    const mx = cx + img.u * s, my = cy + img.v * s, blur = clamp(img.blur || 0, 0, 1);
+    if (img.hide) { g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '12px ' + css('--f-body'); g.fillText('平台移動中（料不在視野內）', 10, 18); }
+    const mx = img.hide ? -999 : cx + img.u * s, my = img.hide ? -999 : cy + img.v * s, blur = clamp(img.blur || 0, 0, 1);
     if (blur > 0.02) {
       const gr = g.createRadialGradient(mx, my, Math.max(0, rMark * (1 - blur * 0.9)), mx, my, rMark * (1 + blur * 1.4));
       gr.addColorStop(0, css('--img-mark')); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr;
