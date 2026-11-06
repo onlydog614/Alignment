@@ -178,7 +178,7 @@ label.btn{display:inline-block}
 .mkintro p{margin:6px 0}
 .mkflow{display:flex;flex-wrap:wrap;gap:6px 18px;padding-left:1.3em;margin:8px 0 12px;font-size:.9rem}
 .mkflow li{margin:0;max-width:none}
-.mksub{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mksub{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .mksb{appearance:none;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:8px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:1px;min-width:0}
 .mksb span{font-weight:600;font-size:.92rem}.mksb small{font-size:.74rem;color:var(--muted)}
 .mksb:hover{border-color:var(--accent)}
@@ -235,6 +235,19 @@ html[data-layout="mobile"] .vkbtn small{display:none}
 html[data-layout="mobile"] #vk3d{aspect-ratio:4/3;max-height:46vh}
 html[data-layout="mobile"] .vkr{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
 html[data-layout="mobile"] #vkimg{max-width:300px;margin:0 auto}
+.zcsvg{display:block;width:100%;max-width:460px;margin-left:auto;margin-right:auto;height:auto;background:var(--stage);border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.zcsvg .zc-t{font:11px var(--f-body);fill:var(--ink)}
+.zcsvg .zc-d{fill:var(--accent);font-weight:600}.zcsvg .zc-pt{fill:var(--hot);font-weight:600}
+.zcsvg .zc-part{fill:color-mix(in srgb,var(--p1) 22%,var(--panel));stroke:var(--p1);stroke-width:1.5}
+.zcsvg .zc-rot{fill:none;stroke:var(--accent);stroke-width:1.8;stroke-dasharray:5 3}
+.zcsvg .zc-cn{stroke:var(--ink);stroke-width:1}
+.zcsvg .zc-piv{fill:none;stroke:var(--hot);stroke-width:2.2}
+.zcsvg .zc-arr{stroke:var(--hot);stroke-width:2}.zcsvg .zc-ah{fill:var(--hot)}
+.zcsvg .zc-tray{fill:var(--m-steel);opacity:.7}.zcsvg .zc-chuck{fill:var(--m-dark);opacity:.85}
+.zctbl{width:100%}.zctbl tr.zc-h td{font-weight:700;background:var(--soft)}
+.zctbl td:nth-child(2){font:.8rem var(--f-mono);color:var(--muted)}
+html[data-layout="mobile"] .mksub{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+html[data-layout="mobile"] .mksb:last-child{grid-column:1/-1}
 /* 千分表架設示範（移植） */
 .mk{--surface:var(--panel);--fg:var(--ink);--accent-soft:color-mix(in srgb,var(--accent) 16%,var(--panel));--warn:var(--p2);--warn-soft:color-mix(in srgb,var(--p2) 16%,var(--panel));--font-body:var(--f-body);--font-mono:var(--f-mono);font-size:15px;line-height:1.6}
 .mk h2,.mk h3{letter-spacing:normal}
@@ -635,6 +648,7 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
         <button class="mksb" role="tab" data-sub="dial1" aria-selected="false"><span>千分錶：X 軸偏擺與直線度</span><small>兩支表頂直規</small></button>
         <button class="mksb" role="tab" data-sub="dial2" aria-selected="false"><span>千分錶：Y 滑座重心耦合</span><small>X 移動時 Y 滑座會不會轉</small></button>
         <button class="mksb" role="tab" data-sub="dial3" aria-selected="false"><span>導軌調整</span><small>靠邊、鎖緊、平行度</small></button>
+        <button class="mksb" role="tab" data-sub="zcalc" aria-selected="false"><span>Z 四角高低差 → 貼附誤差</span><small>公式計算＋圖解</small></button>
       </div>
     </div>
     <div id="vk" class="vk">
@@ -659,6 +673,42 @@ dY = b₀ + b₁·X + b₂·Y + b₃·Δθ
         </div>
       </div>
       <article class="card" id="vkdoc"></article>
+    </div>
+    <div id="zc" class="zc" hidden>
+      <div class="card">
+        <h3>Z 四角高低差會造成多少貼附誤差</h3>
+        <p>吸盤（或貼附面）四個角高低不同時，料不會同時碰到貼附面：<b>最高的角先碰到</b>，被摩擦卡住變成支點。Z 繼續往上走時，只要 Z 軸不是完全垂直，平台就會跟著橫移一點點，料就繞著這個支點轉。高低差本身造成的平移很小，真正的放大器是「單角先接觸＋Z 斜行」。</p>
+        <div class="two">
+          <div>
+            <div class="chips" id="zcpresets"></div>
+            <div id="zcin"></div>
+          </div>
+          <div>
+            <svg id="zctop" class="zcsvg" viewBox="0 0 340 250" role="img" aria-label="俯視圖：四角高度、支點與轉動"></svg>
+            <svg id="zcside" class="zcsvg" viewBox="0 0 340 190" role="img" aria-label="側視圖：先接觸與 Z 斜行"></svg>
+            <p class="note" id="zccap" style="margin:4px 0">—</p>
+            <div class="ctrl"><button class="btn primary" id="zcplay" aria-pressed="false">播放</button><input type="range" id="zcz" min="0" max="1000" value="1000" aria-label="Z 行程" style="flex:1;min-width:120px"></div>
+          </div>
+        </div>
+        <p class="lead" id="zcsum" style="margin-top:14px"></p>
+        <div class="tbl" id="zcres"></div>
+        <h4>公式</h4>
+<pre>四角高度 h左上、h右上、h左下、h右下（µm，越大越先碰到）
+左右傾斜 αx = [(h右上 + h右下) − (h左上 + h左下)] ÷ (2·Lx)
+前後傾斜 αy = [(h左上 + h右上) − (h左下 + h右下)] ÷ (2·Ly)
+扭曲     w  = [(h左上 + h右下) − (h右上 + h左下)] ÷ 2
+行程差   g  = h最高 − h最低
+
+① 傾斜造成 Mark 平移   Δ = t · α          （t = Mark 到接觸面的高度）
+② Mark 間距縮短        ΔL = L · α² ÷ 2
+③ 單角先接觸＋Z 斜行：
+   接觸後 Z 還要走      z = g + p          （p = 貼平後再壓的量）
+   平台橫移             s = z · (Z 每 mm 的 XY 偏移)
+   以最高角為支點轉動   θz = (r × s) ÷ |r|²  （r = 料中心 − 支點）
+   角落位移             δ = θz · 角落到支點的距離
+反推：θ實測 · |r| = 需要的橫移 → ÷ z 得到需要的 Z 斜度</pre>
+        <p class="note">③ 假設先接觸的角被摩擦卡住不滑、其餘部分跟著平台走（最壞情況）。實際摩擦較小時轉動會比較少；貼附面若有彈性墊，下壓量 p 要用墊子的壓縮量。</p>
+      </div>
     </div>
 <div class="mk" id="mk-dial">
       <div class="mk-tabs" role="tablist" hidden>
