@@ -94,8 +94,9 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
   <section class="panel">
     <div class="controls" style="margin:0">
       <strong>機台 X 方向（實體）</strong>
-      <label for="dirL">左側機台 X <select id="dirL"><option value="-1">由右至左</option><option value="1">由左至右</option></select></label>
-      <label for="dirR">右側機台 X <select id="dirR"><option value="-1">由右至左</option><option value="1">由左至右</option></select></label>
+      <label for="dirL">左側機台 X <select id="dirL"><option value="1" selected>由左至右（原點在左）</option><option value="-1">由右至左</option></select></label>
+      <label for="dirR">右側機台 X <select id="dirR"><option value="-1" selected>由右至左（原點在右）</option><option value="1">由左至右</option></select></label>
+      <label for="msym">左右片子 Mark 位置 <select id="msym"><option value="same">實體同向（Mark 都在片子同一角）</option><option value="mirror">左右鏡像對稱</option></select></label>
     </div>
   </section>
 
@@ -310,7 +311,7 @@ const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
 const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
 const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
 const isR=c=>c>6, ck=k=>k.split("-").map(Number);
-let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:-1,R:-1}, IDX={}, MODE="B";
+let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:1,R:-1}, MSYM=false, IDX={}, MODE="B";
 let OPT={py:144,pxSrc:"meas",pxD:135,th:{"1-1":[NaN,NaN],"1-7":[NaN,NaN]}};
 // 由輸入產生 8 個角點：模式 A 只用第 1 列兩端，第 2 列沿垂直方向推 Y 中心間距
 function deriveP(){P=JSON.parse(JSON.stringify(RAW));if(MODE!=="A")return;
@@ -321,7 +322,7 @@ const sOf=c=>isR(c)?D.R:D.L;
 let DD=null; // 片子圖面：Mark→片子中心偏移（SPB 方向）與片子尺寸，由實測校驗求得
 const rot2=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];};
 // 偏移向量換到另一側機台：兩側 X 方向相同時不變；相反時 X 分量變號（鏡像）
-const adp=(v,c,refC)=>[sOf(c)*sOf(refC)*v[0],v[1]];
+const adp=(v,c,refC)=>[(MSYM&&isR(c)!==isR(refC)?-1:1)*sOf(c)*sOf(refC)*v[0],v[1]];
 function tileOf(m){if(!DD)return null;const t=m.th*Math.PI/180,sg=sOf(m.c),c=add(m.p,rot2(adp(DD.dD,m.c,DD.refC),t));
   const cr=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>add(c,rot2([sg*a*DD.W/2,b*DD.H/2],t)));return{c,cr};}
 
@@ -721,13 +722,14 @@ function formula(R){
   const rows=[["左側",1,"1-1",R.Lm],["右側",7,"1-7",R.Rm]].map(([n,c,id,S])=>{const s=sOf(c),th=deg(S.e.r1),m=S.marks.find(m=>m.id===id);
     const d=DD?adp(DD.dD,c,DD.refC):null,ctr=d?add(m.p,rot2(d,th*Math.PI/180)):null;return{n,c,id,s,th,d,ctr,m,S};});
   const same=rows[0].s===rows[1].s;
-  document.getElementById("fmTbl").innerHTML="<tr><th>側</th><th>機台 X 方向 s</th><th>θ（機台，第1列）</th><th>實體角度 s·θ</th><th>Mark→中心 d（該側機台）</th><th>中心公式</th><th>例："+rows.map(r=>r.id).join("／")+" 中心</th></tr>"+
-    rows.map(r=>`<tr><td>${r.n}</td><td>${r.s>0?"+1（左→右）":"−1（右→左）"}</td><td>${f5(r.th)}°</td><td>${f5(r.s*r.th)}°</td><td>${r.d?`${sg4(r.d[0])}, ${sg4(r.d[1])}`:"—"}</td><td style="font-family:var(--font-ui)">Mark + R(${f5(r.th)}°)·d</td><td>${r.ctr?`${f4(r.ctr[0])}, ${f4(r.ctr[1])}`:"—"}</td></tr>`).join("");
+  document.getElementById("fmTbl").innerHTML="<tr><th>側</th><th>機台 X 方向 s</th><th>θ（機台，第1列）</th><th>實體角度 s·θ</th><th>機台 +θ 看起來</th><th>Mark→中心 d（該側機台）</th><th>中心公式</th><th>例："+rows.map(r=>r.id).join("／")+" 中心</th></tr>"+
+    rows.map(r=>`<tr><td>${r.n}</td><td>${r.s>0?"+1（左→右）":"−1（右→左）"}</td><td>${f5(r.th)}°</td><td>${f5(r.s*r.th)}°</td><td style="font-family:var(--font-ui)">${r.s>0?"順時針":"逆時針"}</td><td>${r.d?`${sg4(r.d[0])}, ${sg4(r.d[1])}`:"—"}</td><td style="font-family:var(--font-ui)">Mark + R(${f5(r.th)}°)·d</td><td>${r.ctr?`${f4(r.ctr[0])}, ${f4(r.ctr[1])}`:"—"}</td></tr>`).join("");
   document.getElementById("fmFind").innerHTML=[
     same?`目前左右機台 X 方向相同（皆${rows[0].s>0?"由左至右":"由右至左"}），兩側在各自機台座標下<b>公式完全相同</b>：中心 = Mark + R(θ)·d，d 相同（${rows[0].d?`${sg4(rows[0].d[0])}, ${sg4(rows[0].d[1])}`:"—"}），只有 θ 與 Mark 數值不同（左 ${f5(rows[0].th)}°、右 ${f5(rows[1].th)}°）。`
-        :`目前左右機台 X 方向相反：右側偏移 d 的 X 分量要變號（左 ${rows[0].d?sg4(rows[0].d[0]):"—"} / 右 ${rows[1].d?sg4(rows[1].d[0]):"—"}），實體角度也要乘 s 才能比較；公式形式相同但參數鏡像。`,
+        :`目前左右機台 X 方向相反（鏡像）：各側在自己機台座標下公式形式相同（中心 = Mark + R(θ)·d），但 <b>d 的 X 分量相反</b>（左 ${rows[0].d?sg4(rows[0].d[0]):"—"}、右 ${rows[1].d?sg4(rows[1].d[0]):"—"}），且<b>機台 +θ 的實際轉向相反</b>（左側 +θ 看起來順時針、右側 +θ 看起來逆時針；以上方 Y 小、下方 Y 大的俯視方向）。`,
+    `旋轉平台：兩台平台若實體正方向相同（例如都是逆時針為正），左側下給平台的角度要用 −θ、右側用 +θ（或反之，視平台定義）；若平台也是鏡像安裝則兩側都直接用 θ。請兩側各點動 +0.1° 確認。`,
     `換成實體方向比較：左 ${f5(rows[0].s*rows[0].th)}°、右 ${f5(rows[1].s*rows[1].th)}°，${Math.sign(rows[0].s*rows[0].th)===Math.sign(rows[1].s*rows[1].th)?"同方向":"方向相反"}，差 ${f5(rows[1].s*rows[1].th-rows[0].s*rows[0].th)}°。`,
-    `需要另外確認的是兩台旋轉平台的正方向：若某一側平台 +θ 實際轉向與機台 θ 定義相反，該側下給平台的角度要變號（−θ）。點動 +0.1° 看片子右上角往哪走即可確認。`,
+    same?`需要另外確認的是兩台旋轉平台的正方向：若某一側平台 +θ 實際轉向與機台 θ 定義相反，該側下給平台的角度要變號（−θ）。點動 +0.1° 看片子右上角往哪走即可確認。`:`d 的 Y 分量與片子尺寸兩側相同；左側 d 由右側 1-11 實測鏡像推得（假設片子 Mark 在實體同一角），建議左側也量一片四個 Mark 驗證。`,
     `貼合平移（相機→貼合）兩側各自不同，只能各側分別實測，不能共用。`].map(t=>`<li>${t}</li>`).join("");}
 function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);formula(R);inputResult(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
@@ -752,6 +754,7 @@ document.getElementById("thClr").addEventListener("click",()=>{OPT.th={"1-1":[Na
 applyMode();
 document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value;render();});
 document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
+document.getElementById("msym").addEventListener("input",e=>{MSYM=e.target.value==="mirror";render();});
 document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:300,rigid:300}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 {const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
