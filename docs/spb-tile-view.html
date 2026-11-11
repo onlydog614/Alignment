@@ -254,6 +254,10 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
     </div>
     <div class="stats" id="stStats" style="margin-bottom:12px"></div>
     <ul class="findings" id="stFind" style="margin-bottom:12px"></ul>
+    <h2 style="margin-top:14px">左右兩側旋轉補償公式</h2>
+    <p class="note">R(θ) = [[cosθ, −sinθ], [sinθ, cosθ]]，θ 為該側機台座標（+X → +Y 為正）。預放中心 = Mark + R(θ)·d；片子四角 = 中心 + R(θ)·(s·(±W/2), ±H/2)；旋轉平台轉 θ（平台正方向需與機台 θ 定義一致，請以點動確認）。s 為該側機台 X 相對實體左→右的方向（+1 同向、−1 反向），實體角度 = s·θ。</p>
+    <div class="tablebox"><table id="fmTbl"></table></div>
+    <ul class="findings" id="fmFind" style="margin:10px 0 14px"></ul>
     <div class="tablebox" style="max-height:460px;overflow:auto"><table id="stTbl"></table></div>
   </section>
 
@@ -316,7 +320,9 @@ function deriveP(){P=JSON.parse(JSON.stringify(RAW));if(MODE!=="A")return;
 const sOf=c=>isR(c)?D.R:D.L;
 let DD=null; // 片子圖面：Mark→片子中心偏移（SPB 方向）與片子尺寸，由實測校驗求得
 const rot2=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];};
-function tileOf(m){if(!DD)return null;const t=m.th*Math.PI/180,sg=sOf(m.c),c=add(m.p,rot2(DD.dD,t));
+// 偏移向量換到另一側機台：兩側 X 方向相同時不變；相反時 X 分量變號（鏡像）
+const adp=(v,c,refC)=>[sOf(c)*sOf(refC)*v[0],v[1]];
+function tileOf(m){if(!DD)return null;const t=m.th*Math.PI/180,sg=sOf(m.c),c=add(m.p,rot2(adp(DD.dD,m.c,DD.refC),t));
   const cr=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>add(c,rot2([sg*a*DD.W/2,b*DD.H/2],t)));return{c,cr};}
 
 function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
@@ -556,7 +562,7 @@ function calib(R){
     const mx=solve(A,bx),my=solve(A,by),T=q=>[mx[0]*q[0]+mx[1]*q[1]+mx[2],my[0]*q[0]+my[1]*q[1]+my[2]];
     const cP=T([W/2,H/2]),cM=[sg*cP[0],cP[1]],sx=Math.hypot(mx[0],my[0]),sy=Math.hypot(mx[1],my[1]);
     const resid=Math.max(...Q.map((q,i)=>len(sub(T(q),Pp[i]))));
-    const dc=sub(cam,cM);dD=rot(sub(cM,m0.p),-rad(m0.th));DD={dD,W,H};
+    const dc=sub(cam,cM);dD=rot(sub(cM,m0.p),-rad(m0.th));DD={dD,W,H,refC:m0.c};
     const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>{const t=T(q);return[sg*t[0],t[1]];});
     const ss=isR(m0.c)?R.Rm:R.Lm;
     const it=[["圖面中心（機台）",`${f4(cM[0])}, ${f4(cM[1])}`,`圖面 (${W/2}, ${H/2}) 經四角 Mark 擬合`],
@@ -574,9 +580,9 @@ function calib(R){
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
   const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
   document.getElementById("calTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ（列向）</th><th>相機中心 X（原）</th><th>相機中心 Y（原）</th><th>Mark 四點中心 X</th><th>Mark 四點中心 Y</th><th>圖面中心 X</th><th>圖面中心 Y</th><th>貼合 X</th><th>貼合 Y</th><th>備註</th></tr>"+
-    list.map(m=>{const c=add(m.p,rot(dS,rad(m.th))),same=isR(m.c)===refR,ok=same||scope==="all",b=add(c,dB);
+    list.map(m=>{const c=add(m.p,rot(adp(dS,m.c,m0.c),rad(m.th))),same=isR(m.c)===refR,ok=same||scope==="all",b=add(c,dB);
       const note=m.id===ref?"基準（實測）":same?"同側推算":(ok?"另一側：假設同平移":"另一側需實測");
-      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f4(c[0])}</td><td>${f4(c[1])}</td>${dT?(()=>{const t=add(m.p,rot(dT,rad(m.th)));return`<td>${f4(t[0])}</td><td>${f4(t[1])}</td>`;})():"<td>—</td><td>—</td>"}${dD?(()=>{const t=add(m.p,rot(dD,rad(m.th)));return`<td><b>${f4(t[0])}</b></td><td><b>${f4(t[1])}</b></td>`;})():"<td>—</td><td>—</td>"}<td>${ok?f4(b[0]):"—"}</td><td>${ok?f4(b[1]):"—"}</td><td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
+      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f4(c[0])}</td><td>${f4(c[1])}</td>${dT?(()=>{const t=add(m.p,rot(adp(dT,m.c,m0.c),rad(m.th)));return`<td>${f4(t[0])}</td><td>${f4(t[1])}</td>`;})():"<td>—</td><td>—</td>"}${dD?(()=>{const t=add(m.p,rot(adp(dD,m.c,m0.c),rad(m.th)));return`<td><b>${f4(t[0])}</b></td><td><b>${f4(t[1])}</b></td>`;})():"<td>—</td><td>—</td>"}<td>${ok?f4(b[0]):"—"}</td><td>${ok?f4(b[1]):"—"}</td><td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
 
 // ---- 角度敏感度
 function evalPoints(R){
@@ -588,7 +594,7 @@ function evalPoints(R){
   const mode=document.getElementById("ptSel").value,pts=[];
   marks.forEach(m=>{
     if(mode==="mark"||!dCs){pts.push({id:m.id,q:toPhys(m.p,m.c,C)});return;}
-    const cr=dCs.map(d=>add(m.p,rot(d,rad(m.th)))).map(p=>toPhys(p,m.c,C));
+    const cr=dCs.map(d=>add(m.p,rot(adp(d,m.c,m0.c),rad(m.th)))).map(p=>toPhys(p,m.c,C));
     if(mode==="center")pts.push({id:m.id,q:mul(cr.reduce(add),.25)});
     else ["左上","右上","左下","右下"].forEach((n,i)=>pts.push({id:m.id,corner:n,q:cr[i]}));});
   const refC=dCs?toPhys(mul(dCs.map(d=>add(m0.p,rot(d,rad(m0.th)))).reduce(add),.25),m0.c,C):toPhys(m0.p,m0.c,C);
@@ -707,9 +713,23 @@ function inputResult(R){const rad=d=>d*Math.PI/180;
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
   const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
   document.getElementById("inTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ（該列）</th><th>預放中心 X</th><th>預放中心 Y</th><th>來源</th></tr>"+
-    list.map(m=>{const c=DD?add(m.p,rot2(DD.dD,rad(m.th))):null;
+    list.map(m=>{const c=DD?add(m.p,rot2(adp(DD.dD,m.c,DD.refC),rad(m.th))):null;
       return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td><b>${c?f4(c[0]):"—"}</b></td><td><b>${c?f4(c[1]):"—"}</b></td><td style="font-family:var(--font-ui)">${m.meas?"實測":m.est?"推算（第 2 列）":"內插"}</td></tr>`;}).join("");}
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);inputResult(R);
+
+// ---- 左右兩側旋轉補償公式
+function formula(R){
+  const rows=[["左側",1,"1-1",R.Lm],["右側",7,"1-7",R.Rm]].map(([n,c,id,S])=>{const s=sOf(c),th=deg(S.e.r1),m=S.marks.find(m=>m.id===id);
+    const d=DD?adp(DD.dD,c,DD.refC):null,ctr=d?add(m.p,rot2(d,th*Math.PI/180)):null;return{n,c,id,s,th,d,ctr,m,S};});
+  const same=rows[0].s===rows[1].s;
+  document.getElementById("fmTbl").innerHTML="<tr><th>側</th><th>機台 X 方向 s</th><th>θ（機台，第1列）</th><th>實體角度 s·θ</th><th>Mark→中心 d（該側機台）</th><th>中心公式</th><th>例："+rows.map(r=>r.id).join("／")+" 中心</th></tr>"+
+    rows.map(r=>`<tr><td>${r.n}</td><td>${r.s>0?"+1（左→右）":"−1（右→左）"}</td><td>${f5(r.th)}°</td><td>${f5(r.s*r.th)}°</td><td>${r.d?`${sg4(r.d[0])}, ${sg4(r.d[1])}`:"—"}</td><td style="font-family:var(--font-ui)">Mark + R(${f5(r.th)}°)·d</td><td>${r.ctr?`${f4(r.ctr[0])}, ${f4(r.ctr[1])}`:"—"}</td></tr>`).join("");
+  document.getElementById("fmFind").innerHTML=[
+    same?`目前左右機台 X 方向相同（皆${rows[0].s>0?"由左至右":"由右至左"}），兩側在各自機台座標下<b>公式完全相同</b>：中心 = Mark + R(θ)·d，d 相同（${rows[0].d?`${sg4(rows[0].d[0])}, ${sg4(rows[0].d[1])}`:"—"}），只有 θ 與 Mark 數值不同（左 ${f5(rows[0].th)}°、右 ${f5(rows[1].th)}°）。`
+        :`目前左右機台 X 方向相反：右側偏移 d 的 X 分量要變號（左 ${rows[0].d?sg4(rows[0].d[0]):"—"} / 右 ${rows[1].d?sg4(rows[1].d[0]):"—"}），實體角度也要乘 s 才能比較；公式形式相同但參數鏡像。`,
+    `換成實體方向比較：左 ${f5(rows[0].s*rows[0].th)}°、右 ${f5(rows[1].s*rows[1].th)}°，${Math.sign(rows[0].s*rows[0].th)===Math.sign(rows[1].s*rows[1].th)?"同方向":"方向相反"}，差 ${f5(rows[1].s*rows[1].th-rows[0].s*rows[0].th)}°。`,
+    `需要另外確認的是兩台旋轉平台的正方向：若某一側平台 +θ 實際轉向與機台 θ 定義相反，該側下給平台的角度要變號（−θ）。點動 +0.1° 看片子右上角往哪走即可確認。`,
+    `貼合平移（相機→貼合）兩側各自不同，只能各側分別實測，不能共用。`].map(t=>`<li>${t}</li>`).join("");}
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);formula(R);inputResult(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
