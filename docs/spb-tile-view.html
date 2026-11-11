@@ -229,6 +229,22 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
     </div>
   </section>
 
+  <section data-tab="angle" class="panel">
+    <h2>旋轉平台補償（平台 200 × 200，中心旋轉）</h2>
+    <p class="note">預放 X、Y 直接用量測內插的位置（已含 SPB 斜率），角度全部交給旋轉平台：平台在中心轉 θ，tile 若放在平台中心，轉動只改變方向、不移動中心；tile 中心偏離旋轉中心 e 時，中心會移動 e·θ。平台只轉單片，所以預放 X、Y 不能改用無角度的直線格點。</p>
+    <div class="controls">
+      <label for="stSize">平台尺寸 (mm)<input id="stSize" inputmode="decimal" value="200" style="width:60px"></label>
+      <label for="stEx">tile 中心偏離旋轉中心 ex<input id="stEx" inputmode="decimal" value="0" style="width:60px"></label>
+      <label for="stEy">ey<input id="stEy" inputmode="decimal" value="0" style="width:60px"></label>
+      <label for="stRes">平台角度解析度 (°)<input id="stRes" inputmode="decimal" value="0.001" style="width:70px"></label>
+      <label for="stRef">θ 基準
+        <select id="stRef"><option value="mark">Mark 局部 θ</option><option value="corner">預放位置四角 θ（Mark + 四角差）</option></select></label>
+    </div>
+    <div class="stats" id="stStats" style="margin-bottom:12px"></div>
+    <ul class="findings" id="stFind" style="margin-bottom:12px"></ul>
+    <div class="tablebox" style="max-height:460px;overflow:auto"><table id="stTbl"></table></div>
+  </section>
+
   <section data-tab="input" class="panel">
     <h2>量測輸入</h2>
     <p class="note">預設為兩份 Spb tile mark 備忘錄的數值；改數字會即時重算。</p>
@@ -555,7 +571,41 @@ const TABS=["overview","map","data","calib","angle","input"];
 const fromHash=()=>{const h=location.hash.slice(1);return TABS.includes(h)?h:"overview";};
 document.querySelectorAll("#mainTabs button").forEach(b=>b.addEventListener("click",()=>{try{history.replaceState(null,"","#"+b.dataset.go);}catch(e){}showTab(b.dataset.go);}));
 window.addEventListener("hashchange",()=>showTab(fromHash()));
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);calib(R);angle(R);
+
+// ---- 旋轉平台補償
+function stage(R){
+  const num=id=>parseFloat(document.getElementById(id).value),rad=d=>d*Math.PI/180;
+  const size=num("stSize")||200,e=[num("stEx")||0,num("stEy")||0],res=Math.abs(num("stRes"))||0.001,refMode=document.getElementById("stRef").value;
+  const cs=["tl","tr","bl","br"].map(k=>[num(k+"X"),num(k+"Y")]),ok=cs.every(q=>q.every(isFinite));
+  const W=ok?(len(sub(cs[0],cs[1]))+len(sub(cs[2],cs[3])))/2:117.03,H=ok?(len(sub(cs[2],cs[0]))+len(sub(cs[3],cs[1])))/2:132.10;
+  let dCorner=0;const ts=document.getElementById("tileStats").querySelector(".stat:nth-child(2) .v");if(refMode==="corner"&&ts)dCorner=parseFloat(ts.textContent)||0;
+  const rT=Math.hypot(W/2+Math.abs(e[0]),H/2+Math.abs(e[1])),fits=W<=size&&H<=size,diag=Math.hypot(W,H);
+  const marks=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
+  const xArm=H/2+Math.abs(e[1]),yArm=W/2+Math.abs(e[0]);
+  const a1X=Math.asin(Math.min(1,1/xArm))*180/Math.PI,a1Y=Math.asin(Math.min(1,1/yArm))*180/Math.PI;
+  const resErr=rad(res/2)*rT*1000;
+  const ths=marks.map(m=>m.th+dCorner),thMin=Math.min(...ths),thMax=Math.max(...ths);
+  const items=[["tile 尺寸 / 平台",`${W.toFixed(1)} × ${H.toFixed(1)} / ${size}`,fits?(diag<=size?"轉動時對角線也在平台內":`對角線 ${diag.toFixed(1)} mm 超出平台，注意干涉`):"tile 大於平台",!fits],
+    ["平台需轉角度範圍",`${f5(thMin)}° ~ ${f5(thMax)}°`,`24 位置差 ${(thMax-thMin).toFixed(4)}°，需逐片設定`],
+    ["每 0.01° 角落移動",`${(rad(.01)*rT*1000).toFixed(1)} µm`,`角落半徑 ${rT.toFixed(1)} mm`],
+    ["X 偏 1 mm 需轉",`${a1X.toFixed(3)}°`,`Y 方向臂長 ${xArm.toFixed(1)} mm（Y 偏 1 mm 需 ${a1Y.toFixed(3)}°）`],
+    ["解析度造成角落誤差",`±${resErr.toFixed(1)} µm`,`解析度 ${res}°（取半格）`,resErr>10],
+    ["中心偏離造成移動",`${(rad(Math.max(Math.abs(thMin),Math.abs(thMax)))*len(e)*1000).toFixed(1)} µm`,`|e| = ${len(e).toFixed(2)} mm × 最大 θ`]];
+  document.getElementById("stStats").innerHTML=items.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:16px">${v}</div><div class="d">${d}</div></div>`).join("");
+  const orth=deg(R.Rm.thx-R.Rm.thy);
+  document.getElementById("stFind").innerHTML=[
+    `可行：預放 X、Y 用內插位置（不另外加角度換算），角度 ${f5(thMin)}°～${f5(thMax)}° 全部由平台逐片轉。tile 放在平台中心時，轉 0.07° 只讓角落移動 ${(rad(.07)*rT*1000).toFixed(0)} µm，中心不動。`,
+    `不可行的做法：若預放 X、Y 改成無角度直線格點，同一側一列兩端 Y 會差約 ${(675*Math.tan(rad(Math.abs(thMax)))).toFixed(2)} mm；平台只轉單片，補不回這個位置誤差。`,
+    `平台角度在這個尺寸下不敏感：X 偏 1 mm 要轉 ${a1X.toFixed(2)}°，目前所需角度只有 0.07° 左右。解析度 ${res}° 對角落只造成 ±${resErr.toFixed(1)} µm。`,
+    `tile 中心偏離旋轉中心 1 mm，轉 0.07° 中心只移 ${(rad(.07)*1000).toFixed(1)} µm，放置偏心影響很小；偏心 10 mm 也只有 ${(rad(.07)*10*1000).toFixed(0)} µm。`,
+    `量測軸直交誤差 ${f5(orth)}° 旋轉補不掉，tile 高 ${H.toFixed(0)} mm 上約 ${(Math.abs(rad(orth))*H*1000).toFixed(0)} µm，需在相機／軸校正處理。`,
+    `θ 基準：${refMode==="corner"?`以預放位置四角為準（Mark θ 再加 ${f5(dCorner)}°）`:"以 Mark 局部 θ 為準"}；兩者差 0.0835°，角落差約 ${(rad(.0835)*rT*1000).toFixed(0)} µm，需先確認要對哪一個。`].map(t=>`<li>${t}</li>`).join("");
+  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
+  document.getElementById("stTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>平台轉 θ（該側機台）</th><th>角落移動 (µm)</th><th>偏心造成中心移動 (µm)</th></tr>"+
+    marks.map((m,i)=>{const t=ths[i],c=[Math.cos(rad(t))-1,Math.sin(rad(t))],mv=[c[0]*e[0]-c[1]*e[1],c[1]*e[0]+c[0]*e[1]];
+      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(t)}°</td><td>${(Math.abs(rad(t))*rT*1000).toFixed(1)}</td><td>${(len(mv)*1000).toFixed(1)}</td></tr>`;}).join("");
+}
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);calib(R);angle(R);stage(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
@@ -568,7 +618,7 @@ document.getElementById("base").addEventListener("input",e=>{document.getElement
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 {const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
 ["refId","camX","camY","bondX","bondY","bondScope","tlX","tlY","trX","trY","blX","blY","brX","brY"].forEach(id=>document.getElementById(id).addEventListener("input",render));
-["rcSel","rcX","rcY","thr","amax","ptSel"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+["rcSel","rcX","rcY","thr","amax","ptSel","stSize","stEx","stEy","stRes","stRef"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 render();
 showTab(fromHash());
 </script>
