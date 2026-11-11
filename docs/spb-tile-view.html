@@ -198,7 +198,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
 
   <section data-tab="angle" class="panel">
     <h2>SPB 角度變化 → 預放位置偏移</h2>
-    <p class="note">整片 SPB 繞旋轉中心轉 Δθ 時，每個點的偏移：ΔX = (cosΔθ − 1)(x − x<sub>c</sub>) − sinΔθ·(y − y<sub>c</sub>)，ΔY = sinΔθ·(x − x<sub>c</sub>) + (cosΔθ − 1)(y − y<sub>c</sub>)。X 偏移主要由「Y 方向離旋轉中心多遠」決定，Y 偏移由「X 方向多遠」決定。0.01° ＝ 174.5 µrad，每 100 mm 臂長偏 17.45 µm。以實體座標計算（兩側合併），評估點為 24 個預放位置四角。</p>
+    <p class="note"><b>方向：</b>機台座標 θ＋ 為 X→Y（俯視、上方 Y 小、右方 X 小時為逆時針）。機台 +θ 時，旋轉中心「下方」（Y 較大）的點往右、「上方」的點往左；所以「X 往右偏」是正還是負旋轉，要看該點在旋轉中心上方或下方。全部位置都往右同量偏移則是平移，不是旋轉。實際 θ 軸正方向請以點動確認。<br>整片 SPB 繞旋轉中心轉 Δθ 時，每個點的偏移：ΔX = (cosΔθ − 1)(x − x<sub>c</sub>) − sinΔθ·(y − y<sub>c</sub>)，ΔY = sinΔθ·(x − x<sub>c</sub>) + (cosΔθ − 1)(y − y<sub>c</sub>)。X 偏移主要由「Y 方向離旋轉中心多遠」決定，Y 偏移由「X 方向多遠」決定。0.01° ＝ 174.5 µrad，每 100 mm 臂長偏 17.45 µm。以實體座標計算（兩側合併），評估點為 24 個預放位置四角。</p>
     <div class="controls">
       <label for="rcSel">旋轉中心
         <select id="rcSel">
@@ -543,9 +543,9 @@ function angle(R){
     rows.map(r=>`<tr class="${r===fx?"first":r.mx>=thr?"hit":""}"><td>${r.a.toFixed(2)}°</td><td>${r.mx.toFixed(4)}</td><td>${lbl(r.px)}</td><td>${r.my.toFixed(4)}</td><td>${lbl(r.py)}</td></tr>`).join("");
   const byId={};pts.forEach(p=>{const arm=Math.abs(p.q[1]-rc[1]);if(!byId[p.id]||arm>byId[p.id].arm)byId[p.id]={arm,p};});
   const ord=Object.keys(byId).sort((a,b)=>{const[ra,ca]=ck(a),[rb,cb]=ck(b);return ra-rb||ca-cb;});
-  document.getElementById("angPos").innerHTML="<tr><th>預放位置</th><th>最遠點</th><th>Y 臂長 (mm)</th><th>X 達門檻角度</th><th>0.01° 時 ΔX (µm)</th></tr>"+
+  document.getElementById("angPos").innerHTML="<tr><th>預放位置</th><th>最遠點</th><th>Y 臂長 (mm)</th><th>X 達門檻角度</th><th>0.01° 時 ΔX (µm)</th><th>機台 +θ 時 X 往</th><th>往右偏需</th></tr>"+
     ord.map(id=>{const{arm,p}=byId[id],a=arm>thr?Math.asin(thr/arm)*180/Math.PI:Infinity;
-      return`<tr><td>${id}</td><td>${p.corner||"—"}</td><td>${arm.toFixed(2)}</td><td>${isFinite(a)?a.toFixed(4)+"°":"—"}</td><td>${(arm*Math.sin(rad(.01))*1000).toFixed(1)}</td></tr>`;}).join("");
+      return`<tr><td>${id}</td><td>${p.corner||"—"}</td><td>${arm.toFixed(2)}</td><td>${isFinite(a)?a.toFixed(4)+"°":"—"}</td><td>${(arm*Math.sin(rad(.01))*1000).toFixed(1)}</td><td>${p.q[1]>rc[1]?"右":"左"}</td><td>${p.q[1]>rc[1]?"+θ（逆時針）":"−θ（順時針）"}</td></tr>`;}).join("");
 }
 
 // ---- 分頁
