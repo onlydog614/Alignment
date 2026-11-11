@@ -94,9 +94,9 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
   <section class="panel">
     <div class="controls" style="margin:0">
       <strong>機台 X 方向（實體）</strong>
-      <label for="dirL">左側機台 X <select id="dirL"><option value="1" selected>由左至右（原點在中央，往左為負）</option><option value="-1">由右至左</option></select></label>
+      <label for="dirL">左側機台 X <select id="dirL"><option value="-1" selected>由右至左（原點在左，往右數值變小）</option><option value="1">由左至右</option></select></label>
       <label for="dirR">右側機台 X <select id="dirR"><option value="-1" selected>由右至左（原點在右）</option><option value="1">由左至右</option></select></label>
-      <label for="gapIn">中央 1-1↔1-7 圖面距離 <input id="gapIn" inputmode="decimal" value="135" style="width:70px"></label>
+      <label for="gapIn">中央相鄰兩片 Mark 圖面距離 <input id="gapIn" inputmode="decimal" value="135" style="width:70px"></label>
       <label for="msym">左右片子 Mark 位置 <select id="msym"><option value="same">實體同向（Mark 都在片子同一角）</option><option value="mirror">左右鏡像對稱</option></select></label>
     </div>
   </section>
@@ -111,7 +111,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
   <section data-tab="overview" class="panel">
     <h2>分開計算 vs 整合計算</h2>
     <div class="tablebox"><table id="cmp"></table></div>
-    <p class="note">「機台」欄為該側機台座標下的值，下指令用；「實體」欄為換成實體左→右方向後的值，用來比較兩側。整合：兩側換到同一實體座標，以圖面中央距離（1-1↔1-7 Mark，預設 135）反推兩原點關係 C；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
+    <p class="note">「機台」欄為該側機台座標下的值，下指令用；「實體」欄為換成實體左→右方向後的值，用來比較兩側。整合：兩側換到同一實體座標，以圖面中央相鄰兩片 Mark 距離（預設 135）反推兩原點關係 C（兩軸獨立、零點不同）；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
   </section>
 
   <section data-tab="map" class="panel">
@@ -312,7 +312,7 @@ const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
 const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
 const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
 const isR=c=>c>6, ck=k=>k.split("-").map(Number);
-let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:1,R:-1}, MSYM=false, IDX={}, MODE="B";
+let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:-1,R:-1}, MSYM=false, IDX={}, MODE="B";
 let OPT={py:144,pxSrc:"meas",pxD:135,th:{"1-1":[NaN,NaN],"1-7":[NaN,NaN]}};
 // 由輸入產生 8 個角點：模式 A 只用第 1 列兩端，第 2 列沿垂直方向推 Y 中心間距
 function deriveP(){P=JSON.parse(JSON.stringify(RAW));if(MODE!=="A")return;
@@ -336,7 +336,7 @@ const toPhys=(p,c,C)=>[(isR(c)?C:0)+sOf(c)*p[0],p[1]];
 const phys=(k,C)=>toPhys(P[k],ck(k)[1],C);
 const devM=(d,c)=>[sOf(c)*d[0],d[1]];          // 實體偏差 → 該側機台方向
 // 模型（實體座標）：IDX[c] 為實體由左至右的序號 0..11
-let GAP=135; // 圖面：中央 1-1 ↔ 1-7 Mark 距離
+let GAP=135; // 圖面：中央相鄰兩片（左側最右、右側最左）Mark 距離
 function model(p,r,c){const[th,tx,ty,px,py,C,H]=p;const i=IDX[c],u=i<6?i*px:5*px+GAP+(i-6)*px,v=(r-1)*py+(isR(c)?H:0);
   return[tx+Math.cos(th)*u-Math.sin(th)*v,ty+Math.sin(th)*u+Math.cos(th)*v];}
 function fit(keys,p0,free){const p=[...p0];
@@ -729,10 +729,10 @@ function formula(R){
   document.getElementById("fmFind").innerHTML=[
     same?`目前左右機台 X 方向相同（皆${rows[0].s>0?"由左至右":"由右至左"}），兩側在各自機台座標下<b>公式完全相同</b>：中心 = Mark + R(θ)·d，d 相同（${rows[0].d?`${sg4(rows[0].d[0])}, ${sg4(rows[0].d[1])}`:"—"}），只有 θ 與 Mark 數值不同（左 ${f5(rows[0].th)}°、右 ${f5(rows[1].th)}°）。`
         :`目前左右機台 X 方向相反（鏡像）：各側在自己機台座標下公式形式相同（中心 = Mark + R(θ)·d），但 <b>d 的 X 分量相反</b>（左 ${rows[0].d?sg4(rows[0].d[0]):"—"}、右 ${rows[1].d?sg4(rows[1].d[0]):"—"}），且<b>機台 +θ 的實際轉向相反</b>（左側 +θ 看起來順時針、右側 +θ 看起來逆時針；以上方 Y 小、下方 Y 大的俯視方向）。`,
-    `旋轉平台：兩台平台若實體正方向相同（例如都是逆時針為正），左側下給平台的角度要用 −θ、右側用 +θ（或反之，視平台定義）；若平台也是鏡像安裝則兩側都直接用 θ。請兩側各點動 +0.1° 確認。`,
+    same?null:`旋轉平台：兩台平台若實體正方向相同（例如都是逆時針為正），左側下給平台的角度要用 −θ、右側用 +θ（或反之，視平台定義）；若平台也是鏡像安裝則兩側都直接用 θ。請兩側各點動 +0.1° 確認。`,
     `換成實體方向比較：左 ${f5(rows[0].s*rows[0].th)}°、右 ${f5(rows[1].s*rows[1].th)}°，${Math.sign(rows[0].s*rows[0].th)===Math.sign(rows[1].s*rows[1].th)?"同方向":"方向相反"}，差 ${f5(rows[1].s*rows[1].th-rows[0].s*rows[0].th)}°。`,
     same?`需要另外確認的是兩台旋轉平台的正方向：若某一側平台 +θ 實際轉向與機台 θ 定義相反，該側下給平台的角度要變號（−θ）。點動 +0.1° 看片子右上角往哪走即可確認。`:`d 的 Y 分量與片子尺寸兩側相同；左側 d 由右側 1-11 實測鏡像推得（假設片子 Mark 在實體同一角），建議左側也量一片四個 Mark 驗證。`,
-    `貼合平移（相機→貼合）兩側各自不同，只能各側分別實測，不能共用。`].map(t=>`<li>${t}</li>`).join("");}
+    `貼合平移（相機→貼合）兩側各自不同，只能各側分別實測，不能共用。`].filter(Boolean).map(t=>`<li>${t}</li>`).join("");}
 function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);formula(R);inputResult(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
