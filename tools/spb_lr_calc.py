@@ -154,6 +154,23 @@ def main():
         for nm, r, th in [("左側", L_, thL), ("右側", R_m, thRm)]:
             for c, p, t in r["ctr"]:
                 w.writerow([nm, c, f"{p[0]:.4f}", f"{p[1]:.4f}", f"{D(t):+.5f}", f"{D(th):+.5f}"])
+    # 24 個預放位置（每個 Mark 即一個位置），各側機台座標，局部 θ = 列向與欄向平均
+    with open(os.path.join(HERE, "..", "spb_preplace_24.csv"), "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["#", "預放位置", "側", "X(該側機台)", "Y", "θ局部(deg)", "θ列向(deg)", "θ欄向(deg)", "該側剛體θ(deg)", "來源"])
+        n = 0
+        for nm, m, inner, outer, th in [("左側", LEFT, 1, 6, thL), ("右側", RIGHT, 7, 12, thRm)]:
+            r = side_calc(m, inner, outer)
+            a, b, c, d = (np.array(m[k]) for k in [(1, inner), (1, outer), (2, inner), (2, outer)])
+            sgn = 1 if a[0] > b[0] else -1
+            k0, k1 = c - a, d - b; tr = [ang_x((a - b) * sgn), ang_x((c - d) * sgn)]
+            for row, (p0, p1) in enumerate([(a, b), (c, d)], start=1):
+                for i in range(6):
+                    fu = i / 5; col = inner + i * (1 if outer > inner else -1)
+                    pt = p0 + (p1 - p0) * fu; ty = ang_y(k0 * (1 - fu) + k1 * fu); tx = tr[row - 1]
+                    n += 1
+                    w.writerow([n, f"{row}-{col}", nm, f"{pt[0]:.4f}", f"{pt[1]:.4f}", f"{D((tx+ty)/2):+.5f}",
+                                f"{D(tx):+.5f}", f"{D(ty):+.5f}", f"{D(th):+.5f}", "實測" if i in (0, 5) else "內插"])
     print(md)
 
 if __name__ == "__main__":

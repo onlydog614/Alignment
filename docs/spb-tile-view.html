@@ -72,7 +72,7 @@ td.bad{color:var(--err)}
 <div class="wrap">
   <header>
     <h1>SPB 預放位置分佈</h1>
-    <p class="sub">左側機台 X 由左至右、右側機台 X 由右至左（鏡像）。實體排列由左至右：6 5 4 3 2 1 ｜ 7 8 9 10 11 12。各側量四角 → 內插全部 Mark 與預放中心，比較「左右分開計算」與「整合成一片計算」。θ 逆時針為正。</p>
+    <p class="sub">左側機台 X 由左至右、右側機台 X 由右至左（鏡像）。實體排列由左至右：6 5 4 3 2 1 ｜ 7 8 9 10 11 12。共 24 個預放位置（2 列 × 12 欄），各側量四角 → 內插其餘位置，比較「左右分開計算」與「整合成一片計算」。θ 逆時針為正。</p>
   </header>
 
   <section class="stats" id="stats" aria-label="摘要"></section>
@@ -97,7 +97,7 @@ td.bad{color:var(--err)}
           <option value="step">整合（含台階）</option>
           <option value="rigid">整合（剛體）</option>
         </select></label>
-      <label><input type="checkbox" id="showC" checked> 預放中心</label>
+      <label><input type="checkbox" id="showC"> 上下 Mark 中點</label>
       <label><input type="checkbox" id="showIdeal" checked> 理想外框</label>
       <label><input type="checkbox" id="showErr" checked> 偏差向量</label>
       <label><input type="checkbox" id="showGlass"> 玻璃格點 A/B</label>
@@ -105,10 +105,10 @@ td.bad{color:var(--err)}
     </div>
     <div class="chartbox"><svg id="map" role="img" aria-label="左右兩側 Mark 與中心俯視分佈"></svg></div>
     <div class="legend">
-      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--left)"/></svg>左側實測</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--right)"/></svg>右側實測</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.5"/></svg>內插 Mark</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6Z" fill="var(--ctr)"/></svg>預放中心</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--left)"/></svg>左側預放位置（實測）</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--right)"/></svg>右側預放位置（實測）</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.5"/></svg>預放位置（內插）</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6Z" fill="var(--ctr)"/></svg>上下 Mark 中點</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--ideal)" stroke-dasharray="3 2" stroke-width="1.5"/></svg>理想外框（依偏差基準）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 11 10 2" stroke="var(--err)" stroke-width="1.5"/></svg>偏差（實際 − 理想，已放大）</span>
     </div>
@@ -117,10 +117,10 @@ td.bad{color:var(--err)}
 
   <div class="grid2">
     <section class="panel">
-      <h2>各位置 θ（實體方向，deg；橫軸為中心 x）</h2>
+      <h2>24 個預放位置 θ（實體方向，deg；橫軸為實體 x）</h2>
       <div class="chartbox"><svg id="thchart" role="img" aria-label="各位置 θ"></svg></div>
       <div class="legend">
-        <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--ctr)"/></svg>該片上下 Mark θ</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--ctr)"/></svg>列1 局部 θ</span><span><svg class="sw" viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" fill="var(--panel)" stroke="var(--ctr)" stroke-width="1.5"/></svg>列2 局部 θ</span>
         <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--left)" stroke-width="2"/></svg>左 θx</span>
         <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--right)" stroke-width="2"/></svg>右 θx</span>
         <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--int)" stroke-dasharray="3 2" stroke-width="2"/></svg>整合 θ（含台階）</span>
@@ -135,13 +135,9 @@ td.bad{color:var(--err)}
   </div>
 
   <section class="panel">
-    <h2>預放位置數據</h2>
-    <div class="tabs" role="group" aria-label="表格切換">
-      <button type="button" id="tabC" aria-pressed="true">預放中心（12 片）</button>
-      <button type="button" id="tabM" aria-pressed="false">Mark（24 個）</button>
-    </div>
-    <div class="tablebox"><table id="tbl"></table></div>
-    <p class="note">X、Y、θ 皆為該側機台座標（可直接下指令）；實體 x 為換到左側座標後的位置。dX／dY 為對目前「偏差基準」理想位置的偏差 (µm)，以該側機台方向表示。</p>
+    <h2>預放位置數據（24 片）</h2>
+        <div class="tablebox"><table id="tbl"></table></div>
+    <p class="note">每個 Mark 即一個預放位置（2 列 × 12 欄）。X、Y、θ 皆為該側機台座標，可直接下指令。θ 局部＝該位置列向與欄向角度平均（四角內插）；θ 列向／欄向分開列出供比對 X、Y 斜率差。實體 x 為換到左側座標後的位置。dX／dY 為對目前「偏差基準」理想位置的偏差 (µm)，以該側機台方向表示。</p>
   </section>
 
   <section class="panel">
@@ -196,7 +192,9 @@ function sideCalc(get,inner,outer){const n=Math.abs(outer-inner),a=get(`1-${inne
   const e={r1:angX(r1),r2:angX(r2),k0:angY(k0),k1:angY(k1)};
   const step=outer>inner?1:-1,marks=[],ctr=[];
   for(let i=0;i<=n;i++){const col=inner+i*step,t=add(a,mul(sub(b,a),i/n)),u=add(c,mul(sub(d,c),i/n));
-    marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n},{id:`2-${col}`,r:2,c:col,p:u,meas:i===0||i===n});
+    const fu=i/n,tyv=angY(add(mul(k0,1-fu),mul(k1,fu)));
+    marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n,thx:deg(e.r1),thy:deg(tyv),th:deg((e.r1+tyv)/2)},
+               {id:`2-${col}`,r:2,c:col,p:u,meas:i===0||i===n,thx:deg(e.r2),thy:deg(tyv),th:deg((e.r2+tyv)/2)});
     ctr.push({id:col,c:col,p:mul(add(t,u),.5),th:deg(angY(sub(u,t)))});}
   return{e,thx:(e.r1+e.r2)/2,thy:(e.k0+e.k1)/2,px:(len(r1)+len(r2))/2/n,py:(len(k0)+len(k1))/2,marks,ctr,diag:len(sub(d,a))-len(sub(c,b))};}
 
@@ -304,7 +302,7 @@ function drawMap(R){
     const n=m.meas?el("circle",{cx:X(m.q[0]),cy:Y(m.q[1]),r:5.5,fill:col},g):el("circle",{cx:X(m.q[0]),cy:Y(m.q[1]),r:4,fill:"var(--panel)",stroke:col,"stroke-width":1.4},g);
     el("text",{x:X(m.q[0]),y:Y(m.q[1])+(m.r===1?18:-10),"text-anchor":"middle",class:"lbl"},g,m.id);
     const d=devM(sub(m.q,id),m.c);
-    hook(n,`<b>Mark ${m.id}</b>（${isR(m.c)?"右側":"左側"}・${m.meas?"實測":"內插"}）　${isR(m.c)?"右":"左"}機台 X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　實體 x <span class="num">${f4(m.q[0])}</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
+    hook(n,`<b>預放位置 ${m.id}</b>（${isR(m.c)?"右側":"左側"}・${m.meas?"實測":"內插"}）　θ <span class="num">${f5(m.th)}°</span>　${isR(m.c)?"右":"左"}機台 X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　實體 x <span class="num">${f4(m.q[0])}</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
   if(document.getElementById("showC").checked)[...R.L.ctr,...R.Rm.ctr].forEach(c=>{
     const q=toPhys(c.p,c.c,C),id=mul(add(idealOf(R,base,1,c.c),idealOf(R,base,2,c.c)),.5);arrow(q,id);
     const x=X(q[0]),y=Y(q[1]),n=el("path",{d:`M${x} ${y-6}L${x+6} ${y}L${x} ${y+6}L${x-6} ${y}Z`,fill:"var(--ctr)"},g);
@@ -315,30 +313,32 @@ function drawMap(R){
 function drawTheta(R){
   const svg=document.getElementById("thchart");svg.innerHTML="";
   const W=540,H=270,ml=64,mr=14,mt=14,mb=32;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width="100%";svg.style.minWidth="400px";svg.style.display="block";
-  const C=R.C,LC=R.L.ctr.map(c=>({...c,x:c.p[0]})),RC=R.Rm.ctr.map(c=>({...c,x:C-c.p[0],th:-c.th}));
-  const vals=[...LC,...RC].map(c=>c.th).concat([deg(R.L.thx),deg(R.Rp.thx),deg(R.fStep.p[0]),deg(R.fRig.p[0])]);
+  const C=R.C,conv=m=>({...m,x:isR(m.c)?C-m.p[0]:m.p[0],tp:isR(m.c)?-m.th:m.th});
+  const all=[...R.L.marks,...R.Rm.marks].map(conv);
+  const vals=all.map(m=>m.tp).concat([deg(R.L.thx),deg(R.Rp.thx),deg(R.fStep.p[0]),deg(R.fRig.p[0])]);
   let lo=Math.min(...vals),hi=Math.max(...vals);const pd=(hi-lo)*.08||.001;lo-=pd;hi+=pd;const st=niceStep(hi-lo,6);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
-  const xs=[...LC,...RC].map(c=>c.x),xa=Math.min(...xs)-60,xb=Math.max(...xs)+60;
+  const xs=all.map(m=>m.x),xa=Math.min(...xs)-60,xb=Math.max(...xs)+60;
   const X=x=>ml+(x-xa)/(xb-xa)*(W-ml-mr),Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
   for(let v=lo;v<=hi+1e-12;v+=st){el("line",{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),stroke:Math.abs(v)<1e-12?"var(--muted)":"var(--grid)"},svg);el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end"},svg,v.toFixed(3));}
   for(let v=Math.ceil(xa/200)*200;v<=xb;v+=200)el("text",{x:X(v),y:H-mb+16,"text-anchor":"middle"},svg,v);
   const seg=(xA,xB,v,col,dash)=>el("line",{x1:X(xA),x2:X(xB),y1:Y(v),y2:Y(v),stroke:col,"stroke-width":2,...(dash?{"stroke-dasharray":dash}:{})},svg);
   const ext=a=>[Math.min(...a.map(c=>c.x))-30,Math.max(...a.map(c=>c.x))+30];
-  seg(...ext(LC),deg(R.L.thx),"var(--left)");seg(...ext(RC),deg(R.Rp.thx),"var(--right)");
+  const Lm=all.filter(m=>!isR(m.c)),Rmk=all.filter(m=>isR(m.c));
+  seg(...ext(Lm),deg(R.L.thx),"var(--left)");seg(...ext(Rmk),deg(R.Rp.thx),"var(--right)");
   seg(xa,xb,deg(R.fStep.p[0]),"var(--int)","6 4");seg(xa,xb,deg(R.fRig.p[0]),"var(--err)","2 3");
-  [LC,RC].forEach(list=>{el("polyline",{points:list.map(c=>`${X(c.x)},${Y(c.th)}`).join(" "),fill:"none",stroke:"var(--ctr)","stroke-width":1.2},svg);
-    list.forEach(c=>{const n=el("circle",{cx:X(c.x),cy:Y(c.th),r:4,fill:"var(--ctr)"},svg);el("title",{},n,`位置 ${c.id}  θ（實體）${f5(c.th)}°`);
-      el("text",{x:X(c.x),y:Y(c.th)-8,"text-anchor":"middle",class:"lbl"},svg,c.id);});});
+  [Lm,Rmk].forEach(side=>[1,2].forEach(row=>{const list=side.filter(m=>m.r===row).sort((a,b)=>a.x-b.x);
+    el("polyline",{points:list.map(m=>`${X(m.x)},${Y(m.tp)}`).join(" "),fill:"none",stroke:"var(--ctr)","stroke-width":1.2,...(row===2?{"stroke-dasharray":"4 3"}:{})},svg);
+    list.forEach(m=>{const n=row===1?el("circle",{cx:X(m.x),cy:Y(m.tp),r:3.8,fill:"var(--ctr)"},svg):el("rect",{x:X(m.x)-3.5,y:Y(m.tp)-3.5,width:7,height:7,fill:"var(--panel)",stroke:"var(--ctr)","stroke-width":1.5},svg);
+      el("title",{},n,`預放位置 ${m.id}  θ（實體）${f5(m.tp)}°`);});}));
 }
 
 function table(R){const base=document.getElementById("base").value,t=document.getElementById("tbl"),C=R.C;
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
-  if(view==="M"){t.innerHTML="<tr><th>Mark</th><th>側</th><th>X（該側機台）</th><th>Y</th><th>實體 x</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
-    [...R.L.marks,...R.Rm.marks].map(m=>{const q=toPhys(m.p,m.c,C),d=devM(sub(q,idealOf(R,base,m.r,m.c)),m.c);
-      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");return;}
-  t.innerHTML="<tr><th>位置</th><th>側</th><th>中心 X（該側機台）</th><th>中心 Y</th><th>θ 上下 Mark</th><th>該側擬合 θ</th><th>實體 x</th><th>與前一片距</th><th>dX µm</th><th>dY µm</th></tr>"+
-    [[R.L,R.fL.p[0]],[R.Rm,-R.fR.p[0]]].map(([S,th])=>S.ctr.map((c,i)=>{const q=toPhys(c.p,c.c,C),id=mul(add(idealOf(R,base,1,c.c),idealOf(R,base,2,c.c)),.5),d=devM(sub(q,id),c.c);
-      return`<tr><td>${c.id}</td><td>${tag(c.c)}</td><td>${f4(c.p[0])}</td><td>${f4(c.p[1])}</td><td>${f5(c.th)}</td><td>${f5(deg(th))}</td><td>${f4(q[0])}</td><td>${i?f4(len(sub(c.p,S.ctr[i-1].p))):"—"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("")).join("");}
+  const list=[[R.L,R.fL.p[0]],[R.Rm,-R.fR.p[0]]].flatMap(([S,th])=>[1,2].flatMap(row=>S.marks.filter(m=>m.r===row).map(m=>({...m,fth:th}))));
+  let n=0;
+  t.innerHTML="<tr><th>#</th><th>預放位置</th><th>側</th><th>X（該側機台）</th><th>Y</th><th>θ 局部</th><th>θ 列向</th><th>θ 欄向</th><th>該側擬合 θ</th><th>實體 x</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
+    list.map((m,i)=>{const q=toPhys(m.p,m.c,C),d=devM(sub(q,idealOf(R,base,m.r,m.c)),m.c);
+      return`<tr><td>${i+1}</td><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f5(m.thx)}</td><td>${f5(m.thy)}</td><td>${f5(deg(m.fth))}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");}
 
 function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
@@ -349,6 +349,5 @@ Object.keys(DEF).forEach(k=>{const side=isR(ck(k)[1])?"右側":"左側",fs=docum
   inp.appendChild(fs);["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){P[k][i]=v;render();}}));});
 document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:100,rigid:100}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
-[["tabC","C"],["tabM","M"]].forEach(([id,v])=>document.getElementById(id).addEventListener("click",()=>{view=v;["tabC","tabM"].forEach(b=>document.getElementById(b).setAttribute("aria-pressed",b===id));table(compute());}));
 render();
 </script>
