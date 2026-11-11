@@ -2,39 +2,41 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+TC:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: 量測工具面板 — 上方摘要數字列，中間等比例俯視分佈圖，下方 θ 趨勢與數據表 */
+/* Layout: 量測工具面板 — 摘要數字 → 左右比較表 → 等比例俯視分佈圖 → θ 趨勢與格點比較 → 數據表 → 輸入 */
 :root{
   --bg:#f3f5f7; --panel:#ffffff; --fg:#17202a; --muted:#5d6b78; --line:#d5dce3; --grid:#e7ecf0;
-  --meas:#1b5fa8; --interp:#1b5fa8; --ctrA:#0e8a6f; --ctrB:#c2621a; --ideal:#8a96a3; --err:#c2303a; --glass:#b9c4cf;
+  --left:#1b5fa8; --right:#7a3fb0; --ctr:#0e8a6f; --ideal:#8a96a3; --err:#c2303a; --glass:#b9c4cf; --int:#c2621a;
   --font-ui:"IBM Plex Sans","IBM Plex Sans TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   --font-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f1418; --panel:#161d23; --fg:#e3e9ee; --muted:#93a1ad; --line:#2a353e; --grid:#1f2930;
-  --meas:#6fa8e8; --interp:#6fa8e8; --ctrA:#3cc3a0; --ctrB:#e89552; --ideal:#7d8a96; --err:#f06a72; --glass:#3c4954; color-scheme:dark}}
+  --left:#6fa8e8; --right:#b88ae6; --ctr:#3cc3a0; --ideal:#7d8a96; --err:#f06a72; --glass:#3c4954; --int:#e89552; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1418; --panel:#161d23; --fg:#e3e9ee; --muted:#93a1ad; --line:#2a353e; --grid:#1f2930;
-  --meas:#6fa8e8; --interp:#6fa8e8; --ctrA:#3cc3a0; --ctrB:#e89552; --ideal:#7d8a96; --err:#f06a72; --glass:#3c4954; color-scheme:dark}
+  --left:#6fa8e8; --right:#b88ae6; --ctr:#3cc3a0; --ideal:#7d8a96; --err:#f06a72; --glass:#3c4954; --int:#e89552; color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:14px;line-height:1.5}
 .wrap{max-width:1180px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
 h1{font-size:22px;font-weight:600;margin:0;text-wrap:balance}
 h2{font-size:15px;font-weight:600;margin:0 0 10px}
-.sub{color:var(--muted);margin:2px 0 0}
+.sub{color:var(--muted);margin:2px 0 0;max-width:90ch}
 .num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:700px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
 .stat .k{font-size:12px;color:var(--muted);letter-spacing:.02em}
 .stat .v{font-family:var(--font-num);font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
 .stat .d{font-size:12px;color:var(--muted)}
 .stat.warn{border-color:var(--err)} .stat.warn .v{color:var(--err)}
+.findings{margin:0;padding-left:18px;display:grid;gap:4px;max-width:95ch}
 .controls{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-bottom:10px}
 .controls label{display:inline-flex;gap:6px;align-items:center;cursor:pointer;user-select:none}
+select{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 input[type=range]{width:140px}
 .chartbox{overflow-x:auto}
 svg text{fill:var(--muted);font-family:var(--font-num);font-size:11px}
-svg .lbl{fill:var(--fg);font-size:11px}
+svg .lbl{fill:var(--fg);font-size:10.5px}
 .pt{cursor:pointer;outline:none}
 .pt:focus-visible{stroke:var(--fg);stroke-width:2}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-top:8px}
@@ -42,50 +44,72 @@ svg .lbl{fill:var(--fg);font-size:11px}
 .sw{width:12px;height:12px;display:inline-block}
 .readout{margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:4px;font-size:13px;min-height:2.6em}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 th{color:var(--muted);font-weight:500;font-size:12px}
 td:first-child,th:first-child{text-align:left}
 td{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+td.bad{color:var(--err)}
 .tablebox{overflow-x:auto}
-.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
-.inputs fieldset{border:1px solid var(--line);border-radius:4px;padding:6px 10px 10px;margin:0}
+.inputs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:860px){.inputs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.inputs fieldset{border:1px solid var(--line);border-radius:4px;padding:6px 10px 10px;margin:0;min-width:0}
 .inputs legend{font-weight:600;padding:0 4px}
 .inputs label{display:flex;gap:6px;align-items:center;margin-top:4px;color:var(--muted)}
 .inputs input{flex:1;min-width:0;font-family:var(--font-num);font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--fg)}
-.inputs input:focus-visible{outline:2px solid var(--meas)}
-.note{color:var(--muted);font-size:12.5px;max-width:75ch}
-.tabs{display:flex;gap:4px;margin-bottom:8px}
+.inputs input:focus-visible{outline:2px solid var(--left)}
+.sidehead{font-weight:600;margin:4px 0 6px}
+.note{color:var(--muted);font-size:12.5px;max-width:80ch}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .tabs button{font:inherit;font-size:13px;padding:4px 10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:4px;cursor:pointer}
-.tabs button[aria-pressed=true]{background:var(--meas);border-color:var(--meas);color:var(--panel)}
+.tabs button[aria-pressed=true]{background:var(--left);border-color:var(--left);color:var(--panel)}
+.tag{display:inline-block;padding:0 6px;border-radius:3px;font-size:11.5px;font-family:var(--font-ui)}
+.tag.L{background:color-mix(in srgb,var(--left) 15%,transparent);color:var(--left)}
+.tag.R{background:color-mix(in srgb,var(--right) 15%,transparent);color:var(--right)}
 </style>
 
 <div class="wrap">
   <header>
     <h1>SPB 預放位置分佈</h1>
-    <p class="sub">Spb tile mark 實測 4 點 → 內插 12 Mark、預放中心、XYθ 與間距。座標為機台座標 (mm)，θ 逆時針為正。</p>
+    <p class="sub">左側 Mark 1~6、右側 Mark 7~12，各量四角 → 內插全部 Mark 與預放中心。比較「左右分開計算」與「整合成一片計算」的 XYθ、間距與殘差。機台座標 (mm)，θ 逆時針為正。</p>
   </header>
 
   <section class="stats" id="stats" aria-label="摘要"></section>
 
   <section class="panel">
+    <h2>判讀</h2>
+    <ul class="findings" id="findings"></ul>
+  </section>
+
+  <section class="panel">
+    <h2>分開計算 vs 整合計算</h2>
+    <div class="tablebox"><table id="cmp"></table></div>
+    <p class="note">整合（剛體）：8 點共用一個 θ、pitch，左右視為同一片。整合（含台階）：同上，但允許右側整體 Y 位移 H。中央間隙 G＝欄 1 到欄 12 的距離。</p>
+  </section>
+
+  <section class="panel">
     <h2>俯視分佈圖（X、Y 等比例）</h2>
     <div class="controls">
-      <label><input type="checkbox" id="showA" checked> 中心 A（6 片）</label>
-      <label><input type="checkbox" id="showB"> 中心 B（5 片）</label>
-      <label><input type="checkbox" id="showIdeal" checked> 剛體理想位置</label>
+      <label for="base">偏差基準
+        <select id="base">
+          <option value="sep">分開擬合（各側剛體）</option>
+          <option value="step">整合（含台階）</option>
+          <option value="rigid">整合（剛體）</option>
+        </select></label>
+      <label><input type="checkbox" id="showC" checked> 預放中心</label>
+      <label><input type="checkbox" id="showIdeal" checked> 理想外框</label>
       <label><input type="checkbox" id="showErr" checked> 偏差向量</label>
-      <label><input type="checkbox" id="showGlass"> 玻璃格點 A 組</label>
-      <label>偏差放大 <input type="range" id="mag" min="0" max="3000" step="100" value="1000"> <span class="num" id="magv">×1000</span></label>
+      <label><input type="checkbox" id="showGlass"> 玻璃格點 A/B</label>
+      <label>偏差放大 <input type="range" id="mag" min="0" max="3000" step="50" value="1000"> <span class="num" id="magv">×1000</span></label>
     </div>
-    <div class="chartbox"><svg id="map" role="img" aria-label="SPB Mark 與中心俯視分佈"></svg></div>
+    <div class="chartbox"><svg id="map" role="img" aria-label="左右兩側 Mark 與中心俯視分佈"></svg></div>
     <div class="legend">
-      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--meas)"/></svg>實測 Mark</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--panel)" stroke="var(--interp)" stroke-width="1.5"/></svg>內插 Mark</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6Z" fill="var(--ctrA)"/></svg>中心 A</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><path d="M2 2 10 10M10 2 2 10" stroke="var(--ctrB)" stroke-width="2"/></svg>中心 B</span>
-      <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--ideal)" stroke-dasharray="3 2" stroke-width="1.5"/></svg>剛體理想外框</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--left)"/></svg>左側實測</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--right)"/></svg>右側實測</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.5"/></svg>內插 Mark</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6Z" fill="var(--ctr)"/></svg>預放中心</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--ideal)" stroke-dasharray="3 2" stroke-width="1.5"/></svg>理想外框（依偏差基準）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 11 10 2" stroke="var(--err)" stroke-width="1.5"/></svg>偏差（實際 − 理想，已放大）</span>
     </div>
     <div class="readout" id="readout">點選或游標移到點上，顯示座標與偏差。</div>
@@ -93,197 +117,236 @@ td{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 
   <div class="grid2">
     <section class="panel">
-      <h2>各位置 θ（deg）</h2>
-      <div class="chartbox"><svg id="thchart" role="img" aria-label="各位置 θ 趨勢"></svg></div>
+      <h2>各位置 θ（deg，橫軸為中心 X）</h2>
+      <div class="chartbox"><svg id="thchart" role="img" aria-label="各位置 θ"></svg></div>
       <div class="legend">
-        <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--ctrA)"/></svg>A：該片上下 Mark</span>
-        <span><svg class="sw" viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" fill="var(--ctrB)"/></svg>B：四角平均</span>
-        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--meas)" stroke-width="2"/></svg>θx（X 向整列）</span>
-        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--ideal)" stroke-dasharray="3 2" stroke-width="2"/></svg>剛體擬合 θ</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--ctr)"/></svg>該片上下 Mark θ</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--left)" stroke-width="2"/></svg>左 θx</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--right)" stroke-width="2"/></svg>右 θx</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--int)" stroke-dasharray="3 2" stroke-width="2"/></svg>整合 θ（含台階）</span>
+        <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--err)" stroke-dasharray="1 2" stroke-width="2"/></svg>整合 θ（剛體）</span>
       </div>
-      <p class="note">A 的 θ 只用上下兩 Mark（跨距 144 mm），Mark 誤差 10 µm 就造成約 0.004°；θx 用 675 mm 跨距，約 0.0008°。整列一致擺放建議用 θx 或剛體擬合 θ。</p>
     </section>
     <section class="panel">
-      <h2>四邊斜率與形狀</h2>
-      <div class="tablebox"><table id="edges"></table></div>
-      <p class="note" id="shapeNote"></p>
+      <h2>對照玻璃格點（A→左、B→右）</h2>
+      <div class="tablebox"><table id="glass"></table></div>
+      <p class="note">格點角度為格點列／欄在機台座標中的方向；「相對格點」＝SPB 角度 − 格點角度，可抵銷各側機台軸的歪斜。間距以格點比例修正。</p>
     </section>
   </div>
 
   <section class="panel">
     <h2>預放位置數據</h2>
     <div class="tabs" role="group" aria-label="表格切換">
-      <button type="button" id="tabA" aria-pressed="true">中心 A（6 片）</button>
-      <button type="button" id="tabB" aria-pressed="false">中心 B（5 片）</button>
-      <button type="button" id="tabM" aria-pressed="false">12 個 Mark</button>
+      <button type="button" id="tabC" aria-pressed="true">預放中心（12 片）</button>
+      <button type="button" id="tabM" aria-pressed="false">Mark（24 個）</button>
     </div>
     <div class="tablebox"><table id="tbl"></table></div>
+    <p class="note">dX／dY 為對目前「偏差基準」理想位置的偏差 (µm)。θ 為該片上下 Mark 連線角度。</p>
   </section>
 
   <section class="panel">
     <h2>量測輸入</h2>
-    <p class="note">預設為 Spb tile mark 備忘錄的數值；改數字會即時重算所有圖表。</p>
+    <p class="note">預設為兩份 Spb tile mark 備忘錄的數值；改數字會即時重算。</p>
     <div class="inputs" id="inputs"></div>
   </section>
 </div>
 
 <script>
-const COLS=6;
-const DEF={"1-1":[-43.6522,1004.1377],"1-6":[-718.6154,1004.9193],"2-1":[-43.5210,1148.2364],"2-6":[-718.4602,1149.0500]};
-const GLASS=[[-733.907,1306.337],[-634.733,1306.381],[-535.619,1306.461],[-436.485,1306.524],[-337.386,1306.577],[-238.243,1306.635],[-139.127,1306.710],[-39.929,1306.762],
-[-733.819,1157.545],[-634.646,1157.584],[-535.531,1157.668],[-436.400,1157.728],[-337.300,1157.779],[-238.152,1157.833],[-139.042,1157.907],[-39.847,1157.955],
-[-733.734,1008.717],[-634.558,1008.753],[-535.444,1008.840],[-436.310,1008.905],[-337.212,1008.958],[-238.055,1009.013],[-138.942,1009.090],[-39.756,1009.139]];
+const DEF={"1-1":[-43.6522,1004.1377],"1-6":[-718.6154,1004.9193],"2-1":[-43.5210,1148.2364],"2-6":[-718.4602,1149.0500],
+           "1-7":[736.1080,1004.2420],"1-12":[60.9690,1005.1100],"2-7":[736.3030,1148.3460],"2-12":[61.0828,1149.2000]};
+const SIDES={L:{name:"左側",c0:1,c1:6},R:{name:"右側",c0:7,c1:12}};
+const NX=[0,99.2,198.4,297.6,396.8,496,595.2,694.4], NY=[297.6,148.8,0];
+const GA=[[-733.907,-634.733,-535.619,-436.485,-337.386,-238.243,-139.127,-39.929],[1306.337,1306.381,1306.461,1306.524,1306.577,1306.635,1306.710,1306.762],
+  [-733.819,-634.646,-535.531,-436.400,-337.300,-238.152,-139.042,-39.847],[1157.545,1157.584,1157.668,1157.728,1157.779,1157.833,1157.907,1157.955],
+  [-733.734,-634.558,-535.444,-436.310,-337.212,-238.055,-138.942,-39.756],[1008.717,1008.753,1008.840,1008.905,1008.958,1009.013,1009.090,1009.139]];
+const GB=[[733.374,634.174,535.071,435.965,336.862,237.682,138.513,39.283],[1305.201,1305.186,1305.146,1305.090,1305.049,1305.008,1304.979,1304.937],
+  [733.417,634.217,535.118,436.015,336.913,237.738,138.567,39.342],[1156.423,1156.406,1156.358,1156.293,1156.249,1156.205,1156.167,1156.127],
+  [733.451,634.256,535.161,436.064,336.960,237.786,138.621,39.403],[1007.606,1007.591,1007.540,1007.482,1007.432,1007.384,1007.345,1007.301]];
+const gridPts=G=>{const o=[];for(let r=0;r<3;r++)for(let i=0;i<8;i++)o.push({n:[NX[i],NY[r]],m:[G[2*r][i],G[2*r+1][i]]});return o;};
+const GLASS={L:gridPts(GA),R:gridPts(GB)};
+
 const deg=r=>r*180/Math.PI, sub=(a,b)=>[a[0]-b[0],a[1]-b[1]], add=(a,b)=>[a[0]+b[0],a[1]+b[1]], mul=(a,k)=>[a[0]*k,a[1]*k], len=a=>Math.hypot(a[0],a[1]);
-const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
-let P=JSON.parse(JSON.stringify(DEF)), view="A";
+const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
+const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
+const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
+let P=JSON.parse(JSON.stringify(DEF)), view="C";
+
+function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+  for(let i=0;i<n;i++){let p=i;for(let k=i+1;k<n;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;[M[i],M[p]]=[M[p],M[i]];
+    for(let k=i+1;k<n;k++){const f=M[k][i]/M[i][i];for(let j=i;j<=n;j++)M[k][j]-=f*M[i][j];}}
+  const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
+
+// 模型：左側欄 c 在 u=-(c-1)px；右側欄 c 在 u=G+(12-c)px，v=(r-1)py (+H 右側)
+function model(p,r,c){const[th,tx,ty,px,py,G,H]=p;const u=c<=6?-(c-1)*px:G+(12-c)*px, v=(r-1)*py+(c>6?H:0);
+  return[tx+Math.cos(th)*u-Math.sin(th)*v,ty+Math.sin(th)*u+Math.cos(th)*v];}
+function fit(keys,p0,free){const p=[...p0];
+  const resid=q=>keys.flatMap(k=>{const[r,c]=k.split("-").map(Number),m=model(q,r,c);return[m[0]-P[k][0],m[1]-P[k][1]];});
+  for(let it=0;it<40;it++){const r0=resid(p);const J=free.map(i=>{const q=[...p];q[i]+=1e-7;return resid(q).map((v,j)=>(v-r0[j])/1e-7);});
+    const A=free.map((_,a)=>free.map((_,b)=>J[a].reduce((s,v,j)=>s+v*J[b][j],0))), g=free.map((_,a)=>-J[a].reduce((s,v,j)=>s+v*r0[j],0));
+    const d=solve(A,g);free.forEach((i,a)=>p[i]+=d[a]);if(Math.max(...d.map(Math.abs))<1e-12)break;}
+  const e=keys.map(k=>{const[r,c]=k.split("-").map(Number),m=model(p,r,c);return sub(P[k],m);});
+  return{p,e,rms:Math.sqrt(e.reduce((s,v)=>s+v[0]**2+v[1]**2,0)/e.length),max:Math.max(...e.map(len))};}
+
+function sideCalc(S){const{c0,c1}=S,n=c1-c0,a=P[`1-${c0}`],b=P[`1-${c1}`],c=P[`2-${c0}`],d=P[`2-${c1}`];
+  const r1=sub(a,b),r2=sub(c,d),k0=sub(c,a),k1=sub(d,b);
+  const e={r1:angX(r1),r2:angX(r2),k0:angY(k0),k1:angY(k1)};
+  const thx=(e.r1+e.r2)/2,thy=(e.k0+e.k1)/2,px=(len(r1)+len(r2))/2/n,py=(len(k0)+len(k1))/2;
+  const marks=[],ctr=[];
+  for(let i=0;i<=n;i++){const col=c0+i,t=add(a,mul(sub(b,a),i/n)),u=add(c,mul(sub(d,c),i/n));
+    marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n},{id:`2-${col}`,r:2,c:col,p:u,meas:i===0||i===n});
+    ctr.push({id:col,c:col,p:mul(add(t,u),.5),th:deg(angY(sub(u,t)))});}
+  return{vec:{r1,r2,k0,k1},e,thx,thy,px,py,marks,ctr,center:mul(add(add(a,b),add(c,d)),.25),
+    diag:len(sub(d,a))-len(sub(c,b))};}
+
+function glassCalc(pts){// 機台 = [nx ny 1]·M
+  const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
+  pts.forEach(({n,m})=>{const v=[n[0],n[1],1];for(let i=0;i<3;i++){for(let j=0;j<3;j++)A[i][j]+=v[i]*v[j];bx[i]+=v[i]*m[0];by[i]+=v[i]*m[1];}});
+  const mx=solve(A,bx),my=solve(A,by),ex=[mx[0],my[0]],ey=[mx[1],my[1]],sgn=ex[0]>0?1:-1;
+  return{thx:angX(mul(ex,sgn)),thy:angY(ey),sx:len(ex),sy:len(ey)};}
 
 function compute(){
-  const p11=P["1-1"],p16=P["1-6"],p21=P["2-1"],p26=P["2-6"];
-  const r1=sub(p11,p16), r2=sub(p21,p26), c1=sub(p21,p11), c6=sub(p26,p16);
-  const thR1=Math.atan2(r1[1],r1[0]), thR2=Math.atan2(r2[1],r2[0]);
-  const thC1=Math.atan2(-c1[0],c1[1]), thC6=Math.atan2(-c6[0],c6[1]);
-  const thx=(thR1+thR2)/2, thy=(thC1+thC6)/2;
-  const px=(len(r1)+len(r2))/2/(COLS-1), py=(len(c1)+len(c6))/2;
-  const ideal=(r,c)=>[-(c-1)*px,(r-1)*py];
-  const keys=[[1,1],[1,6],[2,1],[2,6]];
-  const A=keys.map(k=>ideal(...k)), B=keys.map(k=>P[k.join("-")]);
-  const ca=mul(A.reduce(add),.25), cb=mul(B.reduce(add),.25);
-  let sc=0,ss=0; A.forEach((a,i)=>{const u=sub(a,ca),v=sub(B[i],cb);sc+=u[0]*v[0]+u[1]*v[1];ss+=u[0]*v[1]-u[1]*v[0];});
-  const th=Math.atan2(ss,sc), C=Math.cos(th), S=Math.sin(th);
-  const rot=a=>[C*a[0]-S*a[1],S*a[0]+C*a[1]], tr=sub(cb,rot(ca)), fit=a=>add(rot(a),tr);
-  const top=[],bot=[];
-  for(let i=0;i<COLS;i++){top.push(add(p11,mul(sub(p16,p11),i/(COLS-1))));bot.push(add(p21,mul(sub(p26,p21),i/(COLS-1))));}
-  const marks=[];
-  [top,bot].forEach((row,ri)=>row.forEach((p,i)=>{const id=`${ri+1}-${i+1}`;marks.push({id,p,ideal:fit(ideal(ri+1,i+1)),meas:id in P});}));
-  const ctrA=top.map((t,i)=>{const b=bot[i],v=sub(b,t),c=mul(add(t,b),.5);
-    const id=mul(add(fit(ideal(1,i+1)),fit(ideal(2,i+1))),.5);return{id:`A${i+1}`,p:c,th:deg(Math.atan2(-v[0],v[1])),ideal:id};});
-  const ctrB=[];
-  for(let i=0;i<COLS-1;i++){const q=[top[i],top[i+1],bot[i],bot[i+1]],c=mul(q.reduce(add),.25);
-    const vx=mul(add(sub(q[0],q[1]),sub(q[2],q[3])),.5), vy=mul(add(sub(q[2],q[0]),sub(q[3],q[1])),.5);
-    const t=(Math.atan2(vx[1],vx[0])+Math.atan2(-vy[0],vy[1]))/2;
-    const id=mul([ideal(1,i+1),ideal(1,i+2),ideal(2,i+1),ideal(2,i+2)].map(fit).reduce(add),.25);
-    ctrB.push({id:`B${i+1}`,p:c,th:deg(t),ideal:id});}
-  const d1=len(sub(p26,p11)), d2=len(sub(p21,p16));
-  return {r1,r2,c1,c6,thR1,thR2,thC1,thC6,thx,thy,px,py,th,origin:fit([0,0]),marks,ctrA,ctrB,d1,d2,center:mul([p11,p16,p21,p26].reduce(add),.25),fit,ideal};
-}
+  const S={L:sideCalc(SIDES.L),R:sideCalc(SIDES.R)}, keysL=["1-1","1-6","2-1","2-6"], keysR=["1-7","1-12","2-7","2-12"];
+  const fL=fit(keysL,[S.L.thx,...P["1-1"],S.L.px,S.L.py,0,0],[0,1,2]);
+  const fR=fit(keysR,[S.R.thx,...P["1-12"],S.R.px,S.R.py,0,0],[0,1,2]);
+  const all=[...keysL,...keysR], G0=P["1-12"][0]-P["1-1"][0];
+  const fRig=fit(all,[S.L.thx,...P["1-1"],(S.L.px+S.R.px)/2,(S.L.py+S.R.py)/2,G0,0],[0,1,2,3,4,5]);
+  const fStep=fit(all,[...fRig.p.slice(0,6),0],[0,1,2,3,4,5,6]);
+  const G={L:glassCalc(GLASS.L),R:glassCalc(GLASS.R)};
+  const a6=P["1-6"],a7=P["1-7"],thLong=angX(sub(a7,a6));
+  const stepAt=(r)=>{const a=P[`${r}-1`],t=Math.tan(S.L.e[r===1?"r1":"r2"]),x=P[`${r}-12`][0];return P[`${r}-12`][1]-(a[1]+t*(x-a[0]));};
+  return{S,fL,fR,fRig,fStep,G,thLong,step:[stepAt(1),stepAt(2)]};}
+
+function idealOf(R,base,r,c){if(base==="sep")return model(c<=6?R.fL.p:R.fR.p,r,c);return model(base==="rigid"?R.fRig.p:R.fStep.p,r,c);}
 
 const NS="http://www.w3.org/2000/svg";
 function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;parent&&parent.appendChild(e);return e;}
-function niceStep(range,n){const raw=range/n,p=10**Math.floor(Math.log10(raw)),m=raw/p;return (m<1.5?1:m<3?2:m<7?5:10)*p;}
+function niceStep(range,n){const raw=range/n,p=10**Math.floor(Math.log10(raw)),m=raw/p;return(m<1.5?1:m<3?2:m<7?5:10)*p;}
+
+function stats(R){const{S,fStep,fRig}=R;
+  const items=[
+    ["左側 θ（剛體擬合）",f5(deg(R.fL.p[0]))+"°",`X 間距 ${f4(S.L.px)}・殘差 ${(R.fL.rms*1000).toFixed(1)} µm`],
+    ["右側 θ（剛體擬合）",f5(deg(R.fR.p[0]))+"°",`X 間距 ${f4(S.R.px)}・殘差 ${(R.fR.rms*1000).toFixed(1)} µm`],
+    ["左右 θ 差",f5(deg(R.fR.p[0]-R.fL.p[0]))+"°",`675 mm 上 ${um((R.fR.p[0]-R.fL.p[0])*675)} µm`,Math.abs(deg(R.fR.p[0]-R.fL.p[0]))>0.005],
+    ["中央 Y 台階 H",sg4(fStep.p[6])+" mm","右側相對左側列線",Math.abs(fStep.p[6])>0.05],
+    ["整合 θ（含台階）",f5(deg(fStep.p[0]))+"°",`殘差 RMS ${(fStep.rms*1000).toFixed(1)} µm`],
+    ["整合剛體殘差 RMS",(fRig.rms*1000).toFixed(1)+" µm",`θ ${f5(deg(fRig.p[0]))}°，不適用`,fRig.rms>0.05],
+  ];
+  document.getElementById("stats").innerHTML=items.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");}
+
+function findings(R){const{S,fStep,fRig,G}=R;
+  const relL=deg(S.L.thx-G.L.thx),relR=deg(S.R.thx-G.R.thx);
+  const li=[
+    `左右各自看都很一致：剛體擬合殘差 左 ${(R.fL.rms*1000).toFixed(1)} µm、右 ${(R.fR.rms*1000).toFixed(1)} µm；θ 分別 ${f5(deg(R.fL.p[0]))}° 與 ${f5(deg(R.fR.p[0]))}°，相差 ${f5(deg(R.fR.p[0]-R.fL.p[0]))}°。`,
+    `硬把 8 點當同一片剛體時殘差暴增到 ${(fRig.rms*1000).toFixed(0)} µm，整體 θ 被拉成 ${f5(deg(fRig.p[0]))}°（長基線 1-6→1-7 也只有 ${f5(deg(R.thLong))}°），原因是右側整體比左側列線高 ${sg4(fStep.p[6])} mm（列1 ${sg4(R.step[0])}、列2 ${sg4(R.step[1])}）。`,
+    `允許這個台階後，整合 θ = ${f5(deg(fStep.p[0]))}°，殘差 ${(fStep.rms*1000).toFixed(1)} µm，仍大於分開計算，因為左右 X 間距差 ${sg4(S.R.px-S.L.px)} mm（${((S.R.px/S.L.px-1)*1e6).toFixed(0)} ppm）、θ 也不同。`,
+    `中央間隙（欄 1↔欄 12）= ${f4(fStep.p[5])}，比 pitch 短 ${f4(fStep.p[3]-fStep.p[5])}；若設計是等距排列，需確認左右原點或中央距離設定。`,
+    `兩側直交誤差都約 ${f5(deg(S.L.thx-S.L.thy))}° / ${f5(deg(S.R.thx-S.R.thy))}°，方向與大小一致，屬系統性（SPB 治具或 Mark 本身），不是單側機台問題。`,
+    `以各側玻璃格點為基準，SPB θx 相對格點：左 ${f5(relL)}°、右 ${f5(relR)}°，差 ${f5(relR-relL)}°，比直接看機台座標的差異 ${f5(deg(S.R.thx-S.L.thx))}° 更接近。`,
+    `建議：預放以「分開計算」為準，每側用自己的 θ 與原點；若必須共用一組 θ，用「整合（含台階）」的 ${f5(deg(fStep.p[0]))}°，並把台階 ${sg4(fStep.p[6])} mm 補在右側 Y。`];
+  document.getElementById("findings").innerHTML=li.map(t=>`<li>${t}</li>`).join("");}
+
+function cmpTable(R){const{S,fL,fR,fRig,fStep}=R;
+  const rows=[
+    ["θx 列1",f5(deg(S.L.e.r1)),f5(deg(S.R.e.r1)),f5(deg(S.R.e.r1-S.L.e.r1)),"",""],
+    ["θx 列2",f5(deg(S.L.e.r2)),f5(deg(S.R.e.r2)),f5(deg(S.R.e.r2-S.L.e.r2)),"",""],
+    ["θy 外側欄",f5(deg(S.L.e.k1)),f5(deg(S.R.e.k0)),f5(deg(S.R.e.k0-S.L.e.k1)),"",""],
+    ["θy 中央側欄",f5(deg(S.L.e.k0)),f5(deg(S.R.e.k1)),f5(deg(S.R.e.k1-S.L.e.k0)),"",""],
+    ["直交誤差 θx−θy",f5(deg(S.L.thx-S.L.thy)),f5(deg(S.R.thx-S.R.thy)),f5(deg((S.R.thx-S.R.thy)-(S.L.thx-S.L.thy))),"",""],
+    ["擬合 θ (deg)",f5(deg(fL.p[0])),f5(deg(fR.p[0])),f5(deg(fR.p[0]-fL.p[0])),f5(deg(fRig.p[0])),f5(deg(fStep.p[0]))],
+    ["X 間距",f4(S.L.px),f4(S.R.px),sg4(S.R.px-S.L.px),f4(fRig.p[3]),f4(fStep.p[3])],
+    ["Y 間距",f4(S.L.py),f4(S.R.py),sg4(S.R.py-S.L.py),f4(fRig.p[4]),f4(fStep.p[4])],
+    ["中央間隙 G","","","",f4(fRig.p[5]),f4(fStep.p[5])],
+    ["右側 Y 台階 H","","","","0（固定）",sg4(fStep.p[6])],
+    ["對角線差 (µm)",um(S.L.diag),um(S.R.diag),"","",""],
+    ["殘差 RMS (µm)",(fL.rms*1000).toFixed(1),(fR.rms*1000).toFixed(1),"",(fRig.rms*1000).toFixed(1),(fStep.rms*1000).toFixed(1)],
+    ["最大殘差 (µm)",(fL.max*1000).toFixed(1),(fR.max*1000).toFixed(1),"",(fRig.max*1000).toFixed(1),(fStep.max*1000).toFixed(1)],
+  ];
+  document.getElementById("cmp").innerHTML="<tr><th>項目</th><th>左側 1~6</th><th>右側 7~12</th><th>右 − 左</th><th>整合（剛體）</th><th>整合（含台階）</th></tr>"+
+    rows.map(r=>`<tr>${r.map((c,i)=>`<td${(i===4&&/殘差/.test(r[0])&&fRig.rms>0.05)?' class="bad"':""}>${c}</td>`).join("")}</tr>`).join("");}
+
+function glassTable(R){const{S,G}=R;const L=G.L,Rg=G.R;
+  const rows=[["格點 +X 方向角",f5(deg(L.thx)),f5(deg(Rg.thx)),f5(deg(Rg.thx-L.thx))],
+    ["格點 +Y 方向角",f5(deg(L.thy)),f5(deg(Rg.thy)),f5(deg(Rg.thy-L.thy))],
+    ["格點 X 比例",L.sx.toFixed(6),Rg.sx.toFixed(6),((Rg.sx-L.sx)*1e6).toFixed(0)+" ppm"],
+    ["SPB θx 相對格點",f5(deg(S.L.thx-L.thx)),f5(deg(S.R.thx-Rg.thx)),f5(deg((S.R.thx-Rg.thx)-(S.L.thx-L.thx)))],
+    ["SPB θy 相對格點",f5(deg(S.L.thy-L.thy)),f5(deg(S.R.thy-Rg.thy)),f5(deg((S.R.thy-Rg.thy)-(S.L.thy-L.thy)))],
+    ["X 間距（比例修正）",f4(S.L.px/L.sx),f4(S.R.px/Rg.sx),sg4(S.R.px/Rg.sx-S.L.px/L.sx)],
+    ["Y 間距（比例修正）",f4(S.L.py/L.sy),f4(S.R.py/Rg.sy),sg4(S.R.py/Rg.sy-S.L.py/L.sy)]];
+  document.getElementById("glass").innerHTML="<tr><th>項目</th><th>左 / A</th><th>右 / B</th><th>右 − 左</th></tr>"+rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");}
 
 function drawMap(R){
   const svg=document.getElementById("map");svg.innerHTML="";
-  const showGlass=document.getElementById("showGlass").checked, K=+document.getElementById("mag").value;
-  let pts=R.marks.map(m=>m.p); if(showGlass) pts=pts.concat(GLASS);
+  const base=document.getElementById("base").value, K=+document.getElementById("mag").value, showGlass=document.getElementById("showGlass").checked;
+  const marks=[...R.S.L.marks,...R.S.R.marks];
+  let pts=marks.map(m=>m.p);if(showGlass)pts=pts.concat(GLASS.L.map(g=>g.m),GLASS.R.map(g=>g.m));
   let x0=Math.min(...pts.map(p=>p[0])),x1=Math.max(...pts.map(p=>p[0])),y0=Math.min(...pts.map(p=>p[1])),y1=Math.max(...pts.map(p=>p[1]));
-  const padX=(x1-x0)*.05+25, padY=40; x0-=padX;x1+=padX;y0-=padY;y1+=padY;
-  const W=1100, ml=64, mr=16, mt=14, mb=34, s=(W-ml-mr)/(x1-x0), H=Math.round((y1-y0)*s)+mt+mb;
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`); svg.style.width="100%"; svg.style.minWidth="720px"; svg.style.display="block";
-  const X=x=>ml+(x-x0)*s, Y=y=>mt+(y1-y)*s;
-  const g=el("g",{},svg);
-  const sx=niceStep(x1-x0,10), sy=niceStep(y1-y0,Math.max(3,Math.round((H-mt-mb)/70)));
+  x0-=40;x1+=40;y0-=45;y1+=45;
+  const W=1100,ml=58,mr=14,mt=14,mb=34,s=(W-ml-mr)/(x1-x0),H=Math.round((y1-y0)*s)+mt+mb;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width="100%";svg.style.minWidth="820px";svg.style.display="block";
+  const X=x=>ml+(x-x0)*s,Y=y=>mt+(y1-y)*s,g=el("g",{},svg);
+  const sx=200,sy=niceStep(y1-y0,Math.max(2,Math.round((H-mt-mb)/50)));
   for(let v=Math.ceil(x0/sx)*sx;v<=x1;v+=sx){el("line",{x1:X(v),x2:X(v),y1:mt,y2:H-mb,stroke:"var(--grid)"},g);el("text",{x:X(v),y:H-mb+16,"text-anchor":"middle"},g,v.toFixed(0));}
   for(let v=Math.ceil(y0/sy)*sy;v<=y1;v+=sy){el("line",{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},g);el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end"},g,v.toFixed(0));}
   el("rect",{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb,fill:"none",stroke:"var(--line)"},g);
   el("text",{x:W-mr,y:H-4,"text-anchor":"end"},g,"X (mm)");
-  el("text",{x:4,y:mt+10},g,"Y (mm)");
-  if(showGlass) GLASS.forEach(p=>el("circle",{cx:X(p[0]),cy:Y(p[1]),r:3,fill:"var(--glass)"},g));
-  // 理想外框
-  if(document.getElementById("showIdeal").checked){
-    const c=[[1,1],[1,6],[2,6],[2,1]].map(k=>R.fit(R.ideal(...k)));
-    el("polygon",{points:c.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),fill:"none",stroke:"var(--ideal)","stroke-dasharray":"6 4","stroke-width":1.2},g);
-  }
-  // 實測外框
-  const o=["1-1","1-6","2-6","2-1"].map(k=>P[k]);
-  el("polygon",{points:o.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),fill:"var(--meas)","fill-opacity":.05,stroke:"var(--meas)","stroke-width":1},g);
-  const showErr=document.getElementById("showErr").checked;
-  const arrow=(from,ideal,color)=>{if(!showErr||!K)return;const d=sub(from,ideal),e=add(ideal,mul(d,K));
-    el("line",{x1:X(ideal[0]),y1:Y(ideal[1]),x2:X(e[0]),y2:Y(e[1]),stroke:color,"stroke-width":1.5},g);
-    el("circle",{cx:X(e[0]),cy:Y(e[1]),r:2,fill:color},g);};
-  const read=document.getElementById("readout");
-  const hook=(node,html)=>{node.setAttribute("tabindex","0");node.classList.add("pt");
-    const show=()=>{read.innerHTML=html;}; node.addEventListener("mouseenter",show); node.addEventListener("focus",show); node.addEventListener("click",show);};
-  R.marks.forEach(m=>{arrow(m.p,m.ideal,"var(--err)");
-    const c=m.meas?el("circle",{cx:X(m.p[0]),cy:Y(m.p[1]),r:6,fill:"var(--meas)"},g):el("circle",{cx:X(m.p[0]),cy:Y(m.p[1]),r:4.5,fill:"var(--panel)",stroke:"var(--interp)","stroke-width":1.5},g);
-    el("text",{x:X(m.p[0]),y:Y(m.p[1])+(m.id[0]==="1"?20:-11),"text-anchor":"middle",class:"lbl"},g,m.id);
-    const d=sub(m.p,m.ideal);
-    hook(c,`<b>Mark ${m.id}</b>（${m.meas?"實測":"內插"}）　X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　對剛體理想 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
-  const ctr=(list,kind)=>list.forEach(c=>{arrow(c.p,c.ideal,"var(--err)");const x=X(c.p[0]),y=Y(c.p[1]);let n;
-    if(kind==="A"){n=el("path",{d:`M${x} ${y-7}L${x+7} ${y}L${x} ${y+7}L${x-7} ${y}Z`,fill:"var(--ctrA)"},g);}
-    else{n=el("g",{},g);el("path",{d:`M${x-6} ${y-6}L${x+6} ${y+6}M${x+6} ${y-6}L${x-6} ${y+6}`,stroke:"var(--ctrB)","stroke-width":2.5},n);el("circle",{cx:x,cy:y,r:8,fill:"transparent"},n);}
-    el("text",{x:x+(kind==="A"?10:-10),y:y+4,"text-anchor":kind==="A"?"start":"end",class:"lbl"},g,c.id);
-    const d=sub(c.p,c.ideal);
-    hook(n,`<b>中心 ${c.id}</b>　X <span class="num">${f4(c.p[0])}</span>　Y <span class="num">${f4(c.p[1])}</span>　θ <span class="num">${f5(c.th)}°</span>　對剛體理想 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
-  if(document.getElementById("showA").checked) ctr(R.ctrA,"A");
-  if(document.getElementById("showB").checked) ctr(R.ctrB,"B");
-  // SPB 整體中心
-  const cc=R.center; el("circle",{cx:X(cc[0]),cy:Y(cc[1]),r:9,fill:"none",stroke:"var(--fg)","stroke-width":1},g);
-  el("path",{d:`M${X(cc[0])-13} ${Y(cc[1])}H${X(cc[0])+13}M${X(cc[0])} ${Y(cc[1])-13}V${Y(cc[1])+13}`,stroke:"var(--fg)","stroke-width":1},g);
+  if(showGlass)[...GLASS.L,...GLASS.R].forEach(q=>el("circle",{cx:X(q.m[0]),cy:Y(q.m[1]),r:2.5,fill:"var(--glass)"},g));
+  const poly=(arr,attrs)=>el("polygon",{points:arr.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),...attrs},g);
+  [["L",1,6,"var(--left)"],["R",7,12,"var(--right)"]].forEach(([k,a,b,col])=>{
+    poly([P[`1-${a}`],P[`1-${b}`],P[`2-${b}`],P[`2-${a}`]],{fill:col,"fill-opacity":.06,stroke:col,"stroke-width":1});
+    if(document.getElementById("showIdeal").checked)
+      poly([[1,a],[1,b],[2,b],[2,a]].map(([r,c])=>idealOf(R,base,r,c)),{fill:"none",stroke:"var(--ideal)","stroke-dasharray":"6 4","stroke-width":1.2});});
+  const showErr=document.getElementById("showErr").checked,read=document.getElementById("readout");
+  const arrow=(p,id)=>{if(!showErr||!K)return;const e=add(id,mul(sub(p,id),K));
+    el("line",{x1:X(id[0]),y1:Y(id[1]),x2:X(e[0]),y2:Y(e[1]),stroke:"var(--err)","stroke-width":1.4},g);el("circle",{cx:X(e[0]),cy:Y(e[1]),r:1.8,fill:"var(--err)"},g);};
+  const hook=(n,html)=>{n.setAttribute("tabindex","0");n.classList.add("pt");const f=()=>{read.innerHTML=html;};["mouseenter","focus","click"].forEach(ev=>n.addEventListener(ev,f));};
+  marks.forEach(m=>{const id=idealOf(R,base,m.r,m.c),col=m.c<=6?"var(--left)":"var(--right)";arrow(m.p,id);
+    const n=m.meas?el("circle",{cx:X(m.p[0]),cy:Y(m.p[1]),r:5.5,fill:col},g):el("circle",{cx:X(m.p[0]),cy:Y(m.p[1]),r:4,fill:"var(--panel)",stroke:col,"stroke-width":1.4},g);
+    el("text",{x:X(m.p[0]),y:Y(m.p[1])+(m.r===1?18:-10),"text-anchor":"middle",class:"lbl"},g,m.id);
+    const d=sub(m.p,id);
+    hook(n,`<b>Mark ${m.id}</b>（${m.c<=6?"左側":"右側"}・${m.meas?"實測":"內插"}）　X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
+  if(document.getElementById("showC").checked)[...R.S.L.ctr,...R.S.R.ctr].forEach(c=>{
+    const id=mul(add(idealOf(R,base,1,c.c),idealOf(R,base,2,c.c)),.5);arrow(c.p,id);
+    const x=X(c.p[0]),y=Y(c.p[1]),n=el("path",{d:`M${x} ${y-6}L${x+6} ${y}L${x} ${y+6}L${x-6} ${y}Z`,fill:"var(--ctr)"},g);
+    el("text",{x:x+9,y:y+4,class:"lbl"},g,"P"+c.id);const d=sub(c.p,id);
+    hook(n,`<b>預放位置 ${c.id}</b>　中心 X <span class="num">${f4(c.p[0])}</span>　Y <span class="num">${f4(c.p[1])}</span>　θ <span class="num">${f5(c.th)}°</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
 }
 
 function drawTheta(R){
   const svg=document.getElementById("thchart");svg.innerHTML="";
-  const W=520,H=260,ml=62,mr=14,mt=14,mb=32;
-  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width="100%";svg.style.minWidth="380px";svg.style.display="block";
-  const vals=[...R.ctrA.map(c=>c.th),...R.ctrB.map(c=>c.th),deg(R.thx),deg(R.th)];
-  let lo=Math.min(...vals),hi=Math.max(...vals);const pd=(hi-lo)*.15||.001;lo-=pd;hi+=pd;
-  const st=niceStep(hi-lo,5);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
-  const Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
-  const Xp=i=>ml+(i-0.6)*(W-ml-mr)/(COLS-0.2);
-  for(let v=lo;v<=hi+1e-12;v+=st){el("line",{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},svg);el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end"},svg,v.toFixed(4));}
-  for(let i=1;i<=COLS;i++) el("text",{x:Xp(i),y:H-mb+16,"text-anchor":"middle"},svg,"位置 "+i);
-  el("line",{x1:ml,x2:W-mr,y1:Y(deg(R.thx)),y2:Y(deg(R.thx)),stroke:"var(--meas)","stroke-width":2},svg);
-  el("line",{x1:ml,x2:W-mr,y1:Y(deg(R.th)),y2:Y(deg(R.th)),stroke:"var(--ideal)","stroke-width":2,"stroke-dasharray":"6 4"},svg);
-  el("polyline",{points:R.ctrA.map((c,i)=>`${Xp(i+1)},${Y(c.th)}`).join(" "),fill:"none",stroke:"var(--ctrA)","stroke-width":1.5},svg);
-  R.ctrA.forEach((c,i)=>{const n=el("circle",{cx:Xp(i+1),cy:Y(c.th),r:4.5,fill:"var(--ctrA)"},svg);el("title",{},n,`${c.id} θ ${f5(c.th)}°`);});
-  el("polyline",{points:R.ctrB.map((c,i)=>`${Xp(i+1.5)},${Y(c.th)}`).join(" "),fill:"none",stroke:"var(--ctrB)","stroke-width":1.5},svg);
-  R.ctrB.forEach((c,i)=>{const n=el("rect",{x:Xp(i+1.5)-4,y:Y(c.th)-4,width:8,height:8,fill:"var(--ctrB)"},svg);el("title",{},n,`${c.id} θ ${f5(c.th)}°`);});
+  const W=540,H=270,ml=64,mr=14,mt=14,mb=32;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width="100%";svg.style.minWidth="400px";svg.style.display="block";
+  const C=[...R.S.L.ctr,...R.S.R.ctr];
+  const vals=[...C.map(c=>c.th),deg(R.S.L.thx),deg(R.S.R.thx),deg(R.fStep.p[0]),deg(R.fRig.p[0])];
+  let lo=Math.min(...vals),hi=Math.max(...vals);const pd=(hi-lo)*.1||.001;lo-=pd;hi+=pd;const st=niceStep(hi-lo,5);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
+  const xs=C.map(c=>c.p[0]),xa=Math.min(...xs)-60,xb=Math.max(...xs)+60;
+  const X=x=>ml+(x-xa)/(xb-xa)*(W-ml-mr),Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
+  for(let v=lo;v<=hi+1e-12;v+=st){el("line",{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},svg);el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end"},svg,v.toFixed(3));}
+  for(let v=Math.ceil(xa/200)*200;v<=xb;v+=200)el("text",{x:X(v),y:H-mb+16,"text-anchor":"middle"},svg,v);
+  const seg=(xA,xB,v,col,dash)=>el("line",{x1:X(xA),x2:X(xB),y1:Y(v),y2:Y(v),stroke:col,"stroke-width":2,...(dash?{"stroke-dasharray":dash}:{})},svg);
+  const lx=R.S.L.ctr.map(c=>c.p[0]),rx=R.S.R.ctr.map(c=>c.p[0]);
+  seg(Math.min(...lx)-30,Math.max(...lx)+30,deg(R.S.L.thx),"var(--left)");seg(Math.min(...rx)-30,Math.max(...rx)+30,deg(R.S.R.thx),"var(--right)");
+  seg(xa,xb,deg(R.fStep.p[0]),"var(--int)","6 4");seg(xa,xb,deg(R.fRig.p[0]),"var(--err)","2 3");
+  [R.S.L.ctr,R.S.R.ctr].forEach(list=>{el("polyline",{points:list.map(c=>`${X(c.p[0])},${Y(c.th)}`).join(" "),fill:"none",stroke:"var(--ctr)","stroke-width":1.2},svg);
+    list.forEach(c=>{const n=el("circle",{cx:X(c.p[0]),cy:Y(c.th),r:4,fill:"var(--ctr)"},svg);el("title",{},n,`位置 ${c.id}  θ ${f5(c.th)}°`);
+      el("text",{x:X(c.p[0]),y:Y(c.th)-8,"text-anchor":"middle",class:"lbl"},svg,c.id);});});
 }
 
-function stats(R){
-  const ortho=deg(R.thx-R.thy);
-  const items=[
-    ["剛體擬合 θ",f5(deg(R.th))+"°","建議整體預放角度"],
-    ["θx（X 向）",f5(deg(R.thx))+"°","跨距 675 mm"],
-    ["θy（Y 向）",f5(deg(R.thy))+"°","跨距 144 mm"],
-    ["直交誤差 θx−θy",f5(ortho)+"°",`144 mm 上 ${um((R.thx-R.thy)*R.py)} µm`,Math.abs(ortho)>0.005],
-    ["X 間距",f4(R.px),"mm／片"],
-    ["Y 間距",f4(R.py),"mm（上下 Mark）"],
-    ["SPB 中心",`${R.center[0].toFixed(3)}, ${R.center[1].toFixed(3)}`,"四角平均"],
-    ["1-1 理想原點",`${R.origin[0].toFixed(3)}, ${R.origin[1].toFixed(3)}`,"剛體擬合"],
-  ];
-  document.getElementById("stats").innerHTML=items.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
-}
+function table(R){const base=document.getElementById("base").value,t=document.getElementById("tbl");
+  const tag=c=>`<span class="tag ${c<=6?"L":"R"}">${c<=6?"左":"右"}</span>`;
+  if(view==="M"){t.innerHTML="<tr><th>Mark</th><th>側</th><th>X</th><th>Y</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
+    [...R.S.L.marks,...R.S.R.marks].map(m=>{const d=sub(m.p,idealOf(R,base,m.r,m.c));return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");return;}
+  t.innerHTML="<tr><th>位置</th><th>側</th><th>中心 X</th><th>中心 Y</th><th>θ (deg)</th><th>該側 θx</th><th>與前一片距</th><th>dX µm</th><th>dY µm</th></tr>"+
+    [R.S.L,R.S.R].map(S=>S.ctr.map((c,i)=>{const id=mul(add(idealOf(R,base,1,c.c),idealOf(R,base,2,c.c)),.5),d=sub(c.p,id);
+      return`<tr><td>${c.id}</td><td>${tag(c.c)}</td><td>${f4(c.p[0])}</td><td>${f4(c.p[1])}</td><td>${f5(c.th)}</td><td>${f5(deg(S.thx))}</td><td>${i?f4(len(sub(c.p,S.ctr[i-1].p))):"—"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("")).join("");}
 
-function edges(R){
-  const rows=[["列1 X 向（1-6→1-1）",R.r1,R.thR1,COLS-1],["列2 X 向（2-6→2-1）",R.r2,R.thR2,COLS-1],["欄1 Y 向（1-1→2-1）",R.c1,R.thC1,1],["欄6 Y 向（1-6→2-6）",R.c6,R.thC6,1]];
-  document.getElementById("edges").innerHTML="<tr><th>邊</th><th>ΔX</th><th>ΔY</th><th>間距</th><th>θ (deg)</th></tr>"+
-    rows.map(([n,v,t,k])=>`<tr><td>${n}</td><td>${f4(v[0])}</td><td>${f4(v[1])}</td><td>${f4(len(v)/k)}</td><td>${f5(deg(t))}</td></tr>`).join("");
-  document.getElementById("shapeNote").innerHTML=
-    `對角線 1-1↔2-6 = <span class="num">${f4(R.d1)}</span>，1-6↔2-1 = <span class="num">${f4(R.d2)}</span>，差 <span class="num">${um(R.d1-R.d2)}</span> µm。`+
-    `列1/列2 角度差 <span class="num">${f5(deg(R.thR1-R.thR2))}°</span>；欄1/欄6 角度差 <span class="num">${f5(deg(R.thC1-R.thC6))}°</span>（左右兩邊不平行，呈梯形）。`+
-    `玻璃格點顯示機台 X、Y 軸直交誤差僅約 −0.0012°，所以 X/Y 斜率不一致主要來自 SPB 本身或 Mark。`;
-}
-
-function table(R){
-  const t=document.getElementById("tbl");
-  if(view==="M"){t.innerHTML="<tr><th>Mark</th><th>X</th><th>Y</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
-    R.marks.map(m=>{const d=sub(m.p,m.ideal);return`<tr><td>${m.id}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");return;}
-  const list=view==="A"?R.ctrA:R.ctrB;let prev=null;
-  t.innerHTML="<tr><th>位置</th><th>中心 X</th><th>中心 Y</th><th>θ (deg)</th><th>中心距</th><th>dX µm</th><th>dY µm</th></tr>"+
-    list.map(c=>{const d=sub(c.p,c.ideal),pitch=prev?f4(len(sub(c.p,prev))):"—";prev=c.p;
-      return`<tr><td>${c.id}</td><td>${f4(c.p[0])}</td><td>${f4(c.p[1])}</td><td>${f5(c.th)}</td><td>${pitch}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");
-}
-
-function render(){const R=compute();stats(R);drawMap(R);drawTheta(R);edges(R);table(R);document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);
+  document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
-Object.keys(DEF).forEach(k=>{const fs=document.createElement("fieldset");
-  fs.innerHTML=`<legend>${k}</legend><label for="in-${k}-x">X<input id="in-${k}-x" inputmode="decimal" value="${DEF[k][0]}"></label><label for="in-${k}-y">Y<input id="in-${k}-y" inputmode="decimal" value="${DEF[k][1]}"></label>`;
-  inp.appendChild(fs);
-  ["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){P[k][i]=v;render();}}));});
-["showA","showB","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
-[["tabA","A"],["tabB","B"],["tabM","M"]].forEach(([id,v])=>document.getElementById(id).addEventListener("click",()=>{view=v;
-  ["tabA","tabB","tabM"].forEach(b=>document.getElementById(b).setAttribute("aria-pressed",b===id));table(compute());}));
+Object.keys(DEF).forEach(k=>{const side=+k.split("-")[1]<=6?"左側":"右側",fs=document.createElement("fieldset");
+  fs.innerHTML=`<legend>${side} ${k}</legend><label for="in-${k}-x">X<input id="in-${k}-x" inputmode="decimal" value="${DEF[k][0]}"></label><label for="in-${k}-y">Y<input id="in-${k}-y" inputmode="decimal" value="${DEF[k][1]}"></label>`;
+  inp.appendChild(fs);["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){P[k][i]=v;render();}}));});
+document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:500,rigid:100}[e.target.value];render();});
+["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+[["tabC","C"],["tabM","M"]].forEach(([id,v])=>document.getElementById(id).addEventListener("click",()=>{view=v;["tabC","tabM"].forEach(b=>document.getElementById(b).setAttribute("aria-pressed",b===id));table(compute());}));
 render();
 </script>
