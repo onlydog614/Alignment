@@ -96,6 +96,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
       <strong>機台 X 方向（實體）</strong>
       <label for="dirL">左側機台 X <select id="dirL"><option value="1" selected>由左至右（原點在中央，往左為負）</option><option value="-1">由右至左</option></select></label>
       <label for="dirR">右側機台 X <select id="dirR"><option value="-1" selected>由右至左（原點在右）</option><option value="1">由左至右</option></select></label>
+      <label for="gapIn">中央 1-1↔1-7 圖面距離 <input id="gapIn" inputmode="decimal" value="135" style="width:70px"></label>
       <label for="msym">左右片子 Mark 位置 <select id="msym"><option value="same">實體同向（Mark 都在片子同一角）</option><option value="mirror">左右鏡像對稱</option></select></label>
     </div>
   </section>
@@ -110,7 +111,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
   <section data-tab="overview" class="panel">
     <h2>分開計算 vs 整合計算</h2>
     <div class="tablebox"><table id="cmp"></table></div>
-    <p class="note">「機台」欄為該側機台座標下的值，下指令用；「實體」欄為換成實體左→右方向後的值，用來比較兩側。整合：兩側換到同一實體座標，假設中央相鄰兩欄中心距＝pitch 反推兩原點關係 C；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
+    <p class="note">「機台」欄為該側機台座標下的值，下指令用；「實體」欄為換成實體左→右方向後的值，用來比較兩側。整合：兩側換到同一實體座標，以圖面中央距離（1-1↔1-7 Mark，預設 135）反推兩原點關係 C；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
   </section>
 
   <section data-tab="map" class="panel">
@@ -335,7 +336,8 @@ const toPhys=(p,c,C)=>[(isR(c)?C:0)+sOf(c)*p[0],p[1]];
 const phys=(k,C)=>toPhys(P[k],ck(k)[1],C);
 const devM=(d,c)=>[sOf(c)*d[0],d[1]];          // 實體偏差 → 該側機台方向
 // 模型（實體座標）：IDX[c] 為實體由左至右的序號 0..11
-function model(p,r,c){const[th,tx,ty,px,py,C,H]=p;const u=IDX[c]*px,v=(r-1)*py+(isR(c)?H:0);
+let GAP=135; // 圖面：中央 1-1 ↔ 1-7 Mark 距離
+function model(p,r,c){const[th,tx,ty,px,py,C,H]=p;const i=IDX[c],u=i<6?i*px:5*px+GAP+(i-6)*px,v=(r-1)*py+(isR(c)?H:0);
   return[tx+Math.cos(th)*u-Math.sin(th)*v,ty+Math.sin(th)*u+Math.cos(th)*v];}
 function fit(keys,p0,free){const p=[...p0];
   const resid=q=>keys.flatMap(k=>{const[r,c]=ck(k),m=model(q,r,c),d=phys(k,q[5]);return[m[0]-d[0],m[1]-d[1]];});
@@ -371,7 +373,7 @@ function compute(){deriveP();
   const Lm=sideCalc(k=>P[k],1,6),Lp=sideCalc(loc,1,6),Rm=sideCalc(k=>P[k],7,12),Rp=sideCalc(loc,7,12);
   const kL=["1-1","1-6","2-1","2-6"],kR=["1-7","1-12","2-7","2-12"],px0=(Lm.px+Rm.px)/2,py0=(Lm.py+Rm.py)/2;
   const lEnd=lOrd[5],lStart=lOrd[0],rStart=rOrd[0];
-  const C0=D.L*P[`1-${lEnd}`][0]+px0-D.R*P[`1-${rStart}`][0];
+  const C0=D.L*P[`1-${lEnd}`][0]+GAP-D.R*P[`1-${rStart}`][0];
   const o=loc(`1-${lStart}`);
   const fRig=fit([...kL,...kR],[Lp.thx,o[0],o[1],px0,py0,C0,0],[0,1,2,3,4,5]);
   const fStep=fit([...kL,...kR],[...fRig.p.slice(0,6),0],[0,1,2,3,4,5,6]);
@@ -408,10 +410,10 @@ function findings(R){const{Lm,Lp,Rm,Rp,G}=R,kink=deg(Rp.thx-Lp.thx);
     Math.abs(kink)<0.02
       ?`換到實體方向後兩側角度一致：左 θx ${f5(deg(Lp.thx))}°、右 θx ${f5(deg(Rp.thx))}°，只差 ${f5(kink)}°（675 mm 上 ${um((Rp.thx-Lp.thx)*675)} µm）。整片 SPB 是同一方向的整體旋轉。`
       :`換到實體方向後左 θx ${f5(deg(Lp.thx))}°、右 θx ${f5(deg(Rp.thx))}°，兩側有 ${f5(kink)}° 的折角（675 mm 上 ${(Math.abs(Rp.thx-Lp.thx)*675).toFixed(2)} mm），不能共用一個 θ。`,
-    `整合成一片（剛體）：${Math.abs(R.fStep.p[6])>0.05?`殘差主要來自中央 Y 台階（右側整體 ${sg4(R.fStep.p[6])} mm，1-${R.rStart} 比 1-${R.lEnd} 差 ${sg4(R.dyC1)} mm）。`:""}θ ${f5(deg(R.fRig.p[0]))}°、X 間距 ${f4(R.fRig.p[3])}、殘差 ${(R.fRig.rms*1000).toFixed(1)} µm；允許右側 Y 台階後 H = ${sg4(R.fStep.p[6])} mm、殘差 ${(R.fStep.rms*1000).toFixed(1)} µm。分開計算殘差 ${(R.fL.rms*1000).toFixed(1)} / ${(R.fR.rms*1000).toFixed(1)} µm。`,
+    `整合成一片（剛體）：${Math.abs(kink)>=0.02?`殘差主要來自兩側 ${f5(kink)}° 的折角（中央 Y 台階只有 ${sg4(R.fStep.p[6])} mm）。`:Math.abs(R.fStep.p[6])>0.05?`殘差主要來自中央 Y 台階（右側整體 ${sg4(R.fStep.p[6])} mm，1-${R.rStart} 比 1-${R.lEnd} 差 ${sg4(R.dyC1)} mm）。`:""}θ ${f5(deg(R.fRig.p[0]))}°、X 間距 ${f4(R.fRig.p[3])}、殘差 ${(R.fRig.rms*1000).toFixed(1)} µm；允許右側 Y 台階後 H = ${sg4(R.fStep.p[6])} mm、殘差 ${(R.fStep.rms*1000).toFixed(1)} µm。分開計算殘差 ${(R.fL.rms*1000).toFixed(1)} / ${(R.fR.rms*1000).toFixed(1)} µm。`,
     `左右 X 間距差 ${sg4(Rm.px-Lm.px)} mm（${((Rm.px/Lm.px-1)*1e6).toFixed(0)} ppm），以玻璃格點比例修正後差 ${sg4(Rp.px/G.R.sx-Lp.px/G.L.sx)} mm。整合時共用 pitch 會把這個差異變成殘差。`,
     `兩側直交誤差（實體）${f5(deg(Lp.thx-Lp.thy))}° / ${f5(deg(Rp.thx-Rp.thy))}°；${Math.abs(deg((Lp.thx-Lp.thy)-(Rp.thx-Rp.thy)))<0.005?"方向與大小一致；1-11 預放位置四角也量到同樣的值，判斷來自各側量測軸（相機或機台 X/Y 直交），可用一個直交補正值修正。":"兩側不同，需分側補正。"}`,
-    `中央兩原點關係 C＝${f4(R.C)} 是假設中央相鄰兩欄中心距＝pitch 反推；若已知實際中央距離，請提供以修正整合結果。`];
+    `中央兩原點關係 C＝${f4(R.C)}：依圖面 1-${R.lEnd} ↔ 1-${R.rStart} Mark 距離 ${GAP} mm 反推（中央相機看不到，無法實測）。左右分開計算不需要 C。`];
   document.getElementById("findings").innerHTML=li.map(t=>`<li>${t}</li>`).join("");
   document.getElementById("orderTxt").textContent=`實體排列由左至右：${R.lOrd.join(" ")} ｜ ${R.rOrd.join(" ")}。`;}
 
@@ -755,6 +757,7 @@ applyMode();
 document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value;render();});
 document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
 document.getElementById("msym").addEventListener("input",e=>{MSYM=e.target.value==="mirror";render();});
+document.getElementById("gapIn").addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0){GAP=v;render();}});
 document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:300,rigid:300}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 {const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
