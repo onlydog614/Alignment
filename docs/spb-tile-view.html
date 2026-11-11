@@ -36,7 +36,7 @@ select{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4
 input[type=range]{width:140px}
 .chartbox{overflow-x:auto}
 svg text{fill:var(--muted);font-family:var(--font-num);font-size:11px}
-svg .lbl{fill:var(--fg);font-size:10.5px}
+svg .lbl{fill:var(--fg);font-size:10.5px;paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 .pt{cursor:pointer;outline:none}
 .pt:focus-visible{stroke:var(--fg);stroke-width:2}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-top:8px}
@@ -130,6 +130,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
       <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--left)"/></svg>左側預放位置（實測）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="var(--right)"/></svg>右側預放位置（實測）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.5"/></svg>預放位置（內插）</span>
+      <span><svg class="sw" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" fill="var(--left)" fill-opacity=".15" stroke="var(--left)"/></svg>片子（圖面尺寸，中心綠點）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M6 1 11 6 6 11 1 6Z" fill="var(--ctr)"/></svg>上下 Mark 中點</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 6H11" stroke="var(--ideal)" stroke-dasharray="3 2" stroke-width="1.5"/></svg>理想外框（依偏差基準）</span>
       <span><svg class="sw" viewBox="0 0 12 12"><path d="M1 11 10 2" stroke="var(--err)" stroke-width="1.5"/></svg>偏差（實際 − 理想，已放大）</span>
@@ -282,6 +283,10 @@ const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toF
 const isR=c=>c>6, ck=k=>k.split("-").map(Number);
 let P=JSON.parse(JSON.stringify(DEF)), D={L:-1,R:-1}, IDX={};
 const sOf=c=>isR(c)?D.R:D.L;
+let DD=null; // 片子圖面：Mark→片子中心偏移（SPB 方向）與片子尺寸，由實測校驗求得
+const rot2=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];};
+function tileOf(m){if(!DD)return null;const t=m.th*Math.PI/180,sg=sOf(m.c),c=add(m.p,rot2(DD.dD,t));
+  const cr=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>add(c,rot2([sg*a*DD.W/2,b*DD.H/2],t)));return{c,cr};}
 
 function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
   for(let i=0;i<n;i++){let p=i;for(let k=i+1;k<n;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;[M[i],M[p]]=[M[p],M[i]];
@@ -402,7 +407,8 @@ function drawMap(R){
   const base=document.getElementById("base").value,K=+document.getElementById("mag").value,showGlass=document.getElementById("showGlass").checked,C=R.C;
   const marks=[...R.Lm.marks,...R.Rm.marks].map(m=>({...m,q:toPhys(m.p,m.c,C)}));
   const gl=showGlass?[...GLASS.L.map(g=>[D.L*g.m[0],g.m[1]]),...GLASS.R.map(g=>[C+D.R*g.m[0],g.m[1]])]:[];
-  const pts=[...marks.map(m=>m.q),...gl];
+  const tiles=DD?marks.map(m=>{const t=tileOf(m);return{m,c:toPhys(t.c,m.c,C),cr:t.cr.map(q=>toPhys(q,m.c,C))};}):[];
+  const pts=[...marks.map(m=>m.q),...gl,...tiles.flatMap(t=>t.cr)];
   let x0=Math.min(...pts.map(p=>p[0])),x1=Math.max(...pts.map(p=>p[0])),y0=Math.min(...pts.map(p=>p[1])),y1=Math.max(...pts.map(p=>p[1]));
   x0-=40;x1+=40;y0-=45;y1+=45;
   const W=1100,ml=58,mr=14,mt=14,mb=34,s=(W-ml-mr)/(x1-x0),H=Math.round((y1-y0)*s)+mt+mb;
@@ -416,20 +422,29 @@ function drawMap(R){
   gl.forEach(q=>el("circle",{cx:X(q[0]),cy:Y(q[1]),r:2.5,fill:"var(--glass)"},g));
   const poly=(arr,attrs)=>el("polygon",{points:arr.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),...attrs},g);
   [[1,6,"var(--left)"],[7,12,"var(--right)"]].forEach(([a,b,col])=>{
-    poly([`1-${a}`,`1-${b}`,`2-${b}`,`2-${a}`].map(k=>phys(k,C)),{fill:col,"fill-opacity":.06,stroke:col,"stroke-width":1});
+    if(!tiles.length)poly([`1-${a}`,`1-${b}`,`2-${b}`,`2-${a}`].map(k=>phys(k,C)),{fill:col,"fill-opacity":.06,stroke:col,"stroke-width":1});
     if(document.getElementById("showIdeal").checked)poly([[1,a],[1,b],[2,b],[2,a]].map(([r,c])=>idealOf(R,base,r,c)),{fill:"none",stroke:"var(--ideal)","stroke-dasharray":"6 4","stroke-width":1.2});});
-  // Y 間距標註（每側外側與中央側欄）
-  [1,6,7,12].forEach(c=>{const a=phys(`1-${c}`,C),b=phys(`2-${c}`,C),d=len(sub(b,a)),inner=IDX[c]%6===0?1:-1,xo=X(a[0])+inner*18;
+  // 片子（圖面尺寸）外框與中心
+  tiles.forEach(t=>{const col=isR(t.m.c)?"var(--right)":"var(--left)";
+    poly(t.cr,{fill:col,"fill-opacity":t.m.r===1?.07:.12,stroke:col,"stroke-width":1});
+    el("circle",{cx:X(t.c[0]),cy:Y(t.c[1]),r:2.5,fill:"var(--ctr)"},g);
+    el("text",{x:X(t.c[0]),y:Y(t.c[1])+14,"text-anchor":"middle",class:"lbl"},g,t.m.id);});
+  const ctrOf=(r,c)=>{const t=tiles.find(t=>t.m.r===r&&t.m.c===c);return t?t.c:phys(`${r}-${c}`,C);};
+  // Y 間距標註（片子中心；無片子資料時用 Mark）
+  [1,6,7,12].forEach(c=>{const a=ctrOf(1,c),b=ctrOf(2,c),d=len(sub(b,a)),inner=IDX[c]%6===0?1:-1,xo=X(a[0])+inner*(tiles.length?26:18);
     el("line",{x1:xo,x2:xo,y1:Y(a[1]),y2:Y(b[1]),stroke:"var(--muted)","stroke-width":1},g);
     [a,b].forEach(q=>el("line",{x1:xo-4,x2:xo+4,y1:Y(q[1]),y2:Y(q[1]),stroke:"var(--muted)"},g));
-    el("text",{x:xo+inner*5,y:(Y(a[1])+Y(b[1]))/2+4,"text-anchor":inner>0?"start":"end",class:"lbl"},g,`Y ${d.toFixed(4)}`);});
+    el("text",{x:xo+inner*5,y:tiles.length?Y(a[1])+(Y(b[1])-Y(a[1]))*.3:(Y(a[1])+Y(b[1]))/2+4,"text-anchor":inner>0?"start":"end",class:"lbl"},g,`${tiles.length?"中心 ":""}Y ${d.toFixed(4)}`);});
+  if(tiles.length){const a=ctrOf(1,1),b=ctrOf(1,2),d=len(sub(b,a)),yy=Y(a[1])-12;
+    el("line",{x1:X(a[0]),x2:X(b[0]),y1:yy,y2:yy,stroke:"var(--muted)"},g);
+    el("text",{x:(X(a[0])+X(b[0]))/2,y:yy-4,"text-anchor":"middle",class:"lbl"},g,`中心 X ${d.toFixed(4)}`);}
   const showErr=document.getElementById("showErr").checked,read=document.getElementById("readout");
   const arrow=(p,id)=>{if(!showErr||!K)return;const e=add(id,mul(sub(p,id),K));
     el("line",{x1:X(id[0]),y1:Y(id[1]),x2:X(e[0]),y2:Y(e[1]),stroke:"var(--err)","stroke-width":1.4},g);el("circle",{cx:X(e[0]),cy:Y(e[1]),r:1.8,fill:"var(--err)"},g);};
   const hook=(n,html)=>{n.setAttribute("tabindex","0");n.classList.add("pt");const f=()=>{read.innerHTML=html;};["mouseenter","focus","click"].forEach(ev=>n.addEventListener(ev,f));};
   marks.forEach(m=>{const id=idealOf(R,base,m.r,m.c),col=isR(m.c)?"var(--right)":"var(--left)";arrow(m.q,id);
     const n=m.meas?el("circle",{cx:X(m.q[0]),cy:Y(m.q[1]),r:5.5,fill:col},g):el("circle",{cx:X(m.q[0]),cy:Y(m.q[1]),r:4,fill:"var(--panel)",stroke:col,"stroke-width":1.4},g);
-    el("text",{x:X(m.q[0]),y:Y(m.q[1])+(m.r===1?-10:18),"text-anchor":"middle",class:"lbl"},g,m.id);
+    if(!tiles.length)el("text",{x:X(m.q[0]),y:Y(m.q[1])+(m.r===1?-10:18),"text-anchor":"middle",class:"lbl"},g,m.id);
     const d=devM(sub(m.q,id),m.c);
     hook(n,`<b>預放位置 ${m.id}</b>（${isR(m.c)?"右側":"左側"}・${m.meas?"實測":"內插"}）　θ <span class="num">${f5(m.th)}°</span>　${isR(m.c)?"右":"左"}機台 X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　實體 x <span class="num">${f4(m.q[0])}</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
   if(document.getElementById("showC").checked)[...R.Lm.ctr,...R.Rm.ctr].forEach(c=>{
@@ -502,7 +517,7 @@ function calib(R){
       `相機目前移到的預放中心 (${f4(cam[0])}, ${f4(cam[1])}) 與四角中心 (${f4(cc[0])}, ${f4(cc[1])}) 差 ${sg4(dC[0])}, ${sg4(dC[1])} mm${len(dC)>1?`，相機中心落在預放位置${cam[1]<Math.min(TL[1],TR[1])||cam[1]>Math.max(BL[1],BR[1])?"外":"內"}，中心設定需修正`:""}。下表「預放中心（四角）」為修正後的 24 個中心。`,
       `${near[0]}角距 Mark ${ref} ${f4(near[2])} mm，Mark 位於預放位置${near[0]}附近。`].map(t=>`<li>${t}</li>`).join("");}
   // 片子圖面：量到的四角 Mark 對應圖面座標（左上原點，x 右、y 下），仿射擬合求圖面中心
-  let dD=null;
+  let dD=null;DD=null;
   if(okC){const W=num("dzW")||135,H=num("dzH")||144,[uL,uR]=document.getElementById("dzU").value.split(",").map(Number),[vT,vB]=document.getElementById("dzV").value.split(",").map(Number);
     const sg=sOf(m0.c),Q=[[uL,vT],[uR,vT],[uL,vB],[uR,vB]],Pp=[TL,TR,BL,BR].map(q=>[sg*q[0],q[1]]);
     const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
@@ -510,7 +525,7 @@ function calib(R){
     const mx=solve(A,bx),my=solve(A,by),T=q=>[mx[0]*q[0]+mx[1]*q[1]+mx[2],my[0]*q[0]+my[1]*q[1]+my[2]];
     const cP=T([W/2,H/2]),cM=[sg*cP[0],cP[1]],sx=Math.hypot(mx[0],my[0]),sy=Math.hypot(mx[1],my[1]);
     const resid=Math.max(...Q.map((q,i)=>len(sub(T(q),Pp[i]))));
-    const dc=sub(cam,cM);dD=rot(sub(cM,m0.p),-rad(m0.th));
+    const dc=sub(cam,cM);dD=rot(sub(cM,m0.p),-rad(m0.th));DD={dD,W,H};
     const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>{const t=T(q);return[sg*t[0],t[1]];});
     const ss=isR(m0.c)?R.Rm:R.Lm;
     const it=[["圖面中心（機台）",`${f4(cM[0])}, ${f4(cM[1])}`,`圖面 (${W/2}, ${H/2}) 經四角 Mark 擬合`],
@@ -643,7 +658,7 @@ function stage(R){
     marks.map((m,i)=>{const t=ths[i],c=[Math.cos(rad(t))-1,Math.sin(rad(t))],mv=[c[0]*e[0]-c[1]*e[1],c[1]*e[0]+c[0]*e[1]];
       return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(t)}°</td><td>${(Math.abs(rad(t))*rT*1000).toFixed(1)}</td><td>${(len(mv)*1000).toFixed(1)}</td></tr>`;}).join("");
 }
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);calib(R);angle(R);stage(R);
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
