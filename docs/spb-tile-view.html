@@ -85,7 +85,6 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
     <button type="button" data-go="map">分佈圖與 θ</button>
     <button type="button" data-go="data">24 位置數據</button>
     <button type="button" data-go="calib">實測校驗</button>
-    <button type="button" data-go="method">推算方式</button>
     <button type="button" data-go="angle">角度敏感度</button>
     <button type="button" data-go="input">量測輸入</button>
   </nav>
@@ -207,17 +206,6 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
     <div class="tablebox"><table id="calTbl"></table></div>
   </section>
 
-  <section data-tab="method" class="panel">
-    <h2>推算方式比較</h2>
-    <p class="note"><b>方式一（單列推算）</b>：每側只拍第 1 列兩端 Mark（左 1-1、1-6；右 1-7、1-12），求該列 θ 與 X 間距，第 2 列以圖面 Y 中心間距沿垂直方向推出，θ 沿用第 1 列。<b>方式二（每列個別）</b>：第 1 列（1-1～1-6）與第 2 列（2-1～2-6）各拍兩端，各列個別內插位置、各列個別算 θ。另列「四角局部 θ」（列向與欄向平均，其他分頁使用）供對照。</p>
-    <div class="controls">
-      <label for="mPy">方式一 Y 中心間距 (mm)<input id="mPy" inputmode="decimal" value="144" style="width:80px"></label>
-    </div>
-    <div class="stats" id="mStats" style="margin-bottom:12px"></div>
-    <ul class="findings" id="mFind" style="margin-bottom:12px"></ul>
-    <div class="tablebox" style="max-height:520px;overflow:auto"><table id="mTbl"></table></div>
-  </section>
-
   <section data-tab="angle" class="panel">
     <h2>SPB 角度變化 → 預放位置偏移</h2>
     <p class="note"><b>方向：</b>機台座標 θ＋ 為 X→Y（俯視、上方 Y 小、右方 X 小時為逆時針）。機台 +θ 時，旋轉中心「下方」（Y 較大）的點往右、「上方」的點往左；所以「X 往右偏」是正還是負旋轉，要看該點在旋轉中心上方或下方。全部位置都往右同量偏移則是平移，不是旋轉。實際 θ 軸正方向請以點動確認。<br>整片 SPB 繞旋轉中心轉 Δθ 時，每個點的偏移：ΔX = (cosΔθ − 1)(x − x<sub>c</sub>) − sinΔθ·(y − y<sub>c</sub>)，ΔY = sinΔθ·(x − x<sub>c</sub>) + (cosΔθ − 1)(y − y<sub>c</sub>)。X 偏移主要由「Y 方向離旋轉中心多遠」決定，Y 偏移由「X 方向多遠」決定。0.01° ＝ 174.5 µrad，每 100 mm 臂長偏 17.45 µm。以實體座標計算（兩側合併），評估點為 24 個預放位置四角。</p>
@@ -269,8 +257,29 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
 
   <section data-tab="input" class="panel">
     <h2>量測輸入</h2>
-    <p class="note">預設為兩份 Spb tile mark 備忘錄的數值；改數字會即時重算。</p>
+    <div class="controls">
+      <label for="mode">模式
+        <select id="mode">
+          <option value="B">模式 B：8 點（兩列各拍兩端），各列個別計算</option>
+          <option value="A">模式 A：4 點（1-1、1-6、1-7、1-12），第 2 列推算</option>
+        </select></label>
+    </div>
+    <div class="controls" id="modeAopt" hidden>
+      <label for="optPy">Y 中心間距 (mm)<input id="optPy" inputmode="decimal" value="144" style="width:80px"></label>
+      <label for="optPx">X 間距<select id="optPx"><option value="meas">實測（1-1→1-6 ÷ 5）</option><option value="design">圖面</option></select></label>
+      <label for="optPxD">圖面 X 間距<input id="optPxD" inputmode="decimal" value="135" style="width:70px"></label>
+    </div>
+    <p class="note" id="modeNote"></p>
     <div class="inputs" id="inputs"></div>
+    <h2 style="margin-top:14px">理論座標（選填，用來算 SPB 的 XY 偏移）</h2>
+    <div class="inputs" id="thInputs">
+      <fieldset><legend>左側 1-1 理論</legend><label for="th11x">X<input id="th11x" inputmode="decimal" placeholder="未填"></label><label for="th11y">Y<input id="th11y" inputmode="decimal" placeholder="未填"></label></fieldset>
+      <fieldset><legend>右側 1-7 理論</legend><label for="th17x">X<input id="th17x" inputmode="decimal" placeholder="未填"></label><label for="th17y">Y<input id="th17y" inputmode="decimal" placeholder="未填"></label></fieldset>
+    </div>
+    <h2 style="margin-top:14px">計算結果</h2>
+    <div class="stats" id="inStats" style="margin-bottom:10px"></div>
+    <ul class="findings" id="inFind" style="margin-bottom:10px"></ul>
+    <div class="tablebox" style="max-height:520px;overflow:auto"><table id="inTbl"></table></div>
   </section>
 </div>
 
@@ -293,7 +302,13 @@ const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
 const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
 const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
 const isR=c=>c>6, ck=k=>k.split("-").map(Number);
-let P=JSON.parse(JSON.stringify(DEF)), D={L:-1,R:-1}, IDX={};
+let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:-1,R:-1}, IDX={}, MODE="B";
+let OPT={py:144,pxSrc:"meas",pxD:135,th:{"1-1":[NaN,NaN],"1-7":[NaN,NaN]}};
+// 由輸入產生 8 個角點：模式 A 只用第 1 列兩端，第 2 列沿垂直方向推 Y 中心間距
+function deriveP(){P=JSON.parse(JSON.stringify(RAW));if(MODE!=="A")return;
+  [[1,6],[7,12]].forEach(([c0,c1])=>{const a=RAW[`1-${c0}`],b0=RAW[`1-${c1}`],v=sub(b0,a),u=mul(v,1/len(v));
+    const b=OPT.pxSrc==="design"?add(a,mul(u,5*OPT.pxD)):b0;let nrm=[-u[1],u[0]];if(nrm[1]<0)nrm=mul(nrm,-1);
+    P[`1-${c1}`]=b;P[`2-${c0}`]=add(a,mul(nrm,OPT.py));P[`2-${c1}`]=add(b,mul(nrm,OPT.py));});}
 const sOf=c=>isR(c)?D.R:D.L;
 let DD=null; // 片子圖面：Mark→片子中心偏移（SPB 方向）與片子尺寸，由實測校驗求得
 const rot2=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];};
@@ -326,8 +341,8 @@ function sideCalc(get,c0,c1){const n=Math.abs(c1-c0),a=get(`1-${c0}`),b=get(`1-$
   const step=c1>c0?1:-1,marks=[],ctr=[];
   for(let i=0;i<=n;i++){const col=c0+i*step,t=add(a,mul(sub(b,a),i/n)),u=add(c,mul(sub(d,c),i/n));
     const fu=i/n,tyv=angY(add(mul(k0,1-fu),mul(k1,fu)));
-    marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n,thx:deg(e.r1),thy:deg(tyv),th:deg((e.r1+tyv)/2)},
-               {id:`2-${col}`,r:2,c:col,p:u,meas:i===0||i===n,thx:deg(e.r2),thy:deg(tyv),th:deg((e.r2+tyv)/2)});
+    marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n,thx:deg(e.r1),thy:deg(tyv),th:deg(e.r1),thL:deg((e.r1+tyv)/2)},
+               {id:`2-${col}`,r:2,c:col,p:u,meas:(i===0||i===n)&&MODE!=="A",est:MODE==="A",thx:deg(e.r2),thy:deg(tyv),th:deg(e.r2),thL:deg((e.r2+tyv)/2)});
     ctr.push({id:col,c:col,p:mul(add(t,u),.5),th:deg(angY(sub(u,t)))});}
   return{e,thx:(e.r1+e.r2)/2,thy:(e.k0+e.k1)/2,px:(len(r1)+len(r2))/2/n,py:(len(k0)+len(k1))/2,marks,ctr,diag:len(sub(d,a))-len(sub(c,b))};}
 
@@ -336,7 +351,7 @@ function glassCalc(pts,s){const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0
   const mx=solve(A,bx),my=solve(A,by),ex=[mx[0],my[0]],ey=[mx[1],my[1]],sgn=ex[0]>0?1:-1;
   return{thx:angX(mul(ex,sgn)),thy:angY(ey),sx:len(ex),sy:len(ey)};}
 
-function compute(){
+function compute(){deriveP();
   // 實體排列順序
   const lAsc=D.L*P["1-1"][0]<D.L*P["1-6"][0], rAsc=D.R*P["1-7"][0]<D.R*P["1-12"][0];
   const lOrd=lAsc?[1,2,3,4,5,6]:[6,5,4,3,2,1], rOrd=rAsc?[7,8,9,10,11,12]:[12,11,10,9,8,7];
@@ -490,9 +505,9 @@ function drawTheta(R){
 function table(R){const base=document.getElementById("base").value,t=document.getElementById("tbl"),C=R.C;
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
   const list=[[R.Lm,D.L*R.fL.p[0]],[R.Rm,D.R*R.fR.p[0]]].flatMap(([S,th])=>[1,2].flatMap(row=>S.marks.filter(m=>m.r===row).sort((a,b)=>a.c-b.c).map(m=>({...m,fth:th}))));
-  t.innerHTML="<tr><th>#</th><th>預放位置</th><th>側</th><th>X（該側機台）</th><th>Y</th><th>θ 局部</th><th>θ 列向</th><th>θ 欄向</th><th>該側擬合 θ</th><th>實體 x</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
+  t.innerHTML="<tr><th>#</th><th>預放位置</th><th>側</th><th>X（該側機台）</th><th>Y</th><th>θ（列向，使用）</th><th>θ 局部（列欄平均）</th><th>θ 欄向</th><th>該側擬合 θ</th><th>實體 x</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
     list.map((m,i)=>{const q=toPhys(m.p,m.c,C),d=devM(sub(q,idealOf(R,base,m.r,m.c)),m.c);
-      return`<tr><td>${i+1}</td><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f5(m.thx)}</td><td>${f5(m.thy)}</td><td>${f5(deg(m.fth))}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");}
+      return`<tr><td>${i+1}</td><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f5(m.thL)}</td><td>${f5(m.thy)}</td><td>${f5(deg(m.fth))}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":m.est?"推算":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");}
 
 
 // 實測校驗：Mark→中心偏移（SPB 自身方向）與 相機→貼合 平移
@@ -554,7 +569,7 @@ function calib(R){
       `下表「圖面中心」為 24 片依此換算的片子中心，可直接作為預放中心。`].map(t=>`<li>${t}</li>`).join("");}
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
   const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
-  document.getElementById("calTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ 局部</th><th>相機中心 X（原）</th><th>相機中心 Y（原）</th><th>Mark 四點中心 X</th><th>Mark 四點中心 Y</th><th>圖面中心 X</th><th>圖面中心 Y</th><th>貼合 X</th><th>貼合 Y</th><th>備註</th></tr>"+
+  document.getElementById("calTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ（列向）</th><th>相機中心 X（原）</th><th>相機中心 Y（原）</th><th>Mark 四點中心 X</th><th>Mark 四點中心 Y</th><th>圖面中心 X</th><th>圖面中心 Y</th><th>貼合 X</th><th>貼合 Y</th><th>備註</th></tr>"+
     list.map(m=>{const c=add(m.p,rot(dS,rad(m.th))),same=isR(m.c)===refR,ok=same||scope==="all",b=add(c,dB);
       const note=m.id===ref?"基準（實測）":same?"同側推算":(ok?"另一側：假設同平移":"另一側需實測");
       return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f4(c[0])}</td><td>${f4(c[1])}</td>${dT?(()=>{const t=add(m.p,rot(dT,rad(m.th)));return`<td>${f4(t[0])}</td><td>${f4(t[1])}</td>`;})():"<td>—</td><td>—</td>"}${dD?(()=>{const t=add(m.p,rot(dD,rad(m.th)));return`<td><b>${f4(t[0])}</b></td><td><b>${f4(t[1])}</b></td>`;})():"<td>—</td><td>—</td>"}<td>${ok?f4(b[0]):"—"}</td><td>${ok?f4(b[1]):"—"}</td><td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
@@ -632,7 +647,7 @@ function angle(R){
 // ---- 分頁
 function showTab(t){document.querySelectorAll("[data-tab]").forEach(e=>e.hidden=e.dataset.tab!==t);
   document.querySelectorAll("#mainTabs button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.go===t));}
-const TABS=["overview","map","data","calib","method","angle","input"];
+const TABS=["overview","map","data","calib","angle","input"];
 const fromHash=()=>{const h=location.hash.slice(1);return TABS.includes(h)?h:"overview";};
 document.querySelectorAll("#mainTabs button").forEach(b=>b.addEventListener("click",()=>{try{history.replaceState(null,"","#"+b.dataset.go);}catch(e){}showTab(b.dataset.go);}));
 window.addEventListener("hashchange",()=>showTab(fromHash()));
@@ -671,56 +686,47 @@ function stage(R){
       return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(t)}°</td><td>${(Math.abs(rad(t))*rT*1000).toFixed(1)}</td><td>${(len(mv)*1000).toFixed(1)}</td></tr>`;}).join("");
 }
 
-// ---- 推算方式比較
-// 方式一：只拍第 1 列兩端，θ＝第 1 列角度，第 2 列沿垂直方向推圖面 Y 間距
-// 方式二：第 1 列、第 2 列各拍兩端，各列個別內插、θ＝該列角度
-// 參考：四角局部 θ（列向與欄向平均，其他分頁使用）
-function methods(R){
-  const py=parseFloat(document.getElementById("mPy").value)||144,rad=d=>d*Math.PI/180;
-  const out=[],sum={},dArm=DD?len(DD.dD):NaN,cR=DD?Math.hypot(DD.W/2,DD.H/2):98.7;
-  [["L",R.Lm,1,6],["R",R.Rm,7,12]].forEach(([k,S,c0,c1])=>{
-    const n=c1-c0,a1=P[`1-${c0}`],b1=P[`1-${c1}`],a2=P[`2-${c0}`],b2=P[`2-${c1}`];
-    const th1=S.e.r1,th2=S.e.r2,perp=[-Math.sin(th1)*py,Math.cos(th1)*py];
-    let mx1=0,id1="",mxT=0,idT="";
-    for(let i=0;i<=n;i++){const col=c0+i;
-      [[1,add(a1,mul(sub(b1,a1),i/n)),th1,add(a1,mul(sub(b1,a1),i/n))],[2,add(add(a1,mul(sub(b1,a1),i/n)),perp),th1,add(a2,mul(sub(b2,a2),i/n))]].forEach(([r,pA,tA,pB])=>{
-        const tB=r===1?th1:th2,m=S.marks.find(m=>m.r===r&&m.c===col),dP=sub(pA,pB),dT=deg(tB)-m.th;
-        if(len(dP)>mx1){mx1=len(dP);id1=m.id;}if(Math.abs(dT)>Math.abs(mxT)){mxT=dT;idT=m.id;}
-        out.push({id:m.id,c:col,r,pA,tA:deg(tA),pB,tB:deg(tB),tL:m.th,dP,dAB:deg(tA)-deg(tB),dT});});}
-    sum[k]={th1:deg(th1),th2:deg(th2),px1:len(sub(b1,a1))/n,px2:len(sub(b2,a2))/n,mx1,id1,mxT,idT};});
-  const L=sum.L,Rr=sum.R,ctrUm=t=>Math.abs(rad(t))*dArm*1000,cornUm=t=>Math.abs(rad(t))*cR*1000;
-  const st=[["左側 θ 第1列／第2列",`${f5(L.th1)}° ／ ${f5(L.th2)}°`,`X 間距 ${f4(L.px1)} ／ ${f4(L.px2)}`],
-    ["右側 θ 第1列／第2列",`${f5(Rr.th1)}° ／ ${f5(Rr.th2)}°`,`X 間距 ${f4(Rr.px1)} ／ ${f4(Rr.px2)}`],
-    ["方式一 vs 方式二 位置最大差",`${(Math.max(L.mx1,Rr.mx1)*1000).toFixed(0)} µm`,`左 ${L.id1}、右 ${Rr.id1}（只在第 2 列）`,Math.max(L.mx1,Rr.mx1)>0.05],
-    ["方式一 vs 方式二 第2列 θ 差",`左 ${f5(L.th1-L.th2)}° ／ 右 ${f5(Rr.th1-Rr.th2)}°`,`片子角落 ${cornUm(L.th1-L.th2).toFixed(1)} ／ ${cornUm(Rr.th1-Rr.th2).toFixed(1)} µm`],
-    ["方式二 vs 四角局部 θ 最大差",`${f5(Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.mxT:Rr.mxT)}°`,`${Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.idT:Rr.idT}；片子角落 ${cornUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm`],
-    ["θ 差對片子中心影響",isFinite(dArm)?`${ctrUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm`:"—",isFinite(dArm)?`Mark→中心 ${dArm.toFixed(1)} mm × θ 差`:"需實測校驗資料"]];
-  document.getElementById("mStats").innerHTML=st.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
-  document.getElementById("mFind").innerHTML=[
-    `方式二（每列個別）的位置就是兩列各自兩端內插，第 2 列直接用實測，Y 比例、直交誤差、兩列角度差都已含在內；方式一第 2 列差到 ${(Math.max(L.mx1,Rr.mx1)*1000).toFixed(0)} µm（主要是 Y 間距 ${f4(R.Lm.py)}／${f4(R.Rm.py)} 對圖面 ${py}）。`,
-    `兩列角度不同：左 ${f5(L.th1)}° vs ${f5(L.th2)}°（差 ${f5(L.th1-L.th2)}°）、右 ${f5(Rr.th1)}° vs ${f5(Rr.th2)}°（差 ${f5(Rr.th1-Rr.th2)}°）。方式一第 2 列沿用第 1 列角度，片子角落會差 ${cornUm(L.th1-L.th2).toFixed(1)}／${cornUm(Rr.th1-Rr.th2).toFixed(1)} µm。`,
-    `方式二的 θ 只看列向；四角局部 θ 另外平均了欄向，兩者差最多 ${f5(Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.mxT:Rr.mxT)}°（來自直交誤差與各欄欄向角度不同），片子角落約 ${cornUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm、中心約 ${isFinite(dArm)?ctrUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1):"—"} µm。片子邊要與列方向平行時用方式二的 θ。`,
-    `建議：用方式二（拍 4 點/側），位置與角度都直接來自同列實測；方式一只在無法拍第 2 列時使用，並把 Y 間距改成實測值。`].map(t=>`<li>${t}</li>`).join("");
-  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
-  out.sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
-  document.getElementById("mTbl").innerHTML="<tr><th>位置</th><th>側</th><th>方式一 X</th><th>方式一 Y</th><th>方式一 θ</th><th>方式二 X</th><th>方式二 Y</th><th>方式二 θ</th><th>四角局部 θ</th><th>一−二 dX µm</th><th>一−二 dY µm</th><th>一−二 θ</th><th>二−局部 θ</th><th>拍攝</th></tr>"+
-    out.map(o=>`<tr><td>${o.id}</td><td>${tag(o.c)}</td><td>${f4(o.pA[0])}</td><td>${f4(o.pA[1])}</td><td>${f5(o.tA)}</td><td>${f4(o.pB[0])}</td><td>${f4(o.pB[1])}</td><td>${f5(o.tB)}</td><td>${f5(o.tL)}</td><td>${um(o.dP[0])}</td><td>${um(o.dP[1])}</td><td>${f5(o.dAB)}</td><td>${f5(o.dT)}</td><td style="font-family:var(--font-ui)">${[1,6,7,12].includes(o.c)?(o.r===1?"一、二":"二"):"—"}</td></tr>`).join("");
-}
 
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);methods(R);
+// ---- 量測輸入：計算結果（SPB 角度、XY、各預放中心）
+function inputResult(R){const rad=d=>d*Math.PI/180;
+  const sides=[["左側","1-1","1-6",R.Lm,1],["右側","1-7","1-12",R.Rm,7]];
+  const st=[],li=[];
+  sides.forEach(([n,a,b,S,c0])=>{const th=deg(S.e.r1),o=OPT.th[a],has=o.every(isFinite),d=has?sub(RAW[a],o):null;
+    st.push([`${n} SPB 角度（第 1 列）`,`${f5(th)}°`,MODE==="B"?`第 2 列 ${f5(deg(S.e.r2))}°`:`由 ${a} → ${b}`]);
+    st.push([`${n} 基準點 ${a}`,`${f4(RAW[a][0])}, ${f4(RAW[a][1])}`,has?`對理論偏移 ΔX ${sg4(d[0])}、ΔY ${sg4(d[1])}`:"理論座標未填",has&&len(d)>0.05]);
+    st.push([`${n} X 間距／Y 中心間距`,`${f4(S.px)} ／ ${f4(S.py)}`,MODE==="A"?(OPT.pxSrc==="design"?"X 用圖面":"X 用實測")+"、Y 用設定值":"兩者皆實測"]);});
+  document.getElementById("inStats").innerHTML=st.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
+  li.push(MODE==="A"?`模式 A：角度與 X 間距只來自第 1 列；第 2 列用 Y 中心間距 ${OPT.py} 推出。8 點實測時第 2 列 Y 間距約 144.10，用 ${OPT.py} 會差約 ${((144.10-OPT.py)*1000).toFixed(0)} µm；需要更準時改用模式 B 或把 Y 間距改成實測值。`
+    :`模式 B：第 1、2 列各自內插，角度各列個別（左 ${f5(deg(R.Lm.e.r1))}° / ${f5(deg(R.Lm.e.r2))}°，右 ${f5(deg(R.Rm.e.r1))}° / ${f5(deg(R.Rm.e.r2))}°）。`);
+  li.push(DD?`預放中心＝Mark ＋ Mark→片子中心偏移（${f4(len(DD.dD))} mm，依各列角度轉換），偏移取自「實測校驗」分頁的 1-11 片子圖面擬合。`:`尚無 Mark→片子中心偏移：請在「實測校驗」分頁填入片子四個 Mark，表中先顯示 Mark 位置。`);
+  document.getElementById("inFind").innerHTML=li.map(t=>`<li>${t}</li>`).join("");
+  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
+  const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
+  document.getElementById("inTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ（該列）</th><th>預放中心 X</th><th>預放中心 Y</th><th>來源</th></tr>"+
+    list.map(m=>{const c=DD?add(m.p,rot2(DD.dD,rad(m.th))):null;
+      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td><b>${c?f4(c[0]):"—"}</b></td><td><b>${c?f4(c[1]):"—"}</b></td><td style="font-family:var(--font-ui)">${m.meas?"實測":m.est?"推算（第 2 列）":"內插"}</td></tr>`;}).join("");}
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);inputResult(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
 Object.keys(DEF).forEach(k=>{const side=isR(ck(k)[1])?"右側":"左側",fs=document.createElement("fieldset");
   fs.innerHTML=`<legend>${side} ${k}</legend><label for="in-${k}-x">X<input id="in-${k}-x" inputmode="decimal" value="${DEF[k][0]}"></label><label for="in-${k}-y">Y<input id="in-${k}-y" inputmode="decimal" value="${DEF[k][1]}"></label>`;
-  inp.appendChild(fs);["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){P[k][i]=v;render();}}));});
+  fs.dataset.row=k.split("-")[0];inp.appendChild(fs);["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){RAW[k][i]=v;render();}}));});
+function applyMode(){MODE=document.getElementById("mode").value;document.getElementById("modeAopt").hidden=MODE!=="A";
+  inp.querySelectorAll('fieldset[data-row="2"]').forEach(f=>f.hidden=MODE==="A");
+  document.getElementById("modeNote").textContent=MODE==="A"?"只填左側 1-1、1-6 與右側 1-7、1-12：每側由第 1 列兩點求 SPB 角度與 X 間距，以 1-1／1-7 為基準點推估全部預放位置；第 2 列依 Y 中心間距沿垂直方向推出（不含 Y 比例與直交誤差）。":"8 點全部填入：第 1 列與第 2 列各自以兩端內插，各列個別計算角度與位置。";}
+document.getElementById("mode").addEventListener("input",()=>{applyMode();render();});
+[["optPy","py"],["optPxD","pxD"]].forEach(([id,k])=>document.getElementById(id).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0){OPT[k]=v;render();}}));
+document.getElementById("optPx").addEventListener("input",e=>{OPT.pxSrc=e.target.value;render();});
+[["th11x","1-1",0],["th11y","1-1",1],["th17x","1-7",0],["th17y","1-7",1]].forEach(([id,k,i])=>document.getElementById(id).addEventListener("input",e=>{OPT.th[k][i]=parseFloat(e.target.value);render();}));
+applyMode();
 document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value;render();});
 document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
 document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:300,rigid:300}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 {const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
 ["refId","camX","camY","bondX","bondY","bondScope","dzW","dzH","dzU","dzV","tlX","tlY","trX","trY","blX","blY","brX","brY"].forEach(id=>document.getElementById(id).addEventListener("input",render));
-["mPy","rcSel","rcX","rcY","thr","amax","ptSel","stSize","stEx","stEy","stRes","stRef"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+["rcSel","rcX","rcY","thr","amax","ptSel","stSize","stEx","stEy","stRes","stRef"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 render();
 showTab(fromHash());
 </script>
