@@ -149,6 +149,25 @@ td.bad{color:var(--err)}
   </section>
 
   <section class="panel">
+    <h2>實測校驗：貼附中心與貼合座標</h2>
+    <p class="note">以一個已實際貼附的位置當基準：相機移到貼附位置中心的座標 → 求出「Mark → 貼附中心」偏移（換算成 SPB 自身方向，再依各位置局部 θ 轉回）；貼合座標 − 相機中心 → 求出「相機 → 貼合」平移。只有一點時只能求平移，旋轉與比例需第二點以上。</p>
+    <div class="inputs" style="margin-bottom:12px">
+      <fieldset><legend>基準位置</legend>
+        <label for="refId">位置<select id="refId"></select></label></fieldset>
+      <fieldset><legend>相機移到貼附中心</legend>
+        <label for="camX">X<input id="camX" inputmode="decimal" value="257.3578"></label>
+        <label for="camY">Y<input id="camY" inputmode="decimal" value="1000.6750"></label></fieldset>
+      <fieldset><legend>貼合座標</legend>
+        <label for="bondX">X<input id="bondX" inputmode="decimal" value="208.1318"></label>
+        <label for="bondY">Y<input id="bondY" inputmode="decimal" value="1318.9640"></label></fieldset>
+      <fieldset><legend>貼合平移套用</legend>
+        <label for="bondScope">範圍<select id="bondScope"><option value="side">只算同側</option><option value="all">兩側共用（假設）</option></select></label></fieldset>
+    </div>
+    <div class="stats" id="calStats" style="margin-bottom:12px"></div>
+    <div class="tablebox"><table id="calTbl"></table></div>
+  </section>
+
+  <section class="panel">
     <h2>量測輸入</h2>
     <p class="note">預設為兩份 Spb tile mark 備忘錄的數值；改數字會即時重算。</p>
     <div class="inputs" id="inputs"></div>
@@ -356,7 +375,25 @@ function table(R){const base=document.getElementById("base").value,t=document.ge
     list.map((m,i)=>{const q=toPhys(m.p,m.c,C),d=devM(sub(q,idealOf(R,base,m.r,m.c)),m.c);
       return`<tr><td>${i+1}</td><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f5(m.thx)}</td><td>${f5(m.thy)}</td><td>${f5(deg(m.fth))}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");}
 
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);
+
+// 實測校驗：Mark→中心偏移（SPB 自身方向）與 相機→貼合 平移
+function calib(R){
+  const ref=document.getElementById("refId").value,num=id=>parseFloat(document.getElementById(id).value);
+  const cam=[num("camX"),num("camY")],bond=[num("bondX"),num("bondY")],scope=document.getElementById("bondScope").value;
+  const all=[...R.Lm.marks,...R.Rm.marks],m0=all.find(m=>m.id===ref);if(!m0||!cam.every(isFinite))return;
+  const rot=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];},rad=d=>d*Math.PI/180;
+  const dM=sub(cam,m0.p),dS=rot(dM,-rad(m0.th)),dB=sub(bond,cam),refR=isR(m0.c);
+  const items=[["Mark → 貼附中心（機台）",`${sg4(dM[0])}, ${sg4(dM[1])}`,`距離 ${f4(len(dM))}・方向 ${f5(deg(angX(dM)))}°`],
+    ["Mark → 貼附中心（SPB 方向）",`${sg4(dS[0])}, ${sg4(dS[1])}`,`已扣除 ${ref} 局部 θ ${f5(m0.th)}°`],
+    ["相機 → 貼合 平移",`${sg4(dB[0])}, ${sg4(dB[1])}`,`由 ${ref} 一點求得，僅平移`]];
+  document.getElementById("calStats").innerHTML=items.map(([k,v,d])=>`<div class="stat"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
+  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
+  const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
+  document.getElementById("calTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ 局部</th><th>貼附中心 X</th><th>貼附中心 Y</th><th>貼合 X</th><th>貼合 Y</th><th>備註</th></tr>"+
+    list.map(m=>{const c=add(m.p,rot(dS,rad(m.th))),same=isR(m.c)===refR,ok=same||scope==="all",b=add(c,dB);
+      const note=m.id===ref?"基準（實測）":same?"同側推算":(ok?"另一側：假設同平移":"另一側需實測");
+      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f4(c[0])}</td><td>${f4(c[1])}</td><td>${ok?f4(b[0]):"—"}</td><td>${ok?f4(b[1]):"—"}</td><td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
+function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);drawMap(R);drawTheta(R);table(R);calib(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
 const inp=document.getElementById("inputs");
@@ -367,5 +404,7 @@ document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value
 document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
 document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:300,rigid:300}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+{const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
+["refId","camX","camY","bondX","bondY","bondScope"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 render();
 </script>
