@@ -1,11 +1,10 @@
 """SPB 左右兩側 tile mark：分開計算與整合計算比較。
 
 座標慣例（使用者確認）：
-- 左側機台：原點在左，X 由左至右增加。Mark 1~6，實體上 6 在最左、1 靠中央。
-- 右側機台：原點在右，X 由右至左增加（相對左側為鏡像）。Mark 7~12，7 靠中央、12 在最右。
-- 實體排列由左至右：6 5 4 3 2 1 | 7 8 9 10 11 12。
-- 整合時以左側機台座標為共同座標：右側 x = C − X_R（Y 不變），C 未知，
-  以「欄 1 與欄 7 的中心距 = pitch」反推。
+- 左、右兩側機台 X 都是由右至左增加（相對實體左→右為反向）。
+- 實體排列由左至右：1 2 3 4 5 6 | 7 8 9 10 11 12。
+- 實體座標：左側 x = −X_L；右側 x = C − X_R（Y 不變）。C 未知，
+  以「欄 6 與欄 7 的中心距 = pitch」反推。
 玻璃格點 A 組對應左側、B 組對應右側（alignment_data.csv）。"""
 import csv, math, os
 import numpy as np
@@ -48,14 +47,14 @@ def rigid_fit(pts, ideal):
 
 # ---- 整合模型（共同座標 = 左側機台座標）
 def phys(C):
-    pts = {k: np.array(v) for k, v in LEFT.items()}
+    pts = {k: np.array([-v[0], v[1]]) for k, v in LEFT.items()}
     pts.update({k: np.array([C - v[0], v[1]]) for k, v in RIGHT.items()})
     return pts
 
 def model(p, k):
     th, tx, ty, px, py, C, H = p
     r, c = k
-    u = -(c - 1) * px if c <= 6 else (c - 6) * px     # 欄1 在 u=0，欄7 在 u=+px
+    u = (c - 1) * px                                  # 實體由左至右 1..12
     v = (r - 1) * py + (H if c > 6 else 0.0)
     return np.array([tx + math.cos(th) * u - math.sin(th) * v, ty + math.sin(th) * u + math.cos(th) * v])
 
@@ -86,21 +85,21 @@ def main():
     fd = lambda v: f"{D(v):+.5f}°"; f4 = lambda v: f"{v:.4f}"; s4 = lambda v: f"{v:+.4f}"
     L_ = side_calc(LEFT, 1, 6)
     R_m = side_calc(RIGHT, 7, 12)                                     # 右側機台座標
-    R_p = side_calc({k: (-v[0], v[1]) for k, v in RIGHT.items()}, 7, 12)  # 鏡像到實體方向
+    R_p = side_calc({k: (-v[0], v[1]) for k, v in RIGHT.items()}, 7, 12)  # 實體方向
+    L_p = side_calc({k: (-v[0], v[1]) for k, v in LEFT.items()}, 1, 6)
     out = ["# SPB 左右兩側：分開計算 vs 整合計算", "",
-           "左側機台 X 由左至右；右側機台 X 由右至左（鏡像）。實體排列由左至右：6 5 4 3 2 1 | 7 8 9 10 11 12。",
+           "左、右側機台 X 皆由右至左。實體排列由左至右：1 2 3 4 5 6 | 7 8 9 10 11 12。",
            "「機台座標」值用於各側下指令；「實體方向」值為把右側鏡像後與左側同向比較。θ 逆時針為正。", ""]
 
     out += ["## 一、分開計算", "",
-            "| 項目 | 左側（機台＝實體） | 右側（右機台座標） | 右側（實體方向） | 實體：右 − 左 |", "|---|---|---|---|---|"]
+            "| 項目 | 左側（左機台） | 右側（右機台） | 左側（實體） | 右側（實體） | 實體：右 − 左 |", "|---|---|---|---|---|---|"]
     for name, f in [("θx 列1", lambda r: r["e"]["列1"]), ("θx 列2", lambda r: r["e"]["列2"]),
                     ("θy 中央側欄", lambda r: r["e"]["中央側欄"]), ("θy 外側欄", lambda r: r["e"]["外側欄"]),
                     ("θx 平均", lambda r: r["thx"]), ("θy 平均", lambda r: r["thy"]),
                     ("直交誤差 θx−θy", lambda r: r["thx"] - r["thy"])]:
-        out.append(f"| {name} | {fd(f(L_))} | {fd(f(R_m))} | {fd(f(R_p))} | {fd(f(R_p) - f(L_))} |")
-    out.append(f"| X 間距 | {f4(L_['px'])} | {f4(R_m['px'])} | {f4(R_p['px'])} | {s4(R_p['px']-L_['px'])} |")
-    out.append(f"| Y 間距 | {f4(L_['py'])} | {f4(R_m['py'])} | {f4(R_p['py'])} | {s4(R_p['py']-L_['py'])} |")
-    out.append(f"| 對角線差 (µm) | {L_['diag']*1000:+.1f} | {R_m['diag']*1000:+.1f} | {R_p['diag']*1000:+.1f} | |")
+        out.append(f"| {name} | {fd(f(L_))} | {fd(f(R_m))} | {fd(f(L_p))} | {fd(f(R_p))} | {fd(f(R_p) - f(L_p))} |")
+    out.append(f"| X 間距 | {f4(L_['px'])} | {f4(R_m['px'])} | | | {s4(R_p['px']-L_['px'])} |")
+    out.append(f"| Y 間距 | {f4(L_['py'])} | {f4(R_m['py'])} | | | {s4(R_p['py']-L_['py'])} |")
 
     # 各側剛體擬合（各自座標）
     def side_rigid(m, inner, outer, px, py, sgn):
@@ -109,16 +108,16 @@ def main():
     thL, eL = side_rigid(LEFT, 1, 6, L_["px"], L_["py"], 1)
     thRm, eRm = side_rigid(RIGHT, 7, 12, R_m["px"], R_m["py"], 1)   # 右機台：欄 7 在 +X 側
     rms = lambda e: np.sqrt((e ** 2).sum(1).mean()) * 1000
-    out.append(f"| 剛體擬合 θ（下指令用） | {fd(thL)} | {fd(thRm)} | {fd(-thRm)} | {fd(-thRm - thL)} |")
-    out.append(f"| 剛體擬合殘差 RMS (µm) | {rms(eL):.1f} | {rms(eRm):.1f} | | |")
+    out.append(f"| 剛體擬合 θ（下指令用） | {fd(thL)} | {fd(thRm)} | {fd(-thL)} | {fd(-thRm)} | {fd(thL - thRm)} |")
+    out.append(f"| 剛體擬合殘差 RMS (µm) | {rms(eL):.1f} | {rms(eRm):.1f} | | | |")
     out.append("")
 
     # ---- 整合
     px0 = (L_["px"] + R_m["px"]) / 2; py0 = (L_["py"] + R_m["py"]) / 2
-    C0 = LEFT[(1, 1)][0] + px0 + RIGHT[(1, 7)][0]
-    p1, e1, keys = fit([L_["thx"], *LEFT[(1, 1)], px0, py0, C0, 0.0], [0, 1, 2, 3, 4, 5])
+    C0 = -LEFT[(1, 6)][0] + px0 + RIGHT[(1, 7)][0]
+    p1, e1, keys = fit([L_p["thx"], -LEFT[(1, 1)][0], LEFT[(1, 1)][1], px0, py0, C0, 0.0], [0, 1, 2, 3, 4, 5])
     p2, e2, _ = fit(list(p1[:6]) + [0.0], [0, 1, 2, 3, 4, 5, 6])
-    out += ["## 二、整合計算（右側鏡像後與左側合併；假設欄 1↔欄 7 中心距 = pitch）", "",
+    out += ["## 二、整合計算（兩側換到實體座標合併；假設欄 6↔欄 7 中心距 = pitch）", "",
             f"- 反推兩原點關係 C = {p1[5]:.4f}（右側實體 x = C − X_右）",
             "", "| 項目 | 整合（剛體） | 整合（允許右側 Y 台階） |", "|---|---|---|",
             f"| θ | {fd(p1[0])} | {fd(p2[0])} |",
@@ -130,22 +129,21 @@ def main():
     for k, a, b in zip(keys, e1, e2):
         out.append(f"| {k[0]}-{k[1]} | {a[0]*1000:+.1f} | {a[1]*1000:+.1f} | {b[0]*1000:+.1f} | {b[1]*1000:+.1f} |")
     out.append("")
-    kink = R_p["thx"] - L_["thx"]
-    out += [f"- 實體上左側 θx {fd(L_['thx'])}、右側 θx {fd(R_p['thx'])}：兩側從中央往外都往上翹（V 形），夾角 {fd(kink)}。",
-            f"- 中央相鄰兩片 Mark 高度：1-1 Y={LEFT[(1,1)][1]:.4f}、1-7 Y={RIGHT[(1,7)][1]:.4f}（差 {RIGHT[(1,7)][1]-LEFT[(1,1)][1]:+.4f}）；"
-            f"2-1 Y={LEFT[(2,1)][1]:.4f}、2-7 Y={RIGHT[(2,7)][1]:.4f}（差 {RIGHT[(2,7)][1]-LEFT[(2,1)][1]:+.4f}）", ""]
+    out += [f"- 實體上左側 θx {fd(L_p['thx'])}、右側 θx {fd(R_p['thx'])}，差 {fd(R_p['thx']-L_p['thx'])}：整片同方向旋轉。",
+            f"- 中央相鄰兩片 Mark 高度：1-6 Y={LEFT[(1,6)][1]:.4f}、1-7 Y={RIGHT[(1,7)][1]:.4f}（差 {RIGHT[(1,7)][1]-LEFT[(1,6)][1]:+.4f}）；"
+            f"2-6 Y={LEFT[(2,6)][1]:.4f}、2-7 Y={RIGHT[(2,7)][1]:.4f}（差 {RIGHT[(2,7)][1]-LEFT[(2,6)][1]:+.4f}）", ""]
 
     # ---- 玻璃格點
-    gA = grid_axes("A", False); gB = grid_axes("B", True)
-    out += ["## 三、對照玻璃格點（實體方向；B 組已鏡像）", "",
+    gA = grid_axes("A", True); gB = grid_axes("B", True)
+    out += ["## 三、對照玻璃格點（實體方向）", "",
             "| 項目 | 左 / A | 右 / B | 右 − 左 |", "|---|---|---|---|"]
     for nm, k in [("格點 +X 方向角", "thx"), ("格點 +Y 方向角", "thy")]:
         out.append(f"| {nm} | {fd(gA[k])} | {fd(gB[k])} | {fd(gB[k]-gA[k])} |")
     out.append(f"| 格點直交 θx−θy | {fd(gA['thx']-gA['thy'])} | {fd(gB['thx']-gB['thy'])} | |")
     out.append(f"| 格點 X 比例 | {gA['sx']:.6f} | {gB['sx']:.6f} | {(gB['sx']-gA['sx'])*1e6:+.0f} ppm |")
-    out.append(f"| SPB θx 相對格點 | {fd(L_['thx']-gA['thx'])} | {fd(R_p['thx']-gB['thx'])} | |")
-    out.append(f"| SPB θy 相對格點 | {fd(L_['thy']-gA['thy'])} | {fd(R_p['thy']-gB['thy'])} | |")
-    out.append(f"| X 間距（比例修正） | {f4(L_['px']/gA['sx'])} | {f4(R_p['px']/gB['sx'])} | {s4(R_p['px']/gB['sx']-L_['px']/gA['sx'])} |")
+    out.append(f"| SPB θx 相對格點 | {fd(L_p['thx']-gA['thx'])} | {fd(R_p['thx']-gB['thx'])} | |")
+    out.append(f"| SPB θy 相對格點 | {fd(L_p['thy']-gA['thy'])} | {fd(R_p['thy']-gB['thy'])} | |")
+    out.append(f"| X 間距（比例修正） | {f4(L_p['px']/gA['sx'])} | {f4(R_p['px']/gB['sx'])} | {s4(R_p['px']/gB['sx']-L_p['px']/gA['sx'])} |")
     out.append("")
     md = "\n".join(out)
     open(os.path.join(HERE, "..", "docs", "spb-lr-calc.md"), "w", encoding="utf-8").write(md)

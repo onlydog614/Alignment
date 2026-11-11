@@ -72,8 +72,16 @@ td.bad{color:var(--err)}
 <div class="wrap">
   <header>
     <h1>SPB 預放位置分佈</h1>
-    <p class="sub">左側機台 X 由左至右、右側機台 X 由右至左（鏡像）。實體排列由左至右：6 5 4 3 2 1 ｜ 7 8 9 10 11 12。共 24 個預放位置（2 列 × 12 欄），各側量四角 → 內插其餘位置，比較「左右分開計算」與「整合成一片計算」。θ 逆時針為正。</p>
+    <p class="sub">共 24 個預放位置（2 列 × 12 欄），各側量四角 → 內插其餘位置，比較「左右分開計算」與「整合成一片計算」。<span id="orderTxt"></span>θ 逆時針為正。</p>
   </header>
+
+  <section class="panel">
+    <div class="controls" style="margin:0">
+      <strong>機台 X 方向（實體）</strong>
+      <label for="dirL">左側機台 X <select id="dirL"><option value="-1">由右至左</option><option value="1">由左至右</option></select></label>
+      <label for="dirR">右側機台 X <select id="dirR"><option value="-1">由右至左</option><option value="1">由左至右</option></select></label>
+    </div>
+  </section>
 
   <section class="stats" id="stats" aria-label="摘要"></section>
 
@@ -85,11 +93,11 @@ td.bad{color:var(--err)}
   <section class="panel">
     <h2>分開計算 vs 整合計算</h2>
     <div class="tablebox"><table id="cmp"></table></div>
-    <p class="note">「右側（右機台）」為右側機台座標下的值，下指令用；「右側（實體）」為鏡像成與左側同方向後的值，用來和左側比較。整合：右側以 x = C − X<sub>右</sub> 換到左側座標，假設欄 1 與欄 7 中心距＝pitch 反推 C；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
+    <p class="note">「機台」欄為該側機台座標下的值，下指令用；「實體」欄為換成實體左→右方向後的值，用來比較兩側。整合：兩側換到同一實體座標，假設中央相鄰兩欄中心距＝pitch 反推兩原點關係 C；剛體＝共用 θ 與 pitch，含台階＝再允許右側整體 Y 位移 H。</p>
   </section>
 
   <section class="panel">
-    <h2>俯視分佈圖（實體方向，左側機台座標；X、Y 等比例）</h2>
+    <h2>俯視分佈圖（實體方向；X、Y 等比例）</h2>
     <div class="controls">
       <label for="base">偏差基準
         <select id="base">
@@ -148,7 +156,7 @@ td.bad{color:var(--err)}
 </div>
 
 <script>
-// 左側機台：X 由左至右；右側機台：X 由右至左（鏡像）。共同（實體）座標＝左側機台座標，右側 x = C − X右。
+// 各側機台 X 相對實體（左→右）的方向：+1 同向，-1 反向。實體座標：左側 x = sL·X左；右側 x = C + sR·X右。
 const DEF={"1-1":[-43.6522,1004.1377],"1-6":[-718.6154,1004.9193],"2-1":[-43.5210,1148.2364],"2-6":[-718.4602,1149.0500],
            "1-7":[736.1080,1004.2420],"1-12":[60.9690,1005.1100],"2-7":[736.3030,1148.3460],"2-12":[61.0828,1149.2000]};
 const NX=[0,99.2,198.4,297.6,396.8,496,595.2,694.4], NY=[297.6,148.8,0];
@@ -166,118 +174,128 @@ const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
 const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
 const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
 const isR=c=>c>6, ck=k=>k.split("-").map(Number);
-let P=JSON.parse(JSON.stringify(DEF)), view="C";
+let P=JSON.parse(JSON.stringify(DEF)), D={L:-1,R:-1}, IDX={};
+const sOf=c=>isR(c)?D.R:D.L;
 
 function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
   for(let i=0;i<n;i++){let p=i;for(let k=i+1;k<n;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;[M[i],M[p]]=[M[p],M[i]];
     for(let k=i+1;k<n;k++){const f=M[k][i]/M[i][i];for(let j=i;j<=n;j++)M[k][j]-=f*M[i][j];}}
   const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=M[i][n];for(let j=i+1;j<n;j++)s-=M[i][j]*x[j];x[i]=s/M[i][i];}return x;}
 
-const phys=(k,C)=>{const c=ck(k)[1];return isR(c)?[C-P[k][0],P[k][1]]:P[k];};
-const toPhys=(p,c,C)=>isR(c)?[C-p[0],p[1]]:p;
-// 模型（實體座標）：欄1 在 u=0，左側往 -u，欄7 在 u=+px 往右
-function model(p,r,c){const[th,tx,ty,px,py,C,H]=p;const u=c<=6?-(c-1)*px:(c-6)*px,v=(r-1)*py+(isR(c)?H:0);
+const toPhys=(p,c,C)=>[(isR(c)?C:0)+sOf(c)*p[0],p[1]];
+const phys=(k,C)=>toPhys(P[k],ck(k)[1],C);
+const devM=(d,c)=>[sOf(c)*d[0],d[1]];          // 實體偏差 → 該側機台方向
+// 模型（實體座標）：IDX[c] 為實體由左至右的序號 0..11
+function model(p,r,c){const[th,tx,ty,px,py,C,H]=p;const u=IDX[c]*px,v=(r-1)*py+(isR(c)?H:0);
   return[tx+Math.cos(th)*u-Math.sin(th)*v,ty+Math.sin(th)*u+Math.cos(th)*v];}
 function fit(keys,p0,free){const p=[...p0];
   const resid=q=>keys.flatMap(k=>{const[r,c]=ck(k),m=model(q,r,c),d=phys(k,q[5]);return[m[0]-d[0],m[1]-d[1]];});
-  for(let it=0;it<60;it++){const r0=resid(p);const J=free.map(i=>{const q=[...p];q[i]+=1e-7;return resid(q).map((v,j)=>(v-r0[j])/1e-7);});
+  for(let it=0;it<80;it++){const r0=resid(p);const J=free.map(i=>{const q=[...p];q[i]+=1e-7;return resid(q).map((v,j)=>(v-r0[j])/1e-7);});
     const A=free.map((_,a)=>free.map((_,b)=>J[a].reduce((s,v,j)=>s+v*J[b][j],0))),g=free.map((_,a)=>-J[a].reduce((s,v,j)=>s+v*r0[j],0));
     const d=solve(A,g);free.forEach((i,a)=>p[i]+=d[a]);if(Math.max(...d.map(Math.abs))<1e-12)break;}
   const e=keys.map(k=>{const[r,c]=ck(k);return sub(phys(k,p[5]),model(p,r,c));});
   return{p,e,rms:Math.sqrt(e.reduce((s,v)=>s+v[0]**2+v[1]**2,0)/e.length),max:Math.max(...e.map(len))};}
 
-// 單側計算：get(k) 回傳座標；inner＝靠中央欄、outer＝外側欄
-function sideCalc(get,inner,outer){const n=Math.abs(outer-inner),a=get(`1-${inner}`),b=get(`1-${outer}`),c=get(`2-${inner}`),d=get(`2-${outer}`);
+// 單側：get(k) 回傳座標；c0、c1 為兩端欄；+X 方向由資料判斷
+function sideCalc(get,c0,c1){const n=Math.abs(c1-c0),a=get(`1-${c0}`),b=get(`1-${c1}`),c=get(`2-${c0}`),d=get(`2-${c1}`);
   const sg=a[0]>b[0]?1:-1,r1=mul(sub(a,b),sg),r2=mul(sub(c,d),sg),k0=sub(c,a),k1=sub(d,b);
   const e={r1:angX(r1),r2:angX(r2),k0:angY(k0),k1:angY(k1)};
-  const step=outer>inner?1:-1,marks=[],ctr=[];
-  for(let i=0;i<=n;i++){const col=inner+i*step,t=add(a,mul(sub(b,a),i/n)),u=add(c,mul(sub(d,c),i/n));
+  const step=c1>c0?1:-1,marks=[],ctr=[];
+  for(let i=0;i<=n;i++){const col=c0+i*step,t=add(a,mul(sub(b,a),i/n)),u=add(c,mul(sub(d,c),i/n));
     const fu=i/n,tyv=angY(add(mul(k0,1-fu),mul(k1,fu)));
     marks.push({id:`1-${col}`,r:1,c:col,p:t,meas:i===0||i===n,thx:deg(e.r1),thy:deg(tyv),th:deg((e.r1+tyv)/2)},
                {id:`2-${col}`,r:2,c:col,p:u,meas:i===0||i===n,thx:deg(e.r2),thy:deg(tyv),th:deg((e.r2+tyv)/2)});
     ctr.push({id:col,c:col,p:mul(add(t,u),.5),th:deg(angY(sub(u,t)))});}
   return{e,thx:(e.r1+e.r2)/2,thy:(e.k0+e.k1)/2,px:(len(r1)+len(r2))/2/n,py:(len(k0)+len(k1))/2,marks,ctr,diag:len(sub(d,a))-len(sub(c,b))};}
 
-function glassCalc(pts,mirror){const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
-  pts.forEach(({n,m})=>{const v=[n[0],n[1],1],mx=mirror?-m[0]:m[0];for(let i=0;i<3;i++){for(let j=0;j<3;j++)A[i][j]+=v[i]*v[j];bx[i]+=v[i]*mx;by[i]+=v[i]*m[1];}});
+function glassCalc(pts,s){const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
+  pts.forEach(({n,m})=>{const v=[n[0],n[1],1],mx=s*m[0];for(let i=0;i<3;i++){for(let j=0;j<3;j++)A[i][j]+=v[i]*v[j];bx[i]+=v[i]*mx;by[i]+=v[i]*m[1];}});
   const mx=solve(A,bx),my=solve(A,by),ex=[mx[0],my[0]],ey=[mx[1],my[1]],sgn=ex[0]>0?1:-1;
   return{thx:angX(mul(ex,sgn)),thy:angY(ey),sx:len(ex),sy:len(ey)};}
 
 function compute(){
-  const L=sideCalc(k=>P[k],1,6),Rm=sideCalc(k=>P[k],7,12),Rp=sideCalc(k=>[-P[k][0],P[k][1]],7,12);
-  const kL=["1-1","1-6","2-1","2-6"],kR=["1-7","1-12","2-7","2-12"],px0=(L.px+Rm.px)/2,py0=(L.py+Rm.py)/2;
-  const C0=P["1-1"][0]+px0+P["1-7"][0];
-  const fRig=fit([...kL,...kR],[L.thx,...P["1-1"],px0,py0,C0,0],[0,1,2,3,4,5]);
+  // 實體排列順序
+  const lAsc=D.L*P["1-1"][0]<D.L*P["1-6"][0], rAsc=D.R*P["1-7"][0]<D.R*P["1-12"][0];
+  const lOrd=lAsc?[1,2,3,4,5,6]:[6,5,4,3,2,1], rOrd=rAsc?[7,8,9,10,11,12]:[12,11,10,9,8,7];
+  IDX={};[...lOrd,...rOrd].forEach((c,i)=>IDX[c]=i);
+  const loc=k=>[sOf(ck(k)[1])*P[k][0],P[k][1]];
+  const Lm=sideCalc(k=>P[k],1,6),Lp=sideCalc(loc,1,6),Rm=sideCalc(k=>P[k],7,12),Rp=sideCalc(loc,7,12);
+  const kL=["1-1","1-6","2-1","2-6"],kR=["1-7","1-12","2-7","2-12"],px0=(Lm.px+Rm.px)/2,py0=(Lm.py+Rm.py)/2;
+  const lEnd=lOrd[5],lStart=lOrd[0],rStart=rOrd[0];
+  const C0=D.L*P[`1-${lEnd}`][0]+px0-D.R*P[`1-${rStart}`][0];
+  const o=loc(`1-${lStart}`);
+  const fRig=fit([...kL,...kR],[Lp.thx,o[0],o[1],px0,py0,C0,0],[0,1,2,3,4,5]);
   const fStep=fit([...kL,...kR],[...fRig.p.slice(0,6),0],[0,1,2,3,4,5,6]);
   const C=fRig.p[5];
-  const fL=fit(kL,[L.thx,...P["1-1"],L.px,L.py,C,0],[0,1,2]);
-  const fR=fit(kR,[Rp.thx,C-P["1-7"][0]-Rp.px,P["1-7"][1],Rp.px,Rp.py,C,0],[0,1,2]);
-  const G={L:glassCalc(GLASS.L,false),R:glassCalc(GLASS.R,true)};
-  return{L,Rm,Rp,fL,fR,fRig,fStep,C,G,
-    gap1:P["1-7"][1]-P["1-1"][1],gap2:P["2-7"][1]-P["2-1"][1]};}
+  const fL=fit(kL,[Lp.thx,o[0],o[1],Lm.px,Lm.py,C,0],[0,1,2]);
+  const rs=phys(`1-${rStart}`,C);
+  const fR=fit(kR,[Rp.thx,rs[0]-6*Rm.px,rs[1],Rm.px,Rm.py,C,0],[0,1,2]);
+  const G={L:glassCalc(GLASS.L,D.L),R:glassCalc(GLASS.R,D.R)};
+  return{Lm,Lp,Rm,Rp,fL,fR,fRig,fStep,C,G,lOrd,rOrd,
+    dyC1:P[`1-${rStart}`][1]-P[`1-${lEnd}`][1],dyC2:P[`2-${rStart}`][1]-P[`2-${lEnd}`][1],lEnd,rStart};}
 
-// 理想位置（實體座標）
 function idealOf(R,base,r,c){if(base==="sep")return model(isR(c)?R.fR.p:R.fL.p,r,c);return model(base==="rigid"?R.fRig.p:R.fStep.p,r,c);}
-// 實體偏差 → 該側機台方向
-const devM=(d,c)=>isR(c)?[-d[0],d[1]]:d;
 
 const NS="http://www.w3.org/2000/svg";
 function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;parent&&parent.appendChild(e);return e;}
 function niceStep(range,n){const raw=range/n,p=10**Math.floor(Math.log10(raw)),m=raw/p;return(m<1.5?1:m<3?2:m<7?5:10)*p;}
+const dirTxt=s=>s>0?"由左至右":"由右至左";
 
-function stats(R){const kink=deg(R.Rp.thx-R.L.thx);
+function stats(R){const kink=deg(R.Rp.thx-R.Lp.thx);
   const items=[
-    ["左側 θ（左機台，下指令）",f5(deg(R.fL.p[0]))+"°",`X 間距 ${f4(R.L.px)}・殘差 ${(R.fL.rms*1000).toFixed(1)} µm`],
-    ["右側 θ（右機台，下指令）",f5(-deg(R.fR.p[0]))+"°",`X 間距 ${f4(R.Rm.px)}・殘差 ${(R.fR.rms*1000).toFixed(1)} µm`],
-    ["實體 V 形夾角",f5(kink)+"°","右側 θx（實體）− 左側 θx",Math.abs(kink)>0.01],
-    ["中央相鄰 Y 差",sg4(R.gap1)+" mm",`1-7 − 1-1；2-7 − 2-1 為 ${sg4(R.gap2)}`],
-    ["整合剛體殘差 RMS",(R.fRig.rms*1000).toFixed(1)+" µm",`含台階仍 ${(R.fStep.rms*1000).toFixed(1)} µm`,R.fRig.rms>0.05],
-    ["反推原點關係 C",f4(R.C),"右側實體 x = C − X右（中央距 = pitch）"],
+    ["左側 θ（左機台，下指令）",f5(D.L*deg(R.fL.p[0]))+"°",`X 間距 ${f4(R.Lm.px)}・殘差 ${(R.fL.rms*1000).toFixed(1)} µm`],
+    ["右側 θ（右機台，下指令）",f5(D.R*deg(R.fR.p[0]))+"°",`X 間距 ${f4(R.Rm.px)}・殘差 ${(R.fR.rms*1000).toFixed(1)} µm`],
+    ["實體 θ 差（右 − 左）",f5(kink)+"°",`675 mm 上 ${um((R.Rp.thx-R.Lp.thx)*675)} µm`,Math.abs(kink)>0.01],
+    ["整合 θ（剛體）",f5(deg(R.fRig.p[0]))+"°",`實體座標・含台階 ${f5(deg(R.fStep.p[0]))}°`],
+    ["整合剛體殘差 RMS",(R.fRig.rms*1000).toFixed(1)+" µm",`含台階 ${(R.fStep.rms*1000).toFixed(1)} µm・H ${sg4(R.fStep.p[6])} mm`,R.fRig.rms>0.05],
+    ["中央相鄰 Y 差",sg4(R.dyC1)+" mm",`1-${R.rStart} − 1-${R.lEnd}；列2 ${sg4(R.dyC2)}`,Math.abs(R.dyC1)>0.1],
   ];
   document.getElementById("stats").innerHTML=items.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");}
 
-function findings(R){const{L,Rm,Rp,G}=R;
+function findings(R){const{Lm,Lp,Rm,Rp,G}=R,kink=deg(Rp.thx-Lp.thx);
   const li=[
-    `各側獨立計算都很一致：剛體擬合殘差 左 ${(R.fL.rms*1000).toFixed(1)} µm、右 ${(R.fR.rms*1000).toFixed(1)} µm。下指令用 θ：左 ${f5(deg(R.fL.p[0]))}°（左機台）、右 ${f5(-deg(R.fR.p[0]))}°（右機台）。`,
-    `右側鏡像成實體方向後，左 θx ${f5(deg(L.thx))}°、右 θx ${f5(deg(Rp.thx))}°：兩側由中央往外都往上翹，呈 V 形，夾角 ${f5(deg(Rp.thx-L.thx))}°（675 mm 上約 ${(Math.abs(Rp.thx-L.thx)*675).toFixed(2)} mm）。`,
-    `中央相鄰兩片高度接近：1-7 比 1-1 高 ${sg4(R.gap1)} mm、2-7 比 2-1 高 ${sg4(R.gap2)} mm，中央台階小，主要差異是角度。`,
-    `硬整合成一片時殘差 ${(R.fRig.rms*1000).toFixed(0)} µm，允許台階後仍 ${(R.fStep.rms*1000).toFixed(0)} µm，整合 θ 只剩 ${f5(deg(R.fStep.p[0]))}°（左右互相抵銷）→ 不能共用一個 θ。`,
-    `在各自機台座標下兩側幾乎一樣：θ ${f5(deg(L.thx))}° / ${f5(deg(Rm.thx))}°、直交誤差 ${f5(deg(L.thx-L.thy))}° / ${f5(deg(Rm.thx-Rm.thy))}°、相對玻璃格點 ${f5(deg(L.thx-G.L.thx))}° / ${f5(deg(Rm.thx-(-G.R.thx)))}°。偏差跟著各側機台座標走，較像兩台機台同方向的組裝或校正偏差，或治具左右對稱擺放造成。`,
-    `建議：預放以「分開計算」為準，各側用自己機台座標的 θ 與原點。若要整片一致，需先量出兩台機台座標之間的相對旋轉，例如用一支跨中央的玻璃尺讓兩側同時量。`,
-    `C＝${f4(R.C)} 是假設欄 1 與欄 7 中心距＝pitch 反推的；若已知實際中央距離，請提供以修正整合結果。`];
-  document.getElementById("findings").innerHTML=li.map(t=>`<li>${t}</li>`).join("");}
+    `座標方向：左側機台 X ${dirTxt(D.L)}、右側機台 X ${dirTxt(D.R)}；實體由左至右為 ${R.lOrd.join(" ")} ｜ ${R.rOrd.join(" ")}。`,
+    `各側獨立計算：剛體擬合殘差 左 ${(R.fL.rms*1000).toFixed(1)} µm、右 ${(R.fR.rms*1000).toFixed(1)} µm。下指令用 θ：左 ${f5(D.L*deg(R.fL.p[0]))}°（左機台）、右 ${f5(D.R*deg(R.fR.p[0]))}°（右機台）。`,
+    Math.abs(kink)<0.02
+      ?`換到實體方向後兩側角度一致：左 θx ${f5(deg(Lp.thx))}°、右 θx ${f5(deg(Rp.thx))}°，只差 ${f5(kink)}°（675 mm 上 ${um((Rp.thx-Lp.thx)*675)} µm）。整片 SPB 是同一方向的整體旋轉。`
+      :`換到實體方向後左 θx ${f5(deg(Lp.thx))}°、右 θx ${f5(deg(Rp.thx))}°，兩側有 ${f5(kink)}° 的折角（675 mm 上 ${(Math.abs(Rp.thx-Lp.thx)*675).toFixed(2)} mm），不能共用一個 θ。`,
+    `整合成一片（剛體）：${Math.abs(R.fStep.p[6])>0.05?`殘差主要來自中央 Y 台階（右側整體 ${sg4(R.fStep.p[6])} mm，1-${R.rStart} 比 1-${R.lEnd} 差 ${sg4(R.dyC1)} mm）。`:""}θ ${f5(deg(R.fRig.p[0]))}°、X 間距 ${f4(R.fRig.p[3])}、殘差 ${(R.fRig.rms*1000).toFixed(1)} µm；允許右側 Y 台階後 H = ${sg4(R.fStep.p[6])} mm、殘差 ${(R.fStep.rms*1000).toFixed(1)} µm。分開計算殘差 ${(R.fL.rms*1000).toFixed(1)} / ${(R.fR.rms*1000).toFixed(1)} µm。`,
+    `左右 X 間距差 ${sg4(Rm.px-Lm.px)} mm（${((Rm.px/Lm.px-1)*1e6).toFixed(0)} ppm），以玻璃格點比例修正後差 ${sg4(Rp.px/G.R.sx-Lp.px/G.L.sx)} mm。整合時共用 pitch 會把這個差異變成殘差。`,
+    `兩側直交誤差（實體）${f5(deg(Lp.thx-Lp.thy))}° / ${f5(deg(Rp.thx-Rp.thy))}°；${Math.abs(deg((Lp.thx-Lp.thy)-(Rp.thx-Rp.thy)))<0.005?"方向與大小一致，屬整片 SPB 或治具共通的系統誤差。":"兩側不同，需分側補正。"}`,
+    `中央兩原點關係 C＝${f4(R.C)} 是假設中央相鄰兩欄中心距＝pitch 反推；若已知實際中央距離，請提供以修正整合結果。`];
+  document.getElementById("findings").innerHTML=li.map(t=>`<li>${t}</li>`).join("");
+  document.getElementById("orderTxt").textContent=`實體排列由左至右：${R.lOrd.join(" ")} ｜ ${R.rOrd.join(" ")}。`;}
 
-function cmpTable(R){const{L,Rm,Rp,fL,fR,fRig,fStep}=R,d=v=>f5(deg(v));
+function cmpTable(R){const{Lm,Lp,Rm,Rp,fL,fR,fRig,fStep}=R,d=v=>f5(deg(v));
   const rows=[
-    ["θx 列1",d(L.e.r1),d(Rm.e.r1),d(Rp.e.r1),d(Rp.e.r1-L.e.r1),"",""],
-    ["θx 列2",d(L.e.r2),d(Rm.e.r2),d(Rp.e.r2),d(Rp.e.r2-L.e.r2),"",""],
-    ["θy 中央側欄",d(L.e.k0),d(Rm.e.k0),d(Rp.e.k0),d(Rp.e.k0-L.e.k0),"",""],
-    ["θy 外側欄",d(L.e.k1),d(Rm.e.k1),d(Rp.e.k1),d(Rp.e.k1-L.e.k1),"",""],
-    ["直交誤差 θx−θy",d(L.thx-L.thy),d(Rm.thx-Rm.thy),d(Rp.thx-Rp.thy),d((Rp.thx-Rp.thy)-(L.thx-L.thy)),"",""],
-    ["擬合 θ",d(fL.p[0]),d(-fR.p[0]),d(fR.p[0]),d(fR.p[0]-fL.p[0]),d(fRig.p[0]),d(fStep.p[0])],
-    ["X 間距",f4(L.px),f4(Rm.px),f4(Rp.px),sg4(Rp.px-L.px),f4(fRig.p[3]),f4(fStep.p[3])],
-    ["Y 間距",f4(L.py),f4(Rm.py),f4(Rp.py),sg4(Rp.py-L.py),f4(fRig.p[4]),f4(fStep.p[4])],
-    ["原點關係 C","","","","",f4(fRig.p[5]),f4(fStep.p[5])],
-    ["右側 Y 台階 H","","","","","0（固定）",sg4(fStep.p[6])],
-    ["對角線差 (µm)",um(L.diag),um(Rm.diag),um(Rp.diag),"","",""],
-    ["殘差 RMS (µm)",(fL.rms*1000).toFixed(1),(fR.rms*1000).toFixed(1),"","",(fRig.rms*1000).toFixed(1),(fStep.rms*1000).toFixed(1)],
-    ["最大殘差 (µm)",(fL.max*1000).toFixed(1),(fR.max*1000).toFixed(1),"","",(fRig.max*1000).toFixed(1),(fStep.max*1000).toFixed(1)],
+    ["θx 列1",d(Lm.e.r1),d(Lp.e.r1),d(Rm.e.r1),d(Rp.e.r1),d(Rp.e.r1-Lp.e.r1),"",""],
+    ["θx 列2",d(Lm.e.r2),d(Lp.e.r2),d(Rm.e.r2),d(Rp.e.r2),d(Rp.e.r2-Lp.e.r2),"",""],
+    ["θy 欄 "+"1 / 7",d(Lm.e.k0),d(Lp.e.k0),d(Rm.e.k0),d(Rp.e.k0),d(Rp.e.k0-Lp.e.k0),"",""],
+    ["θy 欄 "+"6 / 12",d(Lm.e.k1),d(Lp.e.k1),d(Rm.e.k1),d(Rp.e.k1),d(Rp.e.k1-Lp.e.k1),"",""],
+    ["直交誤差 θx−θy",d(Lm.thx-Lm.thy),d(Lp.thx-Lp.thy),d(Rm.thx-Rm.thy),d(Rp.thx-Rp.thy),d((Rp.thx-Rp.thy)-(Lp.thx-Lp.thy)),"",""],
+    ["擬合 θ",d(D.L*fL.p[0]),d(fL.p[0]),d(D.R*fR.p[0]),d(fR.p[0]),d(fR.p[0]-fL.p[0]),d(fRig.p[0]),d(fStep.p[0])],
+    ["X 間距",f4(Lm.px),f4(Lp.px),f4(Rm.px),f4(Rp.px),sg4(Rp.px-Lp.px),f4(fRig.p[3]),f4(fStep.p[3])],
+    ["Y 間距",f4(Lm.py),f4(Lp.py),f4(Rm.py),f4(Rp.py),sg4(Rp.py-Lp.py),f4(fRig.p[4]),f4(fStep.p[4])],
+    ["原點關係 C","","","","","",f4(fRig.p[5]),f4(fStep.p[5])],
+    ["右側 Y 台階 H","","","","","","0（固定）",sg4(fStep.p[6])],
+    ["殘差 RMS (µm)",(fL.rms*1000).toFixed(1),"",(fR.rms*1000).toFixed(1),"","",(fRig.rms*1000).toFixed(1),(fStep.rms*1000).toFixed(1)],
+    ["最大殘差 (µm)",(fL.max*1000).toFixed(1),"",(fR.max*1000).toFixed(1),"","",(fRig.max*1000).toFixed(1),(fStep.max*1000).toFixed(1)],
   ];
-  document.getElementById("cmp").innerHTML="<tr><th>項目</th><th>左側（左機台）</th><th>右側（右機台）</th><th>右側（實體）</th><th>實體：右 − 左</th><th>整合（剛體）</th><th>整合（含台階）</th></tr>"+
-    rows.map(r=>`<tr>${r.map((c,i)=>`<td${(i>=5&&/殘差/.test(r[0])&&parseFloat(c)>50)?' class="bad"':""}>${c}</td>`).join("")}</tr>`).join("");}
+  document.getElementById("cmp").innerHTML="<tr><th>項目</th><th>左側（機台）</th><th>左側（實體）</th><th>右側（機台）</th><th>右側（實體）</th><th>實體：右 − 左</th><th>整合（剛體）</th><th>整合（含台階）</th></tr>"+
+    rows.map(r=>`<tr>${r.map((c,i)=>`<td${(i>=6&&/殘差/.test(r[0])&&parseFloat(c)>50)?' class="bad"':""}>${c}</td>`).join("")}</tr>`).join("");}
 
-function glassTable(R){const{L,Rp,G}=R,A=G.L,B=G.R,d=v=>f5(deg(v));
+function glassTable(R){const{Lp,Rp,G}=R,A=G.L,B=G.R,d=v=>f5(deg(v));
   const rows=[["格點 +X 方向角",d(A.thx),d(B.thx),d(B.thx-A.thx)],["格點 +Y 方向角",d(A.thy),d(B.thy),d(B.thy-A.thy)],
     ["格點直交 θx−θy",d(A.thx-A.thy),d(B.thx-B.thy),""],["格點 X 比例",A.sx.toFixed(6),B.sx.toFixed(6),((B.sx-A.sx)*1e6).toFixed(0)+" ppm"],
-    ["SPB θx 相對格點",d(L.thx-A.thx),d(Rp.thx-B.thx),d((Rp.thx-B.thx)-(L.thx-A.thx))],["SPB θy 相對格點",d(L.thy-A.thy),d(Rp.thy-B.thy),d((Rp.thy-B.thy)-(L.thy-A.thy))],
-    ["X 間距（比例修正）",f4(L.px/A.sx),f4(Rp.px/B.sx),sg4(Rp.px/B.sx-L.px/A.sx)],["Y 間距（比例修正）",f4(L.py/A.sy),f4(Rp.py/B.sy),sg4(Rp.py/B.sy-L.py/A.sy)]];
+    ["SPB θx 相對格點",d(Lp.thx-A.thx),d(Rp.thx-B.thx),d((Rp.thx-B.thx)-(Lp.thx-A.thx))],["SPB θy 相對格點",d(Lp.thy-A.thy),d(Rp.thy-B.thy),d((Rp.thy-B.thy)-(Lp.thy-A.thy))],
+    ["X 間距（比例修正）",f4(Lp.px/A.sx),f4(Rp.px/B.sx),sg4(Rp.px/B.sx-Lp.px/A.sx)],["Y 間距（比例修正）",f4(Lp.py/A.sy),f4(Rp.py/B.sy),sg4(Rp.py/B.sy-Lp.py/A.sy)]];
   document.getElementById("glass").innerHTML="<tr><th>項目</th><th>左 / A</th><th>右 / B</th><th>右 − 左</th></tr>"+rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("");}
 
 function drawMap(R){
   const svg=document.getElementById("map");svg.innerHTML="";
   const base=document.getElementById("base").value,K=+document.getElementById("mag").value,showGlass=document.getElementById("showGlass").checked,C=R.C;
-  const marks=[...R.L.marks,...R.Rm.marks].map(m=>({...m,q:toPhys(m.p,m.c,C)}));
-  const gl=showGlass?[...GLASS.L.map(g=>g.m),...GLASS.R.map(g=>[C-g.m[0],g.m[1]])]:[];
+  const marks=[...R.Lm.marks,...R.Rm.marks].map(m=>({...m,q:toPhys(m.p,m.c,C)}));
+  const gl=showGlass?[...GLASS.L.map(g=>[D.L*g.m[0],g.m[1]]),...GLASS.R.map(g=>[C+D.R*g.m[0],g.m[1]])]:[];
   const pts=[...marks.map(m=>m.q),...gl];
   let x0=Math.min(...pts.map(p=>p[0])),x1=Math.max(...pts.map(p=>p[0])),y0=Math.min(...pts.map(p=>p[1])),y1=Math.max(...pts.map(p=>p[1]));
   x0-=40;x1+=40;y0-=45;y1+=45;
@@ -288,7 +306,7 @@ function drawMap(R){
   for(let v=Math.ceil(x0/200)*200;v<=x1;v+=200){el("line",{x1:X(v),x2:X(v),y1:mt,y2:H-mb,stroke:"var(--grid)"},g);el("text",{x:X(v),y:H-mb+16,"text-anchor":"middle"},g,v.toFixed(0));}
   for(let v=Math.ceil(y0/sy)*sy;v<=y1;v+=sy){el("line",{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},g);el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end"},g,v.toFixed(0));}
   el("rect",{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb,fill:"none",stroke:"var(--line)"},g);
-  el("text",{x:W-mr,y:H-4,"text-anchor":"end"},g,"實體 x（左機台 X, mm）");
+  el("text",{x:W-mr,y:H-4,"text-anchor":"end"},g,"實體 x (mm)");
   gl.forEach(q=>el("circle",{cx:X(q[0]),cy:Y(q[1]),r:2.5,fill:"var(--glass)"},g));
   const poly=(arr,attrs)=>el("polygon",{points:arr.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),...attrs},g);
   [[1,6,"var(--left)"],[7,12,"var(--right)"]].forEach(([a,b,col])=>{
@@ -303,19 +321,18 @@ function drawMap(R){
     el("text",{x:X(m.q[0]),y:Y(m.q[1])+(m.r===1?18:-10),"text-anchor":"middle",class:"lbl"},g,m.id);
     const d=devM(sub(m.q,id),m.c);
     hook(n,`<b>預放位置 ${m.id}</b>（${isR(m.c)?"右側":"左側"}・${m.meas?"實測":"內插"}）　θ <span class="num">${f5(m.th)}°</span>　${isR(m.c)?"右":"左"}機台 X <span class="num">${f4(m.p[0])}</span>　Y <span class="num">${f4(m.p[1])}</span>　實體 x <span class="num">${f4(m.q[0])}</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
-  if(document.getElementById("showC").checked)[...R.L.ctr,...R.Rm.ctr].forEach(c=>{
+  if(document.getElementById("showC").checked)[...R.Lm.ctr,...R.Rm.ctr].forEach(c=>{
     const q=toPhys(c.p,c.c,C),id=mul(add(idealOf(R,base,1,c.c),idealOf(R,base,2,c.c)),.5);arrow(q,id);
     const x=X(q[0]),y=Y(q[1]),n=el("path",{d:`M${x} ${y-6}L${x+6} ${y}L${x} ${y+6}L${x-6} ${y}Z`,fill:"var(--ctr)"},g);
-    el("text",{x:x+9,y:y+4,class:"lbl"},g,"P"+c.id);const d=devM(sub(q,id),c.c);
-    hook(n,`<b>預放位置 ${c.id}</b>　${isR(c.c)?"右":"左"}機台中心 X <span class="num">${f4(c.p[0])}</span>　Y <span class="num">${f4(c.p[1])}</span>　θ <span class="num">${f5(c.th)}°</span>（${isR(c.c)?"右":"左"}機台）　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
+    const d=devM(sub(q,id),c.c);
+    hook(n,`<b>欄 ${c.id} 上下 Mark 中點</b>　${isR(c.c)?"右":"左"}機台 X <span class="num">${f4(c.p[0])}</span>　Y <span class="num">${f4(c.p[1])}</span>　θ <span class="num">${f5(c.th)}°</span>　偏差 dX <span class="num">${um(d[0])}</span> µm　dY <span class="num">${um(d[1])}</span> µm`);});
 }
 
 function drawTheta(R){
   const svg=document.getElementById("thchart");svg.innerHTML="";
   const W=540,H=270,ml=64,mr=14,mt=14,mb=32;svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width="100%";svg.style.minWidth="400px";svg.style.display="block";
-  const C=R.C,conv=m=>({...m,x:isR(m.c)?C-m.p[0]:m.p[0],tp:isR(m.c)?-m.th:m.th});
-  const all=[...R.L.marks,...R.Rm.marks].map(conv);
-  const vals=all.map(m=>m.tp).concat([deg(R.L.thx),deg(R.Rp.thx),deg(R.fStep.p[0]),deg(R.fRig.p[0])]);
+  const C=R.C,all=[...R.Lm.marks,...R.Rm.marks].map(m=>({...m,x:toPhys(m.p,m.c,C)[0],tp:sOf(m.c)*m.th}));
+  const vals=all.map(m=>m.tp).concat([deg(R.Lp.thx),deg(R.Rp.thx),deg(R.fStep.p[0]),deg(R.fRig.p[0])]);
   let lo=Math.min(...vals),hi=Math.max(...vals);const pd=(hi-lo)*.08||.001;lo-=pd;hi+=pd;const st=niceStep(hi-lo,6);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
   const xs=all.map(m=>m.x),xa=Math.min(...xs)-60,xb=Math.max(...xs)+60;
   const X=x=>ml+(x-xa)/(xb-xa)*(W-ml-mr),Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
@@ -324,7 +341,7 @@ function drawTheta(R){
   const seg=(xA,xB,v,col,dash)=>el("line",{x1:X(xA),x2:X(xB),y1:Y(v),y2:Y(v),stroke:col,"stroke-width":2,...(dash?{"stroke-dasharray":dash}:{})},svg);
   const ext=a=>[Math.min(...a.map(c=>c.x))-30,Math.max(...a.map(c=>c.x))+30];
   const Lm=all.filter(m=>!isR(m.c)),Rmk=all.filter(m=>isR(m.c));
-  seg(...ext(Lm),deg(R.L.thx),"var(--left)");seg(...ext(Rmk),deg(R.Rp.thx),"var(--right)");
+  seg(...ext(Lm),deg(R.Lp.thx),"var(--left)");seg(...ext(Rmk),deg(R.Rp.thx),"var(--right)");
   seg(xa,xb,deg(R.fStep.p[0]),"var(--int)","6 4");seg(xa,xb,deg(R.fRig.p[0]),"var(--err)","2 3");
   [Lm,Rmk].forEach(side=>[1,2].forEach(row=>{const list=side.filter(m=>m.r===row).sort((a,b)=>a.x-b.x);
     el("polyline",{points:list.map(m=>`${X(m.x)},${Y(m.tp)}`).join(" "),fill:"none",stroke:"var(--ctr)","stroke-width":1.2,...(row===2?{"stroke-dasharray":"4 3"}:{})},svg);
@@ -334,8 +351,7 @@ function drawTheta(R){
 
 function table(R){const base=document.getElementById("base").value,t=document.getElementById("tbl"),C=R.C;
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
-  const list=[[R.L,R.fL.p[0]],[R.Rm,-R.fR.p[0]]].flatMap(([S,th])=>[1,2].flatMap(row=>S.marks.filter(m=>m.r===row).map(m=>({...m,fth:th}))));
-  let n=0;
+  const list=[[R.Lm,D.L*R.fL.p[0]],[R.Rm,D.R*R.fR.p[0]]].flatMap(([S,th])=>[1,2].flatMap(row=>S.marks.filter(m=>m.r===row).sort((a,b)=>a.c-b.c).map(m=>({...m,fth:th}))));
   t.innerHTML="<tr><th>#</th><th>預放位置</th><th>側</th><th>X（該側機台）</th><th>Y</th><th>θ 局部</th><th>θ 列向</th><th>θ 欄向</th><th>該側擬合 θ</th><th>實體 x</th><th>來源</th><th>dX µm</th><th>dY µm</th></tr>"+
     list.map((m,i)=>{const q=toPhys(m.p,m.c,C),d=devM(sub(q,idealOf(R,base,m.r,m.c)),m.c);
       return`<tr><td>${i+1}</td><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f5(m.thx)}</td><td>${f5(m.thy)}</td><td>${f5(deg(m.fth))}</td><td>${f4(q[0])}</td><td>${m.meas?"實測":"內插"}</td><td>${um(d[0])}</td><td>${um(d[1])}</td></tr>`;}).join("");}
@@ -347,7 +363,9 @@ const inp=document.getElementById("inputs");
 Object.keys(DEF).forEach(k=>{const side=isR(ck(k)[1])?"右側":"左側",fs=document.createElement("fieldset");
   fs.innerHTML=`<legend>${side} ${k}</legend><label for="in-${k}-x">X<input id="in-${k}-x" inputmode="decimal" value="${DEF[k][0]}"></label><label for="in-${k}-y">Y<input id="in-${k}-y" inputmode="decimal" value="${DEF[k][1]}"></label>`;
   inp.appendChild(fs);["x","y"].forEach((a,i)=>document.getElementById(`in-${k}-${a}`).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)){P[k][i]=v;render();}}));});
-document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:100,rigid:100}[e.target.value];render();});
+document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value;render();});
+document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
+document.getElementById("base").addEventListener("input",e=>{document.getElementById("mag").value={sep:1000,step:300,rigid:300}[e.target.value];render();});
 ["showC","showIdeal","showErr","showGlass","mag"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 render();
 </script>
