@@ -105,3 +105,46 @@ if __name__ == "__main__":
         w = csv.writer(f); w.writerow(["Tile", "X", "Y", "θ(deg)"])
         for r in rows: w.writerow([r[0], f"{r[1]:.4f}", f"{r[2]:.4f}", f"{r[3]:+.5f}"])
     print("\n".join(lines))
+
+
+def centers(m):
+    """每個預放位置中心。
+    解讀 A：6 片 tile，每片上 Mark=1-i、下 Mark=2-i → 中心 = (1-i + 2-i)/2
+    解讀 B：Mark 為 tile 四角，5 片 tile → 中心 = 相鄰 4 個 Mark 平均"""
+    p11, p16, p21, p26 = (np.array(m[k]) for k in [(1,1),(1,6),(2,1),(2,6)])
+    top = [p11 + (p16 - p11) * i / (COLS - 1) for i in range(COLS)]
+    bot = [p21 + (p26 - p21) * i / (COLS - 1) for i in range(COLS)]
+    thx = (math.atan2(*(p11 - p16)[::-1]) + math.atan2(*(p21 - p26)[::-1])) / 2
+    out = ["## 四、每個預放位置中心", "",
+           "### 解讀 A：6 片，每片上下各一 Mark（1-i 上、2-i 下）", "",
+           "| 位置 | 中心 X | 中心 Y | θ(Y向 上→下) | θ(X向 整列) | 與前一片中心距 |", "|---|---|---|---|---|---|"]
+    rowsA, prev = [], None
+    for i in range(COLS):
+        c = (top[i] + bot[i]) / 2; v = bot[i] - top[i]
+        ty = math.atan2(-v[0], v[1])
+        d = "" if prev is None else f"{np.hypot(*(c - prev)):.4f}"
+        out.append(f"| {i+1} | {c[0]:.4f} | {c[1]:.4f} | {deg(ty):+.5f} | {deg(thx):+.5f} | {d} |")
+        rowsA.append((f"A-{i+1}", c[0], c[1], deg(ty), deg(thx))); prev = c
+    out += ["", "### 解讀 B：Mark 為 tile 四角，5 片（i 與 i+1 之間）", "",
+            "| 位置 | 中心 X | 中心 Y | θ(X、Y 平均) | 與前一片中心距 |", "|---|---|---|---|---|"]
+    rowsB, prev = [], None
+    for i in range(COLS - 1):
+        q = [top[i], top[i+1], bot[i], bot[i+1]]
+        c = sum(q) / 4
+        vx = (q[0] - q[1] + q[2] - q[3]) / 2; vy = (q[2] - q[0] + q[3] - q[1]) / 2
+        t = (math.atan2(vx[1], vx[0]) + math.atan2(-vy[0], vy[1])) / 2
+        d = "" if prev is None else f"{np.hypot(*(c - prev)):.4f}"
+        out.append(f"| {i+1} | {c[0]:.4f} | {c[1]:.4f} | {deg(t):+.5f} | {d} |")
+        rowsB.append((f"B-{i+1}", c[0], c[1], deg(t), "")); prev = c
+    allc = sum([p11, p16, p21, p26]) / 4
+    out += ["", f"- SPB 整體中心（四角平均）= ({allc[0]:.4f}, {allc[1]:.4f})", ""]
+    return out, rowsA + rowsB
+
+
+if __name__ == "__main__":
+    l3, crow = centers(MARKS)
+    with open(md, "a", encoding="utf-8") as f: f.write("\n" + "\n".join(l3))
+    with open(os.path.join(here, "..", "spb_tile_centers.csv"), "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f); w.writerow(["位置", "中心X", "中心Y", "θ(deg)", "θ X向(deg)"])
+        for r in crow: w.writerow([r[0], f"{r[1]:.4f}", f"{r[2]:.4f}", f"{r[3]:+.5f}", r[4] if r[4] == "" else f"{r[4]:+.5f}"])
+    print("\n".join(l3))
