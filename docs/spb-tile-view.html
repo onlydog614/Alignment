@@ -209,7 +209,7 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
 
   <section data-tab="method" class="panel">
     <h2>推算方式比較</h2>
-    <p class="note"><b>方式一（單列推算）</b>：每側只拍第 1 列兩端 Mark（左側 1-1、1-6；右側 1-7、1-12），由兩點求該列角度 θ 與 X 間距，第 2 列以圖面 Y 中心間距沿垂直方向推出。<b>方式二（四角）</b>：每側拍四角 Mark（第 1、2 列兩端），兩列各自內插，即目前其他分頁使用的方式。比較兩者推出的 24 個位置差多少。</p>
+    <p class="note"><b>方式一（單列推算）</b>：每側只拍第 1 列兩端 Mark（左 1-1、1-6；右 1-7、1-12），求該列 θ 與 X 間距，第 2 列以圖面 Y 中心間距沿垂直方向推出，θ 沿用第 1 列。<b>方式二（每列個別）</b>：第 1 列（1-1～1-6）與第 2 列（2-1～2-6）各拍兩端，各列個別內插位置、各列個別算 θ。另列「四角局部 θ」（列向與欄向平均，其他分頁使用）供對照。</p>
     <div class="controls">
       <label for="mPy">方式一 Y 中心間距 (mm)<input id="mPy" inputmode="decimal" value="144" style="width:80px"></label>
     </div>
@@ -671,37 +671,42 @@ function stage(R){
       return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(t)}°</td><td>${(Math.abs(rad(t))*rT*1000).toFixed(1)}</td><td>${(len(mv)*1000).toFixed(1)}</td></tr>`;}).join("");
 }
 
-// ---- 推算方式比較：方式一（第 1 列兩點 + 圖面 Y 間距） vs 方式二（四角）
+// ---- 推算方式比較
+// 方式一：只拍第 1 列兩端，θ＝第 1 列角度，第 2 列沿垂直方向推圖面 Y 間距
+// 方式二：第 1 列、第 2 列各拍兩端，各列個別內插、θ＝該列角度
+// 參考：四角局部 θ（列向與欄向平均，其他分頁使用）
 function methods(R){
   const py=parseFloat(document.getElementById("mPy").value)||144,rad=d=>d*Math.PI/180;
-  const out=[],sum={};
+  const out=[],sum={},dArm=DD?len(DD.dD):NaN,cR=DD?Math.hypot(DD.W/2,DD.H/2):98.7;
   [["L",R.Lm,1,6],["R",R.Rm,7,12]].forEach(([k,S,c0,c1])=>{
-    const a=P[`1-${c0}`],b=P[`1-${c1}`],th=S.e.r1,n=c1-c0,perp=[-Math.sin(th)*py,Math.cos(th)*py];
-    let mx=0,mxId="";
-    for(let i=0;i<=n;i++){const col=c0+i,r1=add(a,mul(sub(b,a),i/n)),r2=add(r1,perp);
-      [[1,r1],[2,r2]].forEach(([r,p1])=>{const m=S.marks.find(m=>m.r===r&&m.c===col),d=sub(p1,m.p),meas=m.meas&&r===2;
-        if(len(d)>mx){mx=len(d);mxId=m.id;}
-        out.push({id:m.id,c:col,r,p1,p2:m.p,d,th1:deg(th),th2:m.th,meas});});}
-    sum[k]={th:deg(th),px:len(sub(b,a))/n,mx,mxId,d2a:sub(add(a,perp),P[`2-${c0}`]),d2b:sub(add(b,perp),P[`2-${c1}`]),c0,c1};});
-  const L=sum.L,Rr=sum.R;
-  const st=[["左側 方式一 θ／X 間距",`${f5(L.th)}° ／ ${f4(L.px)}`,`方式二 θ ${f5(D.L*deg(R.fL.p[0]))}°`],
-    ["右側 方式一 θ／X 間距",`${f5(Rr.th)}° ／ ${f4(Rr.px)}`,`方式二 θ ${f5(D.R*deg(R.fR.p[0]))}°`],
-    ["方式一 vs 方式二 最大差",`${(Math.max(L.mx,Rr.mx)*1000).toFixed(0)} µm`,`左 ${L.mxId} ${(L.mx*1000).toFixed(0)}、右 ${Rr.mxId} ${(Rr.mx*1000).toFixed(0)} µm`,Math.max(L.mx,Rr.mx)>0.05],
-    [`左 2-1／2-6 推算 − 實測`,`${um(L.d2a[0])}, ${um(L.d2a[1])}`,`2-6：${um(L.d2b[0])}, ${um(L.d2b[1])} µm`],
-    [`右 2-7／2-12 推算 − 實測`,`${um(Rr.d2a[0])}, ${um(Rr.d2a[1])}`,`2-12：${um(Rr.d2b[0])}, ${um(Rr.d2b[1])} µm`],
-    ["實測 Y 間距 vs 方式一",`${f4(R.Lm.py)} ／ ${f4(R.Rm.py)}`,`方式一用 ${py}`]];
+    const n=c1-c0,a1=P[`1-${c0}`],b1=P[`1-${c1}`],a2=P[`2-${c0}`],b2=P[`2-${c1}`];
+    const th1=S.e.r1,th2=S.e.r2,perp=[-Math.sin(th1)*py,Math.cos(th1)*py];
+    let mx1=0,id1="",mxT=0,idT="";
+    for(let i=0;i<=n;i++){const col=c0+i;
+      [[1,add(a1,mul(sub(b1,a1),i/n)),th1,add(a1,mul(sub(b1,a1),i/n))],[2,add(add(a1,mul(sub(b1,a1),i/n)),perp),th1,add(a2,mul(sub(b2,a2),i/n))]].forEach(([r,pA,tA,pB])=>{
+        const tB=r===1?th1:th2,m=S.marks.find(m=>m.r===r&&m.c===col),dP=sub(pA,pB),dT=deg(tB)-m.th;
+        if(len(dP)>mx1){mx1=len(dP);id1=m.id;}if(Math.abs(dT)>Math.abs(mxT)){mxT=dT;idT=m.id;}
+        out.push({id:m.id,c:col,r,pA,tA:deg(tA),pB,tB:deg(tB),tL:m.th,dP,dAB:deg(tA)-deg(tB),dT});});}
+    sum[k]={th1:deg(th1),th2:deg(th2),px1:len(sub(b1,a1))/n,px2:len(sub(b2,a2))/n,mx1,id1,mxT,idT};});
+  const L=sum.L,Rr=sum.R,ctrUm=t=>Math.abs(rad(t))*dArm*1000,cornUm=t=>Math.abs(rad(t))*cR*1000;
+  const st=[["左側 θ 第1列／第2列",`${f5(L.th1)}° ／ ${f5(L.th2)}°`,`X 間距 ${f4(L.px1)} ／ ${f4(L.px2)}`],
+    ["右側 θ 第1列／第2列",`${f5(Rr.th1)}° ／ ${f5(Rr.th2)}°`,`X 間距 ${f4(Rr.px1)} ／ ${f4(Rr.px2)}`],
+    ["方式一 vs 方式二 位置最大差",`${(Math.max(L.mx1,Rr.mx1)*1000).toFixed(0)} µm`,`左 ${L.id1}、右 ${Rr.id1}（只在第 2 列）`,Math.max(L.mx1,Rr.mx1)>0.05],
+    ["方式一 vs 方式二 第2列 θ 差",`左 ${f5(L.th1-L.th2)}° ／ 右 ${f5(Rr.th1-Rr.th2)}°`,`片子角落 ${cornUm(L.th1-L.th2).toFixed(1)} ／ ${cornUm(Rr.th1-Rr.th2).toFixed(1)} µm`],
+    ["方式二 vs 四角局部 θ 最大差",`${f5(Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.mxT:Rr.mxT)}°`,`${Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.idT:Rr.idT}；片子角落 ${cornUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm`],
+    ["θ 差對片子中心影響",isFinite(dArm)?`${ctrUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm`:"—",isFinite(dArm)?`Mark→中心 ${dArm.toFixed(1)} mm × θ 差`:"需實測校驗資料"]];
   document.getElementById("mStats").innerHTML=st.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
-  const dyL=(R.Lm.py-py)*1000,dyR=(R.Rm.py-py)*1000,orthL=deg(R.Lm.thx-R.Lm.thy),orthR=deg(R.Rm.thx-R.Rm.thy);
   document.getElementById("mFind").innerHTML=[
-    `第 1 列兩種方式完全相同（都用同樣兩點內插）；差異全部出在第 2 列。`,
-    `Y 方向：方式一用圖面 ${py}，實測第 1、2 列 Mark 間距為 左 ${f4(R.Lm.py)}、右 ${f4(R.Rm.py)}，第 2 列 Y 會少 ${dyL.toFixed(0)}～${dyR.toFixed(0)} µm（片子／SPB 實際比圖面大約 0.07%）。若改用實測 Y 間距，這項可消除。`,
-    `X 方向：方式一假設第 2 列在第 1 列的正下方（垂直），但量測軸 X/Y 有 ${f5(orthL)}° / ${f5(orthR)}° 的直交誤差，第 2 列 X 會差約 ${(Math.abs(rad(orthL))*py*1000).toFixed(0)} µm；另外第 2 列本身角度與第 1 列不同（左 ${f5(deg(R.Lm.e.r2-R.Lm.e.r1))}°、右 ${f5(deg(R.Rm.e.r2-R.Rm.e.r1))}°），兩端再差幾十 µm。`,
-    `結論：方式一少拍一半 Mark，但第 2 列誤差約 0.1 mm 等級；方式二（四角）可把 Y 比例、直交、兩列角度差一起吃進去。若用方式一，建議至少把 Y 間距改成實測值或加上比例補正。`].map(t=>`<li>${t}</li>`).join("");
+    `方式二（每列個別）的位置就是兩列各自兩端內插，第 2 列直接用實測，Y 比例、直交誤差、兩列角度差都已含在內；方式一第 2 列差到 ${(Math.max(L.mx1,Rr.mx1)*1000).toFixed(0)} µm（主要是 Y 間距 ${f4(R.Lm.py)}／${f4(R.Rm.py)} 對圖面 ${py}）。`,
+    `兩列角度不同：左 ${f5(L.th1)}° vs ${f5(L.th2)}°（差 ${f5(L.th1-L.th2)}°）、右 ${f5(Rr.th1)}° vs ${f5(Rr.th2)}°（差 ${f5(Rr.th1-Rr.th2)}°）。方式一第 2 列沿用第 1 列角度，片子角落會差 ${cornUm(L.th1-L.th2).toFixed(1)}／${cornUm(Rr.th1-Rr.th2).toFixed(1)} µm。`,
+    `方式二的 θ 只看列向；四角局部 θ 另外平均了欄向，兩者差最多 ${f5(Math.abs(L.mxT)>Math.abs(Rr.mxT)?L.mxT:Rr.mxT)}°（來自直交誤差與各欄欄向角度不同），片子角落約 ${cornUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1)} µm、中心約 ${isFinite(dArm)?ctrUm(Math.max(Math.abs(L.mxT),Math.abs(Rr.mxT))).toFixed(1):"—"} µm。片子邊要與列方向平行時用方式二的 θ。`,
+    `建議：用方式二（拍 4 點/側），位置與角度都直接來自同列實測；方式一只在無法拍第 2 列時使用，並把 Y 間距改成實測值。`].map(t=>`<li>${t}</li>`).join("");
   const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
   out.sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
-  document.getElementById("mTbl").innerHTML="<tr><th>位置</th><th>側</th><th>方式一 X</th><th>方式一 Y</th><th>方式一 θ</th><th>方式二 X</th><th>方式二 Y</th><th>方式二 θ</th><th>dX µm</th><th>dY µm</th><th>備註</th></tr>"+
-    out.map(o=>`<tr><td>${o.id}</td><td>${tag(o.c)}</td><td>${f4(o.p1[0])}</td><td>${f4(o.p1[1])}</td><td>${f5(o.th1)}</td><td>${f4(o.p2[0])}</td><td>${f4(o.p2[1])}</td><td>${f5(o.th2)}</td><td>${um(o.d[0])}</td><td>${um(o.d[1])}</td><td style="font-family:var(--font-ui)">${o.r===1?([1,6,7,12].includes(o.c)?"拍攝":"內插"):(o.meas?"對照實測":"推算")}</td></tr>`).join("");
+  document.getElementById("mTbl").innerHTML="<tr><th>位置</th><th>側</th><th>方式一 X</th><th>方式一 Y</th><th>方式一 θ</th><th>方式二 X</th><th>方式二 Y</th><th>方式二 θ</th><th>四角局部 θ</th><th>一−二 dX µm</th><th>一−二 dY µm</th><th>一−二 θ</th><th>二−局部 θ</th><th>拍攝</th></tr>"+
+    out.map(o=>`<tr><td>${o.id}</td><td>${tag(o.c)}</td><td>${f4(o.pA[0])}</td><td>${f4(o.pA[1])}</td><td>${f5(o.tA)}</td><td>${f4(o.pB[0])}</td><td>${f4(o.pB[1])}</td><td>${f5(o.tB)}</td><td>${f5(o.tL)}</td><td>${um(o.dP[0])}</td><td>${um(o.dP[1])}</td><td>${f5(o.dAB)}</td><td>${f5(o.dT)}</td><td style="font-family:var(--font-ui)">${[1,6,7,12].includes(o.c)?(o.r===1?"一、二":"二"):"—"}</td></tr>`).join("");
 }
+
 function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);methods(R);
   document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
 
