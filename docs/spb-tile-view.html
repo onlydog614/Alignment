@@ -70,6 +70,8 @@ td.bad{color:var(--err)}
 [hidden]{display:none!important}
 .maintabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:6px;margin:0}
 .maintabs button{font-size:13.5px;padding:6px 12px}
+.tabbtn{font:inherit;font-size:13px;padding:5px 12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:4px;cursor:pointer}
+.tabbtn:focus-visible{outline:2px solid var(--left)}
 tr.hit td{color:var(--err)}
 tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight:600}
 </style>
@@ -272,6 +274,8 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
     <p class="note" id="modeNote"></p>
     <div class="inputs" id="inputs"></div>
     <h2 style="margin-top:14px">理論座標（選填，用來算 SPB 的 XY 偏移）</h2>
+    <p class="note">沒有理論值時可帶：① 程式目前設定的 1-1／1-7 預放 Mark 座標（教點值）；② SPB 圖面 Mark 到定位基準的尺寸＋治具定位點的機台座標；③ 一片確認合格的「基準片」量測值（之後每片的偏移＝相對基準片的變化）。按下方按鈕可直接把目前量測值設為基準片，會記在這台裝置的瀏覽器。</p>
+    <div class="controls"><button type="button" id="thSet" class="tabbtn">以目前 1-1／1-7 設為基準片</button><button type="button" id="thClr" class="tabbtn">清除理論座標</button></div>
     <div class="inputs" id="thInputs">
       <fieldset><legend>左側 1-1 理論</legend><label for="th11x">X<input id="th11x" inputmode="decimal" placeholder="未填"></label><label for="th11y">Y<input id="th11y" inputmode="decimal" placeholder="未填"></label></fieldset>
       <fieldset><legend>右側 1-7 理論</legend><label for="th17x">X<input id="th17x" inputmode="decimal" placeholder="未填"></label><label for="th17y">Y<input id="th17y" inputmode="decimal" placeholder="未填"></label></fieldset>
@@ -718,7 +722,13 @@ function applyMode(){MODE=document.getElementById("mode").value;document.getElem
 document.getElementById("mode").addEventListener("input",()=>{applyMode();render();});
 [["optPy","py"],["optPxD","pxD"]].forEach(([id,k])=>document.getElementById(id).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0){OPT[k]=v;render();}}));
 document.getElementById("optPx").addEventListener("input",e=>{OPT.pxSrc=e.target.value;render();});
-[["th11x","1-1",0],["th11y","1-1",1],["th17x","1-7",0],["th17y","1-7",1]].forEach(([id,k,i])=>document.getElementById(id).addEventListener("input",e=>{OPT.th[k][i]=parseFloat(e.target.value);render();}));
+const TH_IDS=[["th11x","1-1",0],["th11y","1-1",1],["th17x","1-7",0],["th17y","1-7",1]];
+const saveTh=()=>{try{localStorage.setItem("spbTheory",JSON.stringify(OPT.th));}catch(e){}};
+TH_IDS.forEach(([id,k,i])=>document.getElementById(id).addEventListener("input",e=>{OPT.th[k][i]=parseFloat(e.target.value);saveTh();render();}));
+const fillTh=()=>TH_IDS.forEach(([id,k,i])=>{const v=OPT.th[k][i];document.getElementById(id).value=isFinite(v)?v:"";});
+try{const t=JSON.parse(localStorage.getItem("spbTheory")||"null");if(t&&t["1-1"]&&t["1-7"]){OPT.th=t;fillTh();}}catch(e){}
+document.getElementById("thSet").addEventListener("click",()=>{OPT.th={"1-1":[...RAW["1-1"]],"1-7":[...RAW["1-7"]]};fillTh();saveTh();render();});
+document.getElementById("thClr").addEventListener("click",()=>{OPT.th={"1-1":[NaN,NaN],"1-7":[NaN,NaN]};fillTh();saveTh();render();});
 applyMode();
 document.getElementById("dirL").addEventListener("input",e=>{D.L=+e.target.value;render();});
 document.getElementById("dirR").addEventListener("input",e=>{D.R=+e.target.value;render();});
