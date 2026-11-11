@@ -74,6 +74,18 @@ td.bad{color:var(--err)}
 .tabbtn:focus-visible{outline:2px solid var(--left)}
 tr.hit td{color:var(--err)}
 tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight:600}
+details.fold{margin:4px 0 10px}
+details.fold>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;font-size:13px;padding:5px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);user-select:none}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"▸";font-size:11px;color:var(--muted)}
+details.fold[open]>summary::before{content:"▾"}
+details.fold>summary:focus-visible{outline:2px solid var(--left)}
+details.fold>.findings,details.fold>.guide{margin-top:10px}
+.guide{display:grid;gap:8px;max-width:95ch;font-size:13.5px}
+.guide h3{font-size:13.5px;margin:4px 0 0}
+.guide ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.req{display:inline-block;font-size:11px;padding:0 5px;border-radius:3px;background:color-mix(in srgb,var(--err) 14%,transparent);color:var(--err);margin-right:4px}
+.opt{display:inline-block;font-size:11px;padding:0 5px;border-radius:3px;background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted);margin-right:4px}
 </style>
 
 <div class="wrap">
@@ -179,16 +191,16 @@ tr.first td{background:color-mix(in srgb,var(--err) 12%,transparent);font-weight
       <fieldset><legend>貼合座標</legend>
         <label for="bondX">X<input id="bondX" inputmode="decimal" value="208.1318"></label>
         <label for="bondY">Y<input id="bondY" inputmode="decimal" value="1318.9640"></label></fieldset>
-      <fieldset><legend>預放位置 左上</legend>
+      <fieldset><legend>片子 Mark 左上</legend>
         <label for="tlX">X<input id="tlX" inputmode="decimal" value="312.9066"></label>
         <label for="tlY">Y<input id="tlY" inputmode="decimal" value="1003.8826"></label></fieldset>
-      <fieldset><legend>預放位置 右上</legend>
+      <fieldset><legend>片子 Mark 右上</legend>
         <label for="trX">X<input id="trX" inputmode="decimal" value="195.8776"></label>
         <label for="trY">Y<input id="trY" inputmode="decimal" value="1003.8551"></label></fieldset>
-      <fieldset><legend>預放位置 左下</legend>
+      <fieldset><legend>片子 Mark 左下</legend>
         <label for="blX">X<input id="blX" inputmode="decimal" value="312.8498"></label>
         <label for="blY">Y<input id="blY" inputmode="decimal" value="1135.9840"></label></fieldset>
-      <fieldset><legend>預放位置 右下</legend>
+      <fieldset><legend>片子 Mark 右下</legend>
         <label for="brX">X<input id="brX" inputmode="decimal" value="195.8122"></label>
         <label for="brY">Y<input id="brY" inputmode="decimal" value="1135.9500"></label></fieldset>
       <fieldset><legend>片子圖面（mm）</legend>
@@ -763,6 +775,32 @@ document.getElementById("base").addEventListener("input",e=>{document.getElement
 {const sel=document.getElementById("refId");for(const r of [1,2])for(let c=1;c<=12;c++){const o=document.createElement("option");o.value=o.textContent=`${r}-${c}`;sel.appendChild(o);}sel.value="1-11";}
 ["refId","camX","camY","bondX","bondY","bondScope","dzW","dzH","dzU","dzV","tlX","tlY","trX","trY","blX","blY","brX","brY"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 ["rcSel","rcX","rcY","thr","amax","ptSel","stSize","stEx","stEy","stRes","stRef"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+
+// ---- 判讀收合與各分頁使用說明
+const GUIDE={
+ overview:{t:"總覽與比較",use:["先在上方設定兩側機台 X 方向（目前：左、右皆由右至左，原點各自獨立）。","看上方卡片：「左側 θ／右側 θ（下指令）」就是各側要補償的角度；紅框代表需要注意。","「分開計算 vs 整合計算」表：左右分開是實際使用的結果；整合只用來看兩側關係。"],
+   req:[["req","量測輸入：模式 A 填 1-1、1-6、1-7、1-12；模式 B 另加 2-1、2-6、2-7、2-12"],["req","兩側機台 X 方向"],["opt","中央相鄰兩片 Mark 圖面距離（只影響整合計算，預設 135）"]]},
+ map:{t:"分佈圖與 θ",use:["俯視圖以實體方向畫出 24 片：外框為片子圖面尺寸、綠點為片子中心、紅線為偏差（已放大）。","「偏差基準」選分開擬合看各側誤差；選整合看兩側合併的差異。","點選任一點可在下方看到機台座標、θ 與偏差。"],
+   req:[["req","量測輸入（同總覽）"],["opt","實測校驗的片子四個 Mark（有填才畫得出片子外框與中心）"]]},
+ data:{t:"24 位置數據",use:["24 個預放位置的 Mark X／Y、θ（列向，實際使用）與偏差，X、Y 為各側機台座標，可直接下指令。","θ 局部、θ 欄向僅供比對 X／Y 斜率差。"],
+   req:[["req","量測輸入（同總覽）"]]},
+ calib:{t:"實測校驗",use:["用一片實際量測的位置（預設 1-11）建立「Mark → 片子中心」與「相機 → 貼合」關係，再推算全部 24 片。","片子四個 Mark＋片子圖面 → 求片子中心；相機中心＋貼合座標 → 求貼合平移。","下表「圖面中心」即每片預放中心；貼合座標只推算同側，另一側需實測一片。"],
+   req:[["req","基準位置（量的是哪一片）"],["req","該片四個 Mark 座標（左上、右上、左下、右下）"],["req","片子圖面尺寸與量到的 Mark 在圖面位置（預設 135×144，左 12／右 129，上 5.25／下 137.25）"],["opt","相機移到貼附中心座標、貼合座標（要算貼合座標時才需要）"]]},
+ angle:{t:"角度敏感度",use:["看 SPB 角度每變 0.01° 各位置偏移多少、轉到幾度會超過門檻（例如 1 mm）。","下方「旋轉平台補償」：角度交給 200×200 平台時，各片要轉的角度、角落移動量與解析度影響。","「左右兩側旋轉補償公式」：確認兩側公式與 Mark→中心偏移是否相同。"],
+   req:[["req","旋轉中心、偏移門檻、最大角度"],["req","平台尺寸、平台解析度、tile 中心偏離（不知道就填 0）"],["opt","實測校驗的片子四個 Mark（評估點用片子四角時需要）"]]},
+ input:{t:"量測輸入",use:["選模式：A＝只拍第 1 列兩端（4 點），第 2 列依 Y 中心間距推算；B＝兩列都拍（8 點），各列個別計算。","填入相機量到的 Mark 座標（各側機台座標），所有分頁即時重算。","理論座標可填教點值或按「以目前設為基準片」，用來看 SPB 的 XY 偏移。"],
+   req:[["req","模式 A：左 1-1、1-6，右 1-7、1-12"],["req","模式 B：再加左 2-1、2-6，右 2-7、2-12"],["opt","模式 A 的 Y 中心間距（預設 144，實測約 144.1）與 X 間距來源"],["opt","理論座標（1-1、1-7）"]]},
+};
+function setupFolds(){
+  document.querySelectorAll("ul.findings").forEach(ul=>{if(ul.parentElement.tagName==="DETAILS")return;
+    const d=document.createElement("details");d.className="fold";const sm=document.createElement("summary");sm.textContent="展開判讀";
+    d.addEventListener("toggle",()=>{sm.textContent=d.open?"收合判讀":"展開判讀";});
+    ul.parentNode.insertBefore(d,ul);d.appendChild(sm);d.appendChild(ul);});
+  Object.entries(GUIDE).forEach(([tab,g])=>{const first=document.querySelector(`[data-tab="${tab}"]`);if(!first)return;
+    const sec=document.createElement("section");sec.className="panel";sec.dataset.tab=tab;sec.style.paddingBlock="10px";
+    sec.innerHTML=`<details class="fold" style="margin:0"><summary>使用說明：${g.t}</summary><div class="guide"><h3>怎麼用</h3><ul>${g.use.map(t=>`<li>${t}</li>`).join("")}</ul><h3>需要填入</h3><ul>${g.req.map(([k,t])=>`<li><span class="${k}">${k==="req"?"必要":"選填"}</span>${t}</li>`).join("")}</ul></div></details>`;
+    first.parentNode.insertBefore(sec,first);});}
+setupFolds();
 render();
 showTab(fromHash());
 </script>
