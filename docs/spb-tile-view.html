@@ -279,6 +279,7 @@ details.fold>.findings,details.fold>.guide{margin-top:10px}
   <section data-tab="input" class="panel">
     <h2>量測輸入</h2>
     <div class="controls">
+      <button type="button" id="resetAll" class="tabbtn">全部恢復預設值</button>
       <label for="mode">模式
         <select id="mode">
           <option value="B">模式 B：8 點（兩列各拍兩端），各列個別計算</option>
@@ -324,7 +325,9 @@ const deg=r=>r*180/Math.PI, sub=(a,b)=>[a[0]-b[0],a[1]-b[1]], add=(a,b)=>[a[0]+b
 const angX=v=>Math.atan2(v[1],v[0]), angY=v=>Math.atan2(-v[0],v[1]);
 const f4=v=>v.toFixed(4), f5=v=>(v>=0?"+":"")+v.toFixed(5), sg4=v=>(v>=0?"+":"")+v.toFixed(4);
 const um=v=>{const r=Math.round(v*10000)/10;return (r>=0?"+":"")+(r===0?0:r).toFixed(1);};
-const isR=c=>c>6, ck=k=>k.split("-").map(Number);
+const isR=c=>c>6, ck=k=>k.split("-").map(Number), rad=d=>d*Math.PI/180;
+const $=id=>document.getElementById(id), num=id=>parseFloat($(id).value), val=id=>$(id).value;
+const sortMarks=R=>[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
 let RAW=JSON.parse(JSON.stringify(DEF)), P={}, D={L:-1,R:-1}, MSYM=false, IDX={}, MODE="B";
 let OPT={py:144,pxSrc:"meas",pxD:135,th:{"1-1":[NaN,NaN],"1-7":[NaN,NaN]}};
 // 由輸入產生 8 個角點：模式 A 只用第 1 列兩端，第 2 列沿垂直方向推 Y 中心間距
@@ -361,6 +364,13 @@ function fit(keys,p0,free){const p=[...p0];
   return{p,e,rms:Math.sqrt(e.reduce((s,v)=>s+v[0]**2+v[1]**2,0)/e.length),max:Math.max(...e.map(len))};}
 
 // 單側：get(k) 回傳座標；c0、c1 為兩端欄；+X 方向由資料判斷
+// 只解 θ、tx、ty 的剛體擬合：Procrustes 閉式解（比反覆迭代快且穩定）
+function fitRigid(keys,p0){const q=[0,0,0,...p0.slice(3)],A=keys.map(k=>{const[r,c]=ck(k);return model(q,r,c);}),B=keys.map(k=>phys(k,p0[5]));
+  const ca=mul(A.reduce(add),1/A.length),cb=mul(B.reduce(add),1/B.length);let sc=0,ss=0;
+  A.forEach((a,i)=>{const u=sub(a,ca),v=sub(B[i],cb);sc+=u[0]*v[0]+u[1]*v[1];ss+=u[0]*v[1]-u[1]*v[0];});
+  const th=Math.atan2(ss,sc),t=sub(cb,rot2(ca,th)),p=[th,t[0],t[1],...p0.slice(3)];
+  const e=keys.map(k=>{const[r,c]=ck(k);return sub(phys(k,p[5]),model(p,r,c));});
+  return{p,e,rms:Math.sqrt(e.reduce((s,v)=>s+v[0]**2+v[1]**2,0)/e.length),max:Math.max(...e.map(len))};}
 function sideCalc(get,c0,c1){const n=Math.abs(c1-c0),a=get(`1-${c0}`),b=get(`1-${c1}`),c=get(`2-${c0}`),d=get(`2-${c1}`);
   const sg=a[0]>b[0]?1:-1,r1=mul(sub(a,b),sg),r2=mul(sub(c,d),sg),k0=sub(c,a),k1=sub(d,b);
   const e={r1:angX(r1),r2:angX(r2),k0:angY(k0),k1:angY(k1)};
@@ -391,9 +401,9 @@ function compute(){deriveP();
   const fRig=fit([...kL,...kR],[Lp.thx,o[0],o[1],px0,py0,C0,0],[0,1,2,3,4,5]);
   const fStep=fit([...kL,...kR],[...fRig.p.slice(0,6),0],[0,1,2,3,4,5,6]);
   const C=fRig.p[5];
-  const fL=fit(kL,[Lp.thx,o[0],o[1],Lm.px,Lm.py,C,0],[0,1,2]);
+  const fL=fitRigid(kL,[Lp.thx,o[0],o[1],Lm.px,Lm.py,C,0]);
   const rs=phys(`1-${rStart}`,C);
-  const fR=fit(kR,[Rp.thx,rs[0]-6*Rm.px,rs[1],Rm.px,Rm.py,C,0],[0,1,2]);
+  const fR=fitRigid(kR,[Rp.thx,rs[0]-6*Rm.px,rs[1],Rm.px,Rm.py,C,0]);
   const G={L:glassCalc(GLASS.L,D.L),R:glassCalc(GLASS.R,D.R)};
   return{Lm,Lp,Rm,Rp,fL,fR,fRig,fStep,C,G,lOrd,rOrd,
     dyC1:P[`1-${rStart}`][1]-P[`1-${lEnd}`][1],dyC2:P[`2-${rStart}`][1]-P[`2-${lEnd}`][1],lEnd,rStart};}
@@ -537,84 +547,79 @@ function table(R){const base=document.getElementById("base").value,t=document.ge
 
 
 // 實測校驗：Mark→中心偏移（SPB 自身方向）與 相機→貼合 平移
-function calib(R){
-  const ref=document.getElementById("refId").value,num=id=>parseFloat(document.getElementById(id).value);
-  const cam=[num("camX"),num("camY")],bond=[num("bondX"),num("bondY")],scope=document.getElementById("bondScope").value;
-  const all=[...R.Lm.marks,...R.Rm.marks],m0=all.find(m=>m.id===ref);if(!m0||!cam.every(isFinite))return;
-  const rot=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];},rad=d=>d*Math.PI/180;
-  const dM=sub(cam,m0.p),dS=rot(dM,-rad(m0.th)),dB=sub(bond,cam),refR=isR(m0.c);
-  const items=[["Mark → 貼附中心（機台）",`${sg4(dM[0])}, ${sg4(dM[1])}`,`距離 ${f4(len(dM))}・方向 ${f5(deg(angX(dM)))}°`],
-    ["Mark → 貼附中心（SPB 方向）",`${sg4(dS[0])}, ${sg4(dS[1])}`,`已扣除 ${ref} 局部 θ ${f5(m0.th)}°`],
-    ["相機 → 貼合 平移",`${sg4(dB[0])}, ${sg4(dB[1])}`,`由 ${ref} 一點求得，僅平移`]];
-  document.getElementById("calStats").innerHTML=items.map(([k,v,d])=>`<div class="stat"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
-  // 預放位置四角（相機量測）
-  const pt=id=>[num(id+"X"),num(id+"Y")],TL=pt("tl"),TR=pt("tr"),BL=pt("bl"),BR=pt("br");
-  const okC=[TL,TR,BL,BR].every(q=>q.every(isFinite));let dT=null;
-  if(okC){const pos=v=>v[0]<0?mul(v,-1):v,posY=v=>v[1]<0?mul(v,-1):v;
-    const top=pos(sub(TL,TR)),bot=pos(sub(BL,BR)),lft=posY(sub(BL,TL)),rgt=posY(sub(BR,TR));
-    const tx=(angX(top)+angX(bot))/2,ty=(angY(lft)+angY(rgt))/2,tt=(tx+ty)/2;
-    const w=(len(top)+len(bot))/2,h=(len(lft)+len(rgt))/2,cc=mul(add(add(TL,TR),add(BL,BR)),.25);
-    const near=[["左上",TL],["右上",TR],["左下",BL],["右下",BR]].map(([n,q])=>[n,q,len(sub(q,m0.p))]).sort((a,b)=>a[2]-b[2])[0];
-    const dth=deg(tt)-m0.th,dC=sub(cc,cam);dT=rot(sub(cc,m0.p),-rad(m0.th));
-    const sameSide=isR(m0.c)?R.Rm:R.Lm,spbOrtho=deg(sameSide.thx-sameSide.thy);
-    const it=[["預放位置 θ（四角）",f5(deg(tt))+"°",`上下邊 ${f5(deg(tx))}°・左右邊 ${f5(deg(ty))}°`],
-      ["四角 θ − Mark θ",f5(dth)+"°",`${ref} Mark 局部 θ ${f5(m0.th)}°・寬度上 ${um(rad(dth)*w)} µm`,Math.abs(dth)>0.02],
-      ["預放位置尺寸 W × H",`${w.toFixed(4)} × ${h.toFixed(4)}`,`對角線差 ${um(len(sub(BR,TL))-len(sub(BL,TR)))} µm`],
-      ["預放中心（四角平均）",`${f4(cc[0])}, ${f4(cc[1])}`,`Mark ${ref} → 中心 ${sg4(cc[0]-m0.p[0])}, ${sg4(cc[1]-m0.p[1])}`],
-      ["預放中心修正量（四角 − 相機）",`${sg4(dC[0])}, ${sg4(dC[1])}`,"相機目前到的中心需加上此量",len(dC)>0.1],
-      [`最近角（${near[0]}）− Mark ${ref}`,`${sg4(near[1][0]-m0.p[0])}, ${sg4(near[1][1]-m0.p[1])}`,`距離 ${f4(near[2])}`]];
-    document.getElementById("tileStats").innerHTML=it.map(([k,v,d,wn])=>`<div class="stat${wn?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
-    document.getElementById("tileFind").innerHTML=[
-      `預放位置四角 θ ${f5(deg(tt))}°，同位置 Mark 連線局部 θ ${f5(m0.th)}°，差 ${f5(dth)}°（${w.toFixed(1)} mm 寬度上兩端差 ${um(rad(dth)*w)} µm）。預放位置邊線與 Mark 連線不平行，請確認預放 θ 要以哪個為準；以四角為準時，24 個位置的 θ 都需加上 ${f5(dth)}°。`,
-      `預放位置直交誤差 ${f5(deg(tx-ty))}°，與同側 SPB Mark 直交誤差 ${f5(spbOrtho)}° ${Math.abs(deg(tx-ty)-spbOrtho)<0.003?"幾乎相同：兩組不同特徵量出同樣的 X/Y 斜率差，來源是該側量測軸（相機或機台 X/Y 直交），可用一個直交補正值同時修正":"不同"}。`,
-      `相機目前移到的預放中心 (${f4(cam[0])}, ${f4(cam[1])}) 與四角中心 (${f4(cc[0])}, ${f4(cc[1])}) 差 ${sg4(dC[0])}, ${sg4(dC[1])} mm${len(dC)>1?`，相機中心落在預放位置${cam[1]<Math.min(TL[1],TR[1])||cam[1]>Math.max(BL[1],BR[1])?"外":"內"}，中心設定需修正`:""}。下表「預放中心（四角）」為修正後的 24 個中心。`,
-      `${near[0]}角距 Mark ${ref} ${f4(near[2])} mm，Mark 位於預放位置${near[0]}附近。`].map(t=>`<li>${t}</li>`).join("");}
-  // 片子圖面：量到的四角 Mark 對應圖面座標（左上原點，x 右、y 下），仿射擬合求圖面中心
-  let dD=null;DD=null;
-  if(okC){const W=num("dzW")||135,H=num("dzH")||144,[uL,uR]=document.getElementById("dzU").value.split(",").map(Number),[vT,vB]=document.getElementById("dzV").value.split(",").map(Number);
-    const sg=sOf(m0.c),Q=[[uL,vT],[uR,vT],[uL,vB],[uR,vB]],Pp=[TL,TR,BL,BR].map(q=>[sg*q[0],q[1]]);
-    const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
-    Q.forEach((q,i)=>{const v=[q[0],q[1],1];for(let a=0;a<3;a++){for(let c=0;c<3;c++)A[a][c]+=v[a]*v[c];bx[a]+=v[a]*Pp[i][0];by[a]+=v[a]*Pp[i][1];}});
-    const mx=solve(A,bx),my=solve(A,by),T=q=>[mx[0]*q[0]+mx[1]*q[1]+mx[2],my[0]*q[0]+my[1]*q[1]+my[2]];
-    const cP=T([W/2,H/2]),cM=[sg*cP[0],cP[1]],sx=Math.hypot(mx[0],my[0]),sy=Math.hypot(mx[1],my[1]);
-    const resid=Math.max(...Q.map((q,i)=>len(sub(T(q),Pp[i]))));
-    const dc=sub(cam,cM);dD=rot(sub(cM,m0.p),-rad(m0.th));DD={dD,W,H,refC:m0.c};
-    const corners=[[0,0],[W,0],[0,H],[W,H]].map(q=>{const t=T(q);return[sg*t[0],t[1]];});
-    const ss=isR(m0.c)?R.Rm:R.Lm;
-    const it=[["圖面中心（機台）",`${f4(cM[0])}, ${f4(cM[1])}`,`圖面 (${W/2}, ${H/2}) 經四角 Mark 擬合`],
-      ["相機中心 − 圖面中心",`${sg4(dc[0])}, ${sg4(dc[1])}`,len(dc)<0.05?"一致":"相機中心設定有偏差",len(dc)>0.05],
-      ["Mark 間距 vs 圖面",`X ${((sx-1)*1e6).toFixed(0)} ／ Y ${((sy-1)*1e6).toFixed(0)} ppm`,`${(uR-uL)} → ${(sx*(uR-uL)).toFixed(4)}、${(vB-vT)} → ${(sy*(vB-vT)).toFixed(4)}`,Math.abs(sy-1)>3e-4||Math.abs(sx-1)>3e-4],
-      ["SPB 間距 vs 圖面",`X ${((ss.px/W-1)*1e6).toFixed(0)} ／ Y ${((ss.py/H-1)*1e6).toFixed(0)} ppm`,`${f4(ss.px)} / ${W}、${f4(ss.py)} / ${H}`,Math.abs(ss.py/H-1)>3e-4||Math.abs(ss.px/W-1)>3e-4],
-      ["擬合殘差（最大）",`${(resid*1000).toFixed(1)} µm`,"四角 Mark 對圖面仿射"],
-      ["片子外框角（機台）",`${f4(corners[0][0])}, ${f4(corners[0][1])}`,`左上；右下 ${f4(corners[3][0])}, ${f4(corners[3][1])}`]];
-    document.getElementById("dzStats").innerHTML=it.map(([k,v,d,wn])=>`<div class="stat${wn?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");
-    document.getElementById("dzFind").innerHTML=[
-      `依圖面，量到的四點是 Mark（左 ${uL}、右 ${uR}、上 ${vT}、下 ${vB}），不是片子外框角；片子是 ${W} × ${H}，與 SPB 間距相同，24 片緊密排列。`,
-      `圖面中心換到機台 = (${f4(cM[0])}, ${f4(cM[1])})。相機中心 X 差 ${sg4(dc[0])} mm${Math.abs(dc[0])<0.05?"（X 正確）":""}；Y 差 ${sg4(dc[1])} mm${Math.abs(Math.abs(dc[1])-70)<0.05?"，剛好約 70 mm，像是 Y 方向偏移參數設錯（例如 72 與 2 混用，或少加一段 70 mm）":""}。`,
-      `Mark 間距比圖面大：X ${((sx-1)*1e6).toFixed(0)} ppm、Y ${((sy-1)*1e6).toFixed(0)} ppm；SPB 間距也同樣偏大（右側 X ${((R.Rm.px/W-1)*1e6).toFixed(0)}、Y ${((R.Rm.py/H-1)*1e6).toFixed(0)} ppm；左側 Y ${((R.Lm.py/H-1)*1e6).toFixed(0)} ppm）。玻璃格點顯示機台 Y 比例只有約 +50 ppm，所以 Y 方向約 +0.07% 較像片子／SPB 實際尺寸（熱膨脹或製程），請確認圖面值與溫度。`,
-      `下表「圖面中心」為 24 片依此換算的片子中心，可直接作為預放中心。`].map(t=>`<li>${t}</li>`).join("");}
-  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`;
-  const list=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
+// ======== 模型：實測校驗（純計算，不碰畫面）========
+function calibModel(R){
+  const ref=val("refId"),cam=[num("camX"),num("camY")],bond=[num("bondX"),num("bondY")],scope=val("bondScope");
+  const m0=[...R.Lm.marks,...R.Rm.marks].find(m=>m.id===ref);DD=null;
+  const K={ref,cam,bond,scope,m0,okCam:false,okC:false};if(!m0)return K;
+  K.okCam=cam.every(isFinite);
+  if(K.okCam){K.dM=sub(cam,m0.p);K.dS=rot2(K.dM,-rad(m0.th));K.dB=bond.every(isFinite)?sub(bond,cam):null;}
+  const pt=id=>[num(id+"X"),num(id+"Y")],C4=[pt("tl"),pt("tr"),pt("bl"),pt("br")];
+  K.okC=C4.every(q=>q.every(isFinite));if(!K.okC)return K;
+  const[TL,TR,BL,BR]=C4,pos=v=>v[0]<0?mul(v,-1):v,posY=v=>v[1]<0?mul(v,-1):v;
+  const top=pos(sub(TL,TR)),bot=pos(sub(BL,BR)),lft=posY(sub(BL,TL)),rgt=posY(sub(BR,TR));
+  const tx=(angX(top)+angX(bot))/2,ty=(angY(lft)+angY(rgt))/2,tt=(tx+ty)/2,cc=mul(add(add(TL,TR),add(BL,BR)),.25);
+  const near=[["左上",TL],["右上",TR],["左下",BL],["右下",BR]].map(([n,q])=>[n,q,len(sub(q,m0.p))]).sort((x,y)=>x[2]-y[2])[0];
+  const side=isR(m0.c)?R.Rm:R.Lm;
+  K.tile={TL,TR,BL,BR,tx,ty,tt,w:(len(top)+len(bot))/2,h:(len(lft)+len(rgt))/2,cc,near,dth:deg(tt)-m0.th,
+    dC:K.okCam?sub(cc,cam):null,dT:rot2(sub(cc,m0.p),-rad(m0.th)),diagDiff:len(sub(BR,TL))-len(sub(BL,TR)),spbOrtho:deg(side.thx-side.thy)};
+  // 片子圖面：量到的四個 Mark 對應圖面座標（左上原點，x 右、y 下），仿射擬合求圖面中心
+  const W=num("dzW")||135,H=num("dzH")||144,[uL,uR]=val("dzU").split(",").map(Number),[vT,vB]=val("dzV").split(",").map(Number);
+  const sg=sOf(m0.c),Q=[[uL,vT],[uR,vT],[uL,vB],[uR,vB]],Pp=C4.map(q=>[sg*q[0],q[1]]);
+  const A=[[0,0,0],[0,0,0],[0,0,0]],bx=[0,0,0],by=[0,0,0];
+  Q.forEach((q,i)=>{const v=[q[0],q[1],1];for(let r=0;r<3;r++){for(let c=0;c<3;c++)A[r][c]+=v[r]*v[c];bx[r]+=v[r]*Pp[i][0];by[r]+=v[r]*Pp[i][1];}});
+  const mx=solve(A,bx),my=solve(A,by),T=q=>[mx[0]*q[0]+mx[1]*q[1]+mx[2],my[0]*q[0]+my[1]*q[1]+my[2]];
+  const cP=T([W/2,H/2]),cM=[sg*cP[0],cP[1]],dD=rot2(sub(cM,m0.p),-rad(m0.th));
+  K.dz={W,H,uL,uR,vT,vB,cM,dD,sx:Math.hypot(mx[0],my[0]),sy:Math.hypot(mx[1],my[1]),side,
+    resid:Math.max(...Q.map((q,i)=>len(sub(T(q),Pp[i])))),dc:K.okCam?sub(cam,cM):null,
+    corners:[[0,0],[W,0],[0,H],[W,H]].map(q=>{const t=T(q);return[sg*t[0],t[1]];})};
+  DD={dD,W,H,refC:m0.c};
+  return K;}
+
+// ======== 畫面：實測校驗 ========
+function calibView(R){const K=R.CAL,m0=K.m0;
+  const stat=(id,items)=>{document.getElementById(id).innerHTML=items.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:15px">${v}</div><div class="d">${d}</div></div>`).join("");};
+  const list=(id,arr)=>{document.getElementById(id).innerHTML=arr.map(t=>`<li>${t}</li>`).join("");};
+  if(!m0){stat("calStats",[]);return;}
+  stat("calStats",K.okCam?[["Mark → 相機中心（機台）",`${sg4(K.dM[0])}, ${sg4(K.dM[1])}`,`距離 ${f4(len(K.dM))}`],
+    ["Mark → 相機中心（SPB 方向）",`${sg4(K.dS[0])}, ${sg4(K.dS[1])}`,`已扣除 ${K.ref} θ ${f5(m0.th)}°`],
+    ["相機 → 貼合 平移",K.dB?`${sg4(K.dB[0])}, ${sg4(K.dB[1])}`:"—",K.dB?`由 ${K.ref} 一點求得，僅平移`:"貼合座標未填"]]:[["相機中心","未填","填入後可算貼合平移"]]);
+  const t=K.tile,z=K.dz;
+  if(t){stat("tileStats",[["Mark 四點 θ",f5(deg(t.tt))+"°",`上下 ${f5(deg(t.tx))}°・左右 ${f5(deg(t.ty))}°`],
+      ["四點 θ − 列 θ",f5(t.dth)+"°",`${K.ref} 列 θ ${f5(m0.th)}°・寬度上 ${um(rad(t.dth)*t.w)} µm`,Math.abs(t.dth)>0.02],
+      ["四點間距 W × H",`${t.w.toFixed(4)} × ${t.h.toFixed(4)}`,`對角線差 ${um(t.diagDiff)} µm`],
+      ["四點中心",`${f4(t.cc[0])}, ${f4(t.cc[1])}`,`Mark ${K.ref} → ${sg4(t.cc[0]-m0.p[0])}, ${sg4(t.cc[1]-m0.p[1])}`],
+      [`最近點（${t.near[0]}）− Mark ${K.ref}`,`${sg4(t.near[1][0]-m0.p[0])}, ${sg4(t.near[1][1]-m0.p[1])}`,`距離 ${f4(t.near[2])}`]]);
+    list("tileFind",[`片子四個 Mark 的 θ ${f5(deg(t.tt))}°，${K.ref} 列 θ ${f5(m0.th)}°，差 ${f5(t.dth)}°（${t.w.toFixed(1)} mm 上兩端差 ${um(rad(t.dth)*t.w)} µm）。片子邊與 SPB 列方向不平行時，需決定預放 θ 以哪個為準。`,
+      `片子四點直交誤差 ${f5(deg(t.tx-t.ty))}°，同側 SPB 直交誤差 ${f5(t.spbOrtho)}° ${Math.abs(deg(t.tx-t.ty)-t.spbOrtho)<0.003?"幾乎相同：來源是該側量測軸（相機或機台 X/Y 直交），可用一個直交補正值修正":"不同"}。`,
+      `${t.near[0]}的 Mark 距 SPB Mark ${K.ref} ${f4(t.near[2])} mm。`]);}
+  else{stat("tileStats",[["片子四個 Mark","未填","填入後才能算片子中心"]]);list("tileFind",[]);}
+  if(z){stat("dzStats",[["圖面中心（機台）",`${f4(z.cM[0])}, ${f4(z.cM[1])}`,`圖面 (${z.W/2}, ${z.H/2}) 經四點擬合`],
+      ["相機中心 − 圖面中心",z.dc?`${sg4(z.dc[0])}, ${sg4(z.dc[1])}`:"—",z.dc?(len(z.dc)<0.05?"一致":"相機中心設定有偏差"):"相機中心未填",!!z.dc&&len(z.dc)>0.05],
+      ["Mark 間距 vs 圖面",`X ${((z.sx-1)*1e6).toFixed(0)} ／ Y ${((z.sy-1)*1e6).toFixed(0)} ppm`,`${z.uR-z.uL} → ${(z.sx*(z.uR-z.uL)).toFixed(4)}、${z.vB-z.vT} → ${(z.sy*(z.vB-z.vT)).toFixed(4)}`,Math.abs(z.sy-1)>3e-4||Math.abs(z.sx-1)>3e-4],
+      ["SPB 間距 vs 圖面",`X ${((z.side.px/z.W-1)*1e6).toFixed(0)} ／ Y ${((z.side.py/z.H-1)*1e6).toFixed(0)} ppm`,`${f4(z.side.px)} / ${z.W}、${f4(z.side.py)} / ${z.H}`,Math.abs(z.side.py/z.H-1)>3e-4||Math.abs(z.side.px/z.W-1)>3e-4],
+      ["擬合殘差（最大）",`${(z.resid*1000).toFixed(1)} µm`,"四點對圖面仿射"],
+      ["Mark → 片子中心 d",`${sg4(z.dD[0])}, ${sg4(z.dD[1])}`,"SPB 方向，套用到各片"]]);
+    list("dzFind",[`量到的四點是片子 Mark（左 ${z.uL}、右 ${z.uR}、上 ${z.vT}、下 ${z.vB}）；片子 ${z.W} × ${z.H}，與 SPB 間距相同，24 片緊密排列。`,
+      z.dc?`圖面中心 (${f4(z.cM[0])}, ${f4(z.cM[1])})，相機中心差 X ${sg4(z.dc[0])}、Y ${sg4(z.dc[1])} mm${Math.abs(Math.abs(z.dc[1])-70)<0.05?"（Y 剛好約 70 mm，像是 Y 偏移參數設錯）":""}。`:`圖面中心 (${f4(z.cM[0])}, ${f4(z.cM[1])})。`,
+      `Mark 間距比圖面：X ${((z.sx-1)*1e6).toFixed(0)}、Y ${((z.sy-1)*1e6).toFixed(0)} ppm；SPB 間距 X ${((z.side.px/z.W-1)*1e6).toFixed(0)}、Y ${((z.side.py/z.H-1)*1e6).toFixed(0)} ppm。玻璃格點顯示機台 Y 比例只有約 +50 ppm，Y 方向偏大較像片子／SPB 實際尺寸，請確認圖面值與溫度。`,
+      `下表「圖面中心」為 24 片換算的片子中心，可直接作為預放中心。`]);}
+  else{stat("dzStats",[]);list("dzFind",[]);}
+  const tag=c=>`<span class="tag ${isR(c)?"R":"L"}">${isR(c)?"右":"左"}</span>`,refR=isR(m0.c),cell=v=>v?`<td>${f4(v[0])}</td><td>${f4(v[1])}</td>`:"<td>—</td><td>—</td>";
+  const at=(m,d)=>d?add(m.p,rot2(adp(d,m.c,m0.c),rad(m.th))):null;
   document.getElementById("calTbl").innerHTML="<tr><th>預放位置</th><th>側</th><th>Mark X</th><th>Mark Y</th><th>θ（列向）</th><th>相機中心 X（原）</th><th>相機中心 Y（原）</th><th>Mark 四點中心 X</th><th>Mark 四點中心 Y</th><th>圖面中心 X</th><th>圖面中心 Y</th><th>貼合 X</th><th>貼合 Y</th><th>備註</th></tr>"+
-    list.map(m=>{const c=add(m.p,rot(adp(dS,m.c,m0.c),rad(m.th))),same=isR(m.c)===refR,ok=same||scope==="all",b=add(c,dB);
-      const note=m.id===ref?"基準（實測）":same?"同側推算":(ok?"另一側：假設同平移":"另一側需實測");
-      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td><td>${f4(c[0])}</td><td>${f4(c[1])}</td>${dT?(()=>{const t=add(m.p,rot(adp(dT,m.c,m0.c),rad(m.th)));return`<td>${f4(t[0])}</td><td>${f4(t[1])}</td>`;})():"<td>—</td><td>—</td>"}${dD?(()=>{const t=add(m.p,rot(adp(dD,m.c,m0.c),rad(m.th)));return`<td><b>${f4(t[0])}</b></td><td><b>${f4(t[1])}</b></td>`;})():"<td>—</td><td>—</td>"}<td>${ok?f4(b[0]):"—"}</td><td>${ok?f4(b[1]):"—"}</td><td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
+    sortMarks(R).map(m=>{const c=at(m,K.dS),same=isR(m.c)===refR,ok=(same||K.scope==="all")&&c&&K.dB,b=ok?add(c,K.dB):null,dzc=at(m,z&&z.dD);
+      const note=m.id===K.ref?"基準（實測）":same?"同側推算":(K.scope==="all"?"另一側：假設同平移":"另一側需實測");
+      return`<tr><td>${m.id}</td><td>${tag(m.c)}</td><td>${f4(m.p[0])}</td><td>${f4(m.p[1])}</td><td>${f5(m.th)}</td>${cell(c)}${cell(at(m,t&&t.dT))}${dzc?`<td><b>${f4(dzc[0])}</b></td><td><b>${f4(dzc[1])}</b></td>`:"<td>—</td><td>—</td>"}${cell(b)}<td style="font-family:var(--font-ui)">${note}</td></tr>`;}).join("");}
 
 // ---- 角度敏感度
-function evalPoints(R){
-  const C=R.C,num=id=>parseFloat(document.getElementById(id).value),rad=d=>d*Math.PI/180;
-  const rot=(v,t)=>{const c=Math.cos(t),s=Math.sin(t);return[c*v[0]-s*v[1],s*v[0]+c*v[1]];};
-  const marks=[...R.Lm.marks,...R.Rm.marks],ref=document.getElementById("refId").value,m0=marks.find(m=>m.id===ref);
-  const cs=["tl","tr","bl","br"].map(k=>[num(k+"X"),num(k+"Y")]),ok=cs.every(q=>q.every(isFinite));
-  const dCs=ok?cs.map(q=>rot(sub(q,m0.p),-rad(m0.th))):null;
-  const mode=document.getElementById("ptSel").value,pts=[];
-  marks.forEach(m=>{
-    if(mode==="mark"||!dCs){pts.push({id:m.id,q:toPhys(m.p,m.c,C)});return;}
-    const cr=dCs.map(d=>add(m.p,rot(adp(d,m.c,m0.c),rad(m.th)))).map(p=>toPhys(p,m.c,C));
-    if(mode==="center")pts.push({id:m.id,q:mul(cr.reduce(add),.25)});
-    else ["左上","右上","左下","右下"].forEach((n,i)=>pts.push({id:m.id,corner:n,q:cr[i]}));});
-  const refC=dCs?toPhys(mul(dCs.map(d=>add(m0.p,rot(d,rad(m0.th)))).reduce(add),.25),m0.c,C):toPhys(m0.p,m0.c,C);
-  return{pts,refC,C};}
+function evalPoints(R){const C=R.C,mode=val("ptSel"),pts=[],K=R.CAL;
+  [...R.Lm.marks,...R.Rm.marks].forEach(m=>{const t=tileOf(m);
+    if(mode==="mark"||!t){pts.push({id:m.id,q:toPhys(m.p,m.c,C)});return;}
+    if(mode==="center")pts.push({id:m.id,q:toPhys(t.c,m.c,C)});
+    else ["左上","右上","右下","左下"].forEach((n,i)=>pts.push({id:m.id,corner:n,q:toPhys(t.cr[i],m.c,C)}));});
+  const ref=K.m0?tileOf(K.m0):null;
+  return{pts,refC:ref?toPhys(ref.c,K.m0.c,C):K.m0?toPhys(K.m0.p,K.m0.c,C):[0,0],C};}
 
 function angle(R){
   const{pts,refC,C}=evalPoints(R),num=id=>parseFloat(document.getElementById(id).value);
@@ -640,7 +645,7 @@ function angle(R){
     ["0.01° 時最大偏移",`X ${(rows[0].mx*1000).toFixed(1)} / Y ${(rows[0].my*1000).toFixed(1)} µm`,`X 在 ${lbl(rows[0].px)}、Y 在 ${lbl(rows[0].py)}`],
   ];
   document.getElementById("angStats").innerHTML=st.map(([k,v,d,w])=>`<div class="stat${w?" warn":""}"><div class="k">${k}</div><div class="v" style="font-size:16px">${v}</div><div class="d">${d}</div></div>`).join("");
-  const refs=[["左右實體 θ 差",deg(R.Rp.thx-R.Lp.thx)],["四角 θ − Mark θ（1-11 實測）",(()=>{const v=document.getElementById("tileStats").querySelector(".stat:nth-child(2) .v");return v?parseFloat(v.textContent):NaN;})()],["右側 SPB θ（實體）",deg(R.fR.p[0])]]
+  const refs=[["左右實體 θ 差",deg(R.Rp.thx-R.Lp.thx)],["片子四點 θ − 列 θ（實測校驗）",R.CAL.tile?R.CAL.tile.dth:NaN],["右側 SPB θ（實體）",deg(R.fR.p[0])]]
     .filter(r=>isFinite(r[1])).map(([n,a])=>{let mx=0,my=0;pts.forEach(p=>{const d=shift(p.q,Math.abs(a));mx=Math.max(mx,Math.abs(d[0]));my=Math.max(my,Math.abs(d[1]));});
       return`${n} ${f5(a)}° → 最大 ΔX ${(mx*1000).toFixed(0)} µm、ΔY ${(my*1000).toFixed(0)} µm`;});
   document.getElementById("angFind").innerHTML=[
@@ -671,7 +676,7 @@ function angle(R){
 }
 
 // ---- 分頁
-function showTab(t){document.querySelectorAll("[data-tab]").forEach(e=>e.hidden=e.dataset.tab!==t);
+function showTab(t){CUR=t;document.querySelectorAll("[data-tab]").forEach(e=>e.hidden=e.dataset.tab!==t);paint();
   document.querySelectorAll("#mainTabs button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.go===t));}
 const TABS=["overview","map","data","calib","angle","input"];
 const fromHash=()=>{const h=location.hash.slice(1);return TABS.includes(h)?h:"overview";};
@@ -682,9 +687,8 @@ window.addEventListener("hashchange",()=>showTab(fromHash()));
 function stage(R){
   const num=id=>parseFloat(document.getElementById(id).value),rad=d=>d*Math.PI/180;
   const size=num("stSize")||200,e=[num("stEx")||0,num("stEy")||0],res=Math.abs(num("stRes"))||0.001,refMode=document.getElementById("stRef").value;
-  const cs=["tl","tr","bl","br"].map(k=>[num(k+"X"),num(k+"Y")]),ok=cs.every(q=>q.every(isFinite));
-  const W=num("dzW")||135,H=num("dzH")||144;
-  let dCorner=0;const ts=document.getElementById("tileStats").querySelector(".stat:nth-child(2) .v");if(refMode==="corner"&&ts)dCorner=parseFloat(ts.textContent)||0;
+  const W=DD?DD.W:(num("dzW")||135),H=DD?DD.H:(num("dzH")||144);
+  const dCorner=refMode==="corner"&&R.CAL.tile?R.CAL.tile.dth:0;
   const rT=Math.hypot(W/2+Math.abs(e[0]),H/2+Math.abs(e[1])),fits=W/2+Math.abs(e[0])<=size/2&&H/2+Math.abs(e[1])<=size/2,diag=Math.hypot(W,H),over=[Math.max(0,W/2+Math.abs(e[0])-size/2),Math.max(0,H/2+Math.abs(e[1])-size/2)];
   const marks=[...R.Lm.marks,...R.Rm.marks].sort((a,b)=>(a.c>6)-(b.c>6)||a.r-b.r||a.c-b.c);
   const xArm=H/2+Math.abs(e[1]),yArm=W/2+Math.abs(e[0]);
@@ -746,8 +750,13 @@ function formula(R){
     `換成實體方向比較：左 ${f5(rows[0].s*rows[0].th)}°、右 ${f5(rows[1].s*rows[1].th)}°，${Math.sign(rows[0].s*rows[0].th)===Math.sign(rows[1].s*rows[1].th)?"同方向":"方向相反"}，差 ${f5(rows[1].s*rows[1].th-rows[0].s*rows[0].th)}°。`,
     same?`需要另外確認的是兩台旋轉平台的正方向：若某一側平台 +θ 實際轉向與機台 θ 定義相反，該側下給平台的角度要變號（−θ）。點動 +0.1° 看片子右上角往哪走即可確認。`:`d 的 Y 分量與片子尺寸兩側相同；左側 d 由右側 1-11 實測鏡像推得（假設片子 Mark 在實體同一角），建議左側也量一片四個 Mark 驗證。`,
     `貼合平移（相機→貼合）兩側各自不同，只能各側分別實測，不能共用。`].filter(Boolean).map(t=>`<li>${t}</li>`).join("");}
-function render(){const R=compute();stats(R);findings(R);cmpTable(R);glassTable(R);calib(R);drawMap(R);drawTheta(R);table(R);angle(R);stage(R);formula(R);inputResult(R);
-  document.getElementById("magv").textContent="×"+document.getElementById("mag").value;}
+// ======== 執行架構：輸入 → 模型（一次計算）→ 只重畫目前分頁 ========
+let STATE=null,CUR="overview",pending=false;const DIRTY=new Set();
+const VIEWS={overview:R=>{stats(R);findings(R);cmpTable(R);},map:R=>{drawMap(R);drawTheta(R);glassTable(R);},data:table,calib:calibView,
+  angle:R=>{angle(R);stage(R);formula(R);},input:inputResult};
+function update(){const R=compute();R.CAL=calibModel(R);STATE=R;$("orderTxt").textContent=`實體排列由左至右：${R.lOrd.join(" ")} ｜ ${R.rOrd.join(" ")}。`;Object.keys(VIEWS).forEach(t=>DIRTY.add(t));paint();saveInputs();}
+function paint(){if(!STATE||!DIRTY.has(CUR))return;VIEWS[CUR](STATE);DIRTY.delete(CUR);$("magv").textContent="×"+val("mag");}
+function render(){if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;update();});}
 
 const inp=document.getElementById("inputs");
 Object.keys(DEF).forEach(k=>{const side=isR(ck(k)[1])?"右側":"左側",fs=document.createElement("fieldset");
@@ -760,10 +769,9 @@ document.getElementById("mode").addEventListener("input",()=>{applyMode();render
 [["optPy","py"],["optPxD","pxD"]].forEach(([id,k])=>document.getElementById(id).addEventListener("input",e=>{const v=parseFloat(e.target.value);if(isFinite(v)&&v>0){OPT[k]=v;render();}}));
 document.getElementById("optPx").addEventListener("input",e=>{OPT.pxSrc=e.target.value;render();});
 const TH_IDS=[["th11x","1-1",0],["th11y","1-1",1],["th17x","1-7",0],["th17y","1-7",1]];
-const saveTh=()=>{try{localStorage.setItem("spbTheory",JSON.stringify(OPT.th));}catch(e){}};
+const saveTh=()=>{};
 TH_IDS.forEach(([id,k,i])=>document.getElementById(id).addEventListener("input",e=>{OPT.th[k][i]=parseFloat(e.target.value);saveTh();render();}));
 const fillTh=()=>TH_IDS.forEach(([id,k,i])=>{const v=OPT.th[k][i];document.getElementById(id).value=isFinite(v)?v:"";});
-try{const t=JSON.parse(localStorage.getItem("spbTheory")||"null");if(t&&t["1-1"]&&t["1-7"]){OPT.th=t;fillTh();}}catch(e){}
 document.getElementById("thSet").addEventListener("click",()=>{OPT.th={"1-1":[...RAW["1-1"]],"1-7":[...RAW["1-7"]]};fillTh();saveTh();render();});
 document.getElementById("thClr").addEventListener("click",()=>{OPT.th={"1-1":[NaN,NaN],"1-7":[NaN,NaN]};fillTh();saveTh();render();});
 applyMode();
@@ -777,6 +785,19 @@ document.getElementById("base").addEventListener("input",e=>{document.getElement
 ["refId","camX","camY","bondX","bondY","bondScope","dzW","dzH","dzU","dzV","tlX","tlY","trX","trY","blX","blY","brX","brY"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 ["rcSel","rcX","rcY","thr","amax","ptSel","stSize","stEx","stEy","stRes","stRef"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 
+
+// ======== 輸入保存（只存在這台裝置的瀏覽器）與還原 ========
+const STORE="spbView.v2";
+const ctrls=()=>[...document.querySelectorAll(".wrap input[id], .wrap select[id]")].filter(e=>e.type!=="checkbox"||true);
+function saveInputs(){try{const o={};ctrls().forEach(e=>o[e.id]=e.type==="checkbox"?e.checked:e.value);localStorage.setItem(STORE,JSON.stringify(o));}catch(e){}}
+function loadInputs(){try{const o=JSON.parse(localStorage.getItem(STORE)||"null");if(!o)return;ctrls().forEach(e=>{if(!(e.id in o))return;if(e.type==="checkbox")e.checked=!!o[e.id];else e.value=o[e.id];});}catch(e){}}
+function syncState(){Object.keys(DEF).forEach(k=>["x","y"].forEach((a,i)=>{const v=num(`in-${k}-${a}`);if(isFinite(v))RAW[k][i]=v;}));
+  D.L=+val("dirL");D.R=+val("dirR");MSYM=val("msym")==="mirror";const g=num("gapIn");if(isFinite(g)&&g>0)GAP=g;
+  const py=num("optPy"),pxd=num("optPxD");if(py>0)OPT.py=py;if(pxd>0)OPT.pxD=pxd;OPT.pxSrc=val("optPx");
+  TH_IDS.forEach(([id,k,i])=>OPT.th[k][i]=num(id));applyMode();}
+function resetInputs(){ctrls().forEach(e=>{if(e.tagName==="SELECT"){const o=[...e.options].find(o=>o.defaultSelected)||e.options[0];e.value=o.value;}else if(e.type==="checkbox")e.checked=e.defaultChecked;else e.value=e.defaultValue;});
+  try{localStorage.removeItem(STORE);}catch(e){}syncState();update();}
+
 // ---- 判讀收合與各分頁使用說明
 const GUIDE={
  overview:{t:"總覽與比較",use:["先在上方設定兩側機台 X 方向（目前：左、右皆由右至左，原點各自獨立）。","看上方卡片：「左側 θ／右側 θ（下指令）」就是各側要補償的角度；紅框代表需要注意。","「分開計算 vs 整合計算」表：左右分開是實際使用的結果；整合只用來看兩側關係。"],
@@ -789,7 +810,7 @@ const GUIDE={
    req:[["req","基準位置（量的是哪一片）"],["req","該片四個 Mark 座標（左上、右上、左下、右下）"],["req","片子圖面尺寸與量到的 Mark 在圖面位置（預設 135×144，左 12／右 129，上 5.25／下 137.25）"],["opt","相機移到貼附中心座標、貼合座標（要算貼合座標時才需要）"]]},
  angle:{t:"角度敏感度",use:["看 SPB 角度每變 0.01° 各位置偏移多少、轉到幾度會超過門檻（例如 1 mm）。","下方「旋轉平台補償」：角度交給 200×200 平台時，各片要轉的角度、角落移動量與解析度影響。","「左右兩側旋轉補償公式」：確認兩側公式與 Mark→中心偏移是否相同。"],
    req:[["req","旋轉中心、偏移門檻、最大角度"],["req","平台尺寸、平台解析度、tile 中心偏離（不知道就填 0）"],["opt","實測校驗的片子四個 Mark（評估點用片子四角時需要）"]]},
- input:{t:"量測輸入",use:["選模式：A＝只拍第 1 列兩端（4 點），第 2 列依 Y 中心間距推算；B＝兩列都拍（8 點），各列個別計算。","填入相機量到的 Mark 座標（各側機台座標），所有分頁即時重算。","理論座標可填教點值或按「以目前設為基準片」，用來看 SPB 的 XY 偏移。"],
+ input:{t:"量測輸入",use:["選模式：A＝只拍第 1 列兩端（4 點），第 2 列依 Y 中心間距推算；B＝兩列都拍（8 點），各列個別計算。","填入相機量到的 Mark 座標（各側機台座標），所有分頁即時重算。","理論座標可填教點值或按「以目前設為基準片」，用來看 SPB 的 XY 偏移。","所有分頁的輸入會自動保存在這台裝置的瀏覽器，重開頁面會還原；按「全部恢復預設值」可清除。"],
    req:[["req","模式 A：左 1-1、1-6，右 1-7、1-12"],["req","模式 B：再加左 2-1、2-6，右 2-7、2-12"],["opt","模式 A 的 Y 中心間距（預設 144，實測約 144.1）與 X 間距來源"],["opt","理論座標（1-1、1-7）"]]},
 };
 function setupFolds(){
@@ -802,6 +823,8 @@ function setupFolds(){
     sec.innerHTML=`<details class="fold" style="margin:0"><summary>使用說明：${g.t}</summary><div class="guide"><h3>怎麼用</h3><ul>${g.use.map(t=>`<li>${t}</li>`).join("")}</ul><h3>需要填入</h3><ul>${g.req.map(([k,t])=>`<li><span class="${k}">${k==="req"?"必要":"選填"}</span>${t}</li>`).join("")}</ul></div></details>`;
     first.parentNode.insertBefore(sec,first);});}
 setupFolds();
-render();
-showTab(fromHash());
+loadInputs();syncState();
+CUR=fromHash();update();
+showTab(CUR);
+$("resetAll").addEventListener("click",resetInputs);
 </script>
